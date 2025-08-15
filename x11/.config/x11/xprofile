@@ -1,0 +1,41 @@
+#!/bin/sh
+
+# This file runs when a DM logs you into a graphical session.
+# If you use startx/xinit like a Chad, this file will also be sourced.
+
+# start IBUS at here
+ibus-daemon -rxRd &
+export PATH="$HOME/.local/bin/scripts:$PATH" # -> chua file run-blocks
+
+xrandr --output Virtual-1 --mode 1360x768 --rate 60 # Set DPI. User may want to use a larger number for larger screens.
+#xrandr --dpi 96 # Set DPI. User may want to use a larger number for larger screens.
+setbg &         # set the background with the `setbg` script
+#xrdb ${XDG_CONFIG_HOME:-$HOME/.config}/x11/xresources & xrdbpid=$!	# Uncomment to use Xresources colors/settings on startup
+
+# Bogo tieng viet
+GTK_IM_MODULE=fcitx
+QT_IM_MODULE=fcitx
+XMODIFIERS=@im=fcitx
+INPUT_METHOD=fcitx
+SDL_IM_MODULE=fcitx
+GLFW_IM_MODULE=ibus
+
+
+# Nghia fix -> error qquit -> re-login -> audio error <- waiting pipewire start
+pipewire &
+sleep 1
+
+autostart="mpd xcompmgr dunst unclutter remapd"
+
+for program in $autostart; do
+    pidof -sx "$program" || "$program" &
+done >/dev/null 2>&1
+
+# run script for statusbar
+run-blocks &
+
+# Ensure that xrdb has finished running before moving on to start the WM/DE.
+[ -n "$xrdbpid" ] && wait "$xrdbpid"
+
+
+fcitx5 &

@@ -1,0 +1,2 @@
+#!/bin/sh
+source "$HOME/.config/x11/xprofile"
