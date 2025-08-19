@@ -5,7 +5,7 @@
 
 # start IBUS at here
 ibus-daemon -rxRd &
-export PATH="$HOME/.local/bin/scripts:$PATH" # -> chua file run-blocks
+#export PATH="$HOME/.local/bin/scripts:$PATH" # -> chua file run-blocks
 
 xrandr --output Virtual-1 --mode 1360x768 --rate 60 # Set DPI. User may want to use a larger number for larger screens.
 #xrandr --dpi 96 # Set DPI. User may want to use a larger number for larger screens.

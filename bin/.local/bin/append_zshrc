@@ -1,0 +1,9 @@
+#!/bin/sh
+
+# Xác định file .zshrc dựa trên biến môi trường ZDOTDIR nếu có, ngược lại dùng $HOME
+ZSHRC_PATH="${ZDOTDIR:-$HOME}/.zshrc"
+
+echo "Nhập nội dung muốn thêm vào $ZSHRC_PATH (nhấn Ctrl+D để kết thúc):"
+
+# Đọc nhiều dòng input từ bàn phím cho tới khi Ctrl+D (EOF)
+APPEND_CONTENT=$(cat)

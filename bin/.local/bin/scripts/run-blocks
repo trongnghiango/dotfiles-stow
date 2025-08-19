@@ -1,0 +1,14 @@
+#/bin/sh
+if [ -z "$1" ] ; then
+	sleep 0.5
+    	echo "No Argument supplied $1"
+	setsid dwmblocks &
+else
+    xdotool exec st \
+    && sleep 1 \
+    && xdotool type "setsid dwmblocks &" \
+    && xdotool key return \
+    && sleep 0.2
+    echo "Argument supplied $1"
+    #&& xdotool key super+q
+fi
