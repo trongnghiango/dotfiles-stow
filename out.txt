@@ -1,0 +1,251 @@
+.
+├── bin
+│   └── .local
+│       └── bin
+│           ├── append_zshrc
+│           ├── booksplit
+│           ├── checkup -> cron/checkup
+│           ├── compiler
+│           ├── cron
+│           │   ├── checkup
+│           │   ├── crontog
+│           │   ├── newsup
+│           │   └── README.md
+│           ├── crontog -> cron/crontog
+│           ├── displayselect
+│           ├── dmenuhandler
+│           ├── dmenumountcifs
+│           ├── dmenupass
+│           ├── dmenurecord
+│           ├── dmenuunicode
+│           ├── _generate_links.sh
+│           ├── getbib
+│           ├── getcomproot
+│           ├── getkeys
+│           ├── ifinstalled
+│           ├── lfub
+│           ├── linkhandler
+│           ├── maimpick
+│           ├── mounter
+│           ├── newsup -> cron/newsup
+│           ├── noisereduce
+│           ├── opout
+│           ├── otp
+│           ├── pauseallmpv
+│           ├── peertubetorrent
+│           ├── podentr
+│           ├── qndl
+│           ├── queueandnotify
+│           ├── remapd
+│           ├── remaps
+│           ├── rotdir
+│           ├── rssadd
+│           ├── rssget
+│           ├── run-blocks -> scripts/run-blocks
+│           ├── sb-battery -> statusbar/sb-battery
+│           ├── sb-brightness -> statusbar/sb-brightness
+│           ├── sb-clock -> statusbar/sb-clock
+│           ├── sb-cpu -> statusbar/sb-cpu
+│           ├── sb-cpubars -> statusbar/sb-cpubars
+│           ├── sb-disk -> statusbar/sb-disk
+│           ├── sb-doppler -> statusbar/sb-doppler
+│           ├── sb-forecast -> statusbar/sb-forecast
+│           ├── sb-help-icon -> statusbar/sb-help-icon
+│           ├── sb-internet -> statusbar/sb-internet
+│           ├── sb-iplocate -> statusbar/sb-iplocate
+│           ├── sb-kbselect -> statusbar/sb-kbselect
+│           ├── sb-mailbox -> statusbar/sb-mailbox
+│           ├── sb-memory -> statusbar/sb-memory
+│           ├── sb-moonphase -> statusbar/sb-moonphase
+│           ├── sb-mpdup -> statusbar/sb-mpdup
+│           ├── sb-music -> statusbar/sb-music
+│           ├── sb-nettraf -> statusbar/sb-nettraf
+│           ├── sb-news -> statusbar/sb-news
+│           ├── sb-pacpackages -> statusbar/sb-pacpackages
+│           ├── sb-popupgrade -> statusbar/sb-popupgrade
+│           ├── sb-price -> statusbar/sb-price
+│           ├── sb-tasks -> statusbar/sb-tasks
+│           ├── sb-ticker -> statusbar/sb-ticker
+│           ├── sb-torrent -> statusbar/sb-torrent
+│           ├── sb-volume -> statusbar/sb-volume
+│           ├── scripts
+│           │   └── run-blocks
+│           ├── sd
+│           ├── setbg
+│           ├── shortcuts
+│           ├── slider
+│           ├── statusbar
+│           │   ├── sb-battery
+│           │   ├── sb-brightness
+│           │   ├── sb-clock
+│           │   ├── sb-cpu
+│           │   ├── sb-cpubars
+│           │   ├── sb-disk
+│           │   ├── sb-doppler
+│           │   ├── sb-forecast
+│           │   ├── sb-help-icon
+│           │   ├── sb-internet
+│           │   ├── sb-iplocate
+│           │   ├── sb-kbselect
+│           │   ├── sb-mailbox
+│           │   ├── sb-memory
+│           │   ├── sb-moonphase
+│           │   ├── sb-mpdup
+│           │   ├── sb-music
+│           │   ├── sb-nettraf
+│           │   ├── sb-news
+│           │   ├── sb-pacpackages
+│           │   ├── sb-popupgrade
+│           │   ├── sb-price
+│           │   ├── sb-tasks
+│           │   ├── sb-ticker
+│           │   ├── sb-torrent
+│           │   ├── sb-volume
+│           │   ├── vap-cpu
+│           │   ├── vap-forecast
+│           │   ├── vap-memory
+│           │   └── vap-volume
+│           ├── symlink_scripts.sh
+│           ├── sysact
+│           ├── tag
+│           ├── td-toggle
+│           ├── torwrap
+│           ├── transadd
+│           ├── tutorialvids
+│           ├── unix
+│           ├── unmounter
+│           ├── vap-cpu -> statusbar/vap-cpu
+│           ├── vap-forecast -> statusbar/vap-forecast
+│           ├── vap-memory -> statusbar/vap-memory
+│           ├── vap-volume -> statusbar/vap-volume
+│           ├── weath
+│           └── xdg-terminal-exec
+├── dunst
+│   └── .config
+│       └── dunst
+│           └── dunstrc
+├── .git
+│   ├── config
+│   ├── description
+│   ├── HEAD
+│   ├── hooks
+│   │   ├── applypatch-msg.sample
+│   │   ├── commit-msg.sample
+│   │   ├── fsmonitor-watchman.sample
+│   │   ├── post-update.sample
+│   │   ├── pre-applypatch.sample
+│   │   ├── pre-commit.sample
+│   │   ├── pre-merge-commit.sample
+│   │   ├── prepare-commit-msg.sample
+│   │   ├── pre-push.sample
+│   │   ├── pre-rebase.sample
+│   │   ├── pre-receive.sample
+│   │   ├── push-to-checkout.sample
+│   │   ├── sendemail-validate.sample
+│   │   └── update.sample
+│   ├── index
+│   ├── info
+│   │   └── exclude
+│   ├── logs
+│   │   ├── HEAD
+│   │   └── refs
+│   │       ├── heads
+│   │       │   └── main
+│   │       └── remotes
+│   │           └── origin
+│   │               └── HEAD
+│   ├── objects
+│   │   ├── info
+│   │   └── pack
+│   │       ├── pack-c6edd511d1335716212a45abb6f50487b33a1e60.idx
+│   │       ├── pack-c6edd511d1335716212a45abb6f50487b33a1e60.pack
+│   │       └── pack-c6edd511d1335716212a45abb6f50487b33a1e60.rev
+│   ├── packed-refs
+│   └── refs
+│       ├── heads
+│       │   └── main
+│       ├── remotes
+│       │   └── origin
+│       │       └── HEAD
+│       └── tags
+├── gtk
+│   ├── .config
+│   │   ├── gtk-3.0
+│   │   │   └── settings.ini
+│   │   └── gtk-4.0
+│   │       └── settings.ini
+│   └── .gtkrc-2.0
+├── launchers
+│   └── .local
+│       └── share
+│           └── applications
+│               ├── file.desktop
+│               ├── img.desktop
+│               ├── mail.desktop
+│               ├── pdf.desktop
+│               ├── rss.desktop
+│               ├── text.desktop
+│               ├── torrent.desktop
+│               └── video.desktop
+├── lf
+│   └── .config
+│       └── lf
+│           ├── cleaner
+│           ├── icons
+│           ├── lfrc
+│           ├── scope
+│           └── shortcutrc
+├── media
+│   └── .config
+│       ├── mpd
+│       │   ├── mpd
+│       │   │   └── mpd.conf
+│       │   └── mpd.conf
+│       ├── mpv
+│       │   └── mpv
+│       │       ├── input.conf
+│       │       └── scripts
+│       │           └── modules.lua
+│       └── ncmpcpp
+│           ├── config
+│           └── ncmpcpp
+│               ├── bindings
+│               └── config
+├── nsxiv
+│   └── .config
+│       ├── nsxiv
+│       │   └── exec
+│       │       └── key-handler
+│       └── sxiv -> nsxiv
+├── out.txt
+├── pipewire
+│   └── .config
+│       └── pipewire
+│           └── pipewire.conf.d
+│               └── user-session.conf
+├── shell
+│   ├── .config
+│   │   └── shell
+│   │       ├── aliasrc
+│   │       ├── bm-dirs
+│   │       ├── bm-files
+│   │       ├── inputrc
+│   │       ├── profile
+│   │       ├── shortcutenvrc
+│   │       ├── shortcutrc
+│   │       └── zshnameddirrc
+│   └── .zprofile
+├── x11
+│   ├── .config
+│   │   └── x11
+│   │       ├── xinitrc
+│   │       ├── xprofile
+│   │       └── xresources
+│   └── .xprofile
+└── zsh
+    └── .config
+        └── zsh
+            ├── .zcompdump
+            └── .zshrc
+
+64 directories, 185 files
