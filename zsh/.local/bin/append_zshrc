@@ -1,0 +1,106 @@
+#!/bin/bash
+# append_zshrc - Thêm nội dung vào .zshrc trong dotfiles structure
+
+set -e
+
+echo "📝 append_zshrc - Thêm nội dung vào Zsh config"
+
+# Xác định đường dẫn chính xác dựa trên cấu trúc của bạn
+DOTFILES_ROOT="$HOME/.dotfiles"
+ZSHRC_PATHS=(
+    "$DOTFILES_ROOT/zsh/.config/zsh/.zshrc"   # Vị trí trong dotfiles
+    "$HOME/.config/zsh/.zshrc"                # Vị trí sau khi stow
+    "$HOME/.zshrc"                            # Vị trí legacy
+)
+
+# Tìm file .zshrc tồn tại
+ZSHRC_PATH=""
+for path in "${ZSHRC_PATHS[@]}"; do
+    if [ -f "$path" ]; then
+        ZSHRC_PATH="$path"
+        echo "📍 Tìm thấy: $ZSHRC_PATH"
+        break
+    fi
+done
+
+# Nếu không tìm thấy, tạo trong dotfiles
+if [ -z "$ZSHRC_PATH" ]; then
+    ZSHRC_PATH="$DOTFILES_ROOT/zsh/.config/zsh/.zshrc"
+    echo "📄 Tạo file mới trong dotfiles: $ZSHRC_PATH"
+    mkdir -p "$(dirname "$ZSHRC_PATH")"
+    touch "$ZSHRC_PATH"
+fi
+
+# Xác định xem file đang ở đâu (dotfiles hay system)
+if [[ "$ZSHRC_PATH" == "$DOTFILES_ROOT"* ]]; then
+    echo "💾 Lưu trực tiếp vào dotfiles"
+    TARGET_TYPE="dotfiles"
+else
+    echo "⚡ File đang ở system, kiểm tra xem có phải symlink không..."
+    if [ -L "$ZSHRC_PATH" ]; then
+        LINK_TARGET=$(readlink -f "$ZSHRC_PATH")
+        echo "🔗 Đây là symlink đến: $LINK_TARGET"
+        if [[ "$LINK_TARGET" == "$DOTFILES_ROOT"* ]]; then
+            echo "✅ Symlink trỏ đến dotfiles, tiếp tục..."
+            ZSHRC_PATH="$LINK_TARGET"
+            TARGET_TYPE="dotfiles"
+        else
+            TARGET_TYPE="system"
+        fi
+    else
+        TARGET_TYPE="system"
+    fi
+fi
+
+echo -e "\n✍️  Nhập nội dung muốn thêm vào $ZSHRC_PATH"
+echo "   (Nhấn Ctrl+D để kết thúc, Ctrl+C để hủy):"
+echo "   -----------------------------------------"
+
+# Đọc nội dung multi-line
+CONTENT=$(cat)
+
+if [ -z "$CONTENT" ]; then
+    echo "⚠️  Không có nội dung. Thoát."
+    exit 0
+fi
+
+# Hiển thị preview
+echo -e "\n📋 Preview:"
+echo "════════════════════════════════════════"
+echo "$CONTENT"
+echo "════════════════════════════════════════"
+
+# Xác nhận
+read -p "✅ Thêm nội dung trên? (y/N): " -n 1 -r
+echo
+if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+    echo "🚫 Đã hủy."
+    exit 0
+fi
+
+# Backup nếu file đã tồn tại và có nội dung
+if [ -s "$ZSHRC_PATH" ]; then
+    BACKUP="${ZSHRC_PATH}.backup.$(date +%Y%m%d_%H%M%S)"
+    cp "$ZSHRC_PATH" "$BACKUP"
+    echo "💾 Backup: $BACKUP"
+fi
+
+# Thêm nội dung
+{
+    echo ""
+    echo "# --- Thêm bởi append_zshrc [$(date '+%Y-%m-%d %H:%M:%S')] ---"
+    echo "$CONTENT"
+    echo "# --- Kết thúc ---"
+    echo ""
+} >> "$ZSHRC_PATH"
+
+echo "🎉 Đã thêm thành công!"
+echo ""
+echo "📌 Vị trí: $ZSHRC_PATH"
+echo "📌 Loại: $TARGET_TYPE"
+
+if [ "$TARGET_TYPE" = "dotfiles" ]; then
+    echo "🔄 Áp dụng: cd ~/.dotfiles && stow -t ~ -R zsh"
+fi
+
+echo "⚡ Áp dụng ngay: source '$HOME/.config/zsh/.zshrc' 2>/dev/null || source '$HOME/.zshrc'"

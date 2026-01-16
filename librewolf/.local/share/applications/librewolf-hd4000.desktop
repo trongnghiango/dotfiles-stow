@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=LibreWolf (HD4000)
+GenericName=Web Browser
+Comment=LibreWolf optimized for Intel HD4000 (VAAPI H.264 only)
+Exec=librewolf-hd4000 %u
+Terminal=false
+Icon=librewolf
+Categories=Network;WebBrowser;
+StartupNotify=true
+StartupWMClass=LibreWolf
+MimeType=text/html;text/xml;application/xhtml+xml;application/xml;application/rss+xml;application/atom+xml;x-scheme-handler/http;x-scheme-handler/https;

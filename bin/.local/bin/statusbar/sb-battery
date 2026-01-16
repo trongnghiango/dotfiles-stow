@@ -1,37 +1,37 @@
 #!/bin/sh
 
-# Prints all batteries, their percentage remaining and an emoji corresponding
-# to charge status (🔌 for plugged up, 🔋 for discharging on battery, etc.).
-
-case $BLOCK_BUTTON in
-	3) notify-send "🔋 Battery module" "🔋: discharging
+case $BUTTON in
+    1) notify-send "🔋 Battery Info" "Status: $(cat /sys/class/power_supply/BAT0/status)
+Capacity: $(cat /sys/class/power_supply/BAT0/capacity)%" ;;
+    3) notify-send "🔋 Battery module" "🔋: discharging
 🛑: not charging
 ♻: stagnant charge
 🔌: charging
 ⚡: charged
 ❗: battery very low!
-- Scroll to change adjust xbacklight." ;;
-	4) xbacklight -inc 10 ;;
-	5) xbacklight -dec 10 ;;
-	6) setsid -f "$TERMINAL" -e "$EDITOR" "$0" ;;
+- Scroll to adjust brightness." ;;
+    4) brightnessctl set +1% ;;
+    5) brightnessctl set 1%- ;;
+    6) setsid -f "$TERMINAL" -e "$EDITOR" "$0" ;;
 esac
 
-# Loop through all attached batteries and format the info
-for battery in /sys/class/power_supply/BAT?*; do
-	# If non-first battery, print a space separator.
-	[ -n "${capacity+x}" ] && printf " "
-	# Sets up the status and capacity
-	case "$(cat "$battery/status" 2>&1)" in
-		"Full") status="⚡" ;;
-		"Discharging") status="🔋" ;;
-		"Charging") status="🔌" ;;
-		"Not charging") status="🛑" ;;
-		"Unknown") status="♻️" ;;
-		*) exit 1 ;;
-	esac
-	capacity="$(cat "$battery/capacity" 2>&1)"
-	# Will make a warn variable if discharging and low
-	[ "$status" = "🔋" ] && [ "$capacity" -le 25 ] && warn="❗"
-	# Prints the info
-	printf "%s%s%d%%" "$status" "$warn" "$capacity"; unset warn
-done && printf "\\n"
+BATTERY="/sys/class/power_supply/BAT0"
+[ ! -d "$BATTERY" ] && BATTERY="/sys/class/power_supply/BAT1"
+
+STATUS_TEXT=$(cat "$BATTERY/status" 2>/dev/null)
+case "$STATUS_TEXT" in
+    "Full") ICON="⚡" ;;
+    "Discharging") ICON="🔋" ;;
+    "Charging") ICON="🔌" ;;
+    "Not charging") ICON="🛑" ;;
+    "Unknown") ICON="♻️" ;;
+    *) ICON="🔋" ;;
+esac
+
+CAPACITY=$(cat "$BATTERY/capacity" 2>/dev/null)
+WARN=""
+if [ "$STATUS_TEXT" = "Discharging" ] && [ "$CAPACITY" -le 25 ]; then
+    WARN="❗"
+fi
+
+printf "%s%s%d%%\n" "$ICON" "$WARN" "$CAPACITY"

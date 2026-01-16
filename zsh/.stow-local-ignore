@@ -1,0 +1,8 @@
+# SAI: .zcompdump*|*.zwc|*.zwc.old
+# ĐÚNG:
+^\.zcompdump.*$
+^.*\.zwc$
+^.*\.zwc\.old$
+
+# Zsh auto-generated cache files
+^\.zcompdump.*$

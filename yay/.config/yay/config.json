@@ -1,0 +1,31 @@
+{
+  "aururl": "https://aur.archlinux.org",
+  "buildDir": "/home/$USER/.cache/yay",
+
+  "editor": "nvim",
+  "editorflags": "",
+
+  "makepkgbin": "makepkg",
+  "pacmanbin": "pacman",
+  "pacmanconf": "/etc/pacman.conf",
+
+  "upgrade": true,
+  "timeupdate": true,
+  "pgpfetch": true,
+  "provides": true,
+
+  "editmenu": false,
+  "diffmenu": true,
+  "cleanmenu": false,
+
+  "answerclean": "all",
+  "answerdiff": "all",
+  "answeredit": "none",
+
+  "removemake": "yes",
+  "cleanafter": true,
+
+  "sudoloop": false,
+  "noconfirm": false
+}
+

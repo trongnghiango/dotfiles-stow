@@ -136,5 +136,9 @@ map oe :set sortby ext
 # Bấm 'r' để đảo ngược trạng thái hiện tại (bất kể đang sort theo gì)
 map r :set reverse!
 
+
+# Hidden
+map . :set hidden!
+
 # Import shortcuts
 source "~/.config/lf/shortcutrc"

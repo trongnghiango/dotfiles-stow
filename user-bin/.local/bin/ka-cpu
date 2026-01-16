@@ -1,0 +1,16 @@
+#!/bin/sh
+
+case $BLOCK_BUTTON in
+    1) setsid -f st -e btop ;;
+    3) notify-send "🪨 CPU load module" "Left click to open bashtop";;
+esac
+
+# Read /proc/stat twice to calculate load
+read -r cpu a b c previdle rest < /proc/stat
+prevtotal=$((a+b+c+previdle))
+sleep 0.2  # Reduced sleep for faster response (0.5 is a bit laggy for UI)
+read -r cpu a b c idle rest < /proc/stat
+total=$((a+b+c+idle))
+cpu=$((100*( (total-prevtotal) - (idle-previdle) ) / (total-prevtotal) ))
+
+printf "^C4^ ^C15^$cpu%% "

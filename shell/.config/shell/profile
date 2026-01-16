@@ -9,7 +9,7 @@ if [ -d "$HOME/.local/bin" ]; then
   export PATH="$HOME/.local/bin:$PATH"
 fi
 
-  
+[ -d "$HOME/.local/bin" ] && export PATH="$HOME/Applications/bin:$PATH"
 
 unsetopt PROMPT_SP 2>/dev/null
 

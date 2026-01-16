@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# LibreWolf VAAPI wrapper for Intel HD4000
+
+export MOZ_X11_EGL=1
+export MOZ_DISABLE_RDD_SANDBOX=1
+export LIBVA_DRIVER_NAME=iHD   # fallback safe
+export MOZ_LOG="PlatformDecoderModule:3"
+
+exec librewolf "$@"

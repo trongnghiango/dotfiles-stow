@@ -1,0 +1,6 @@
+# SAI: doc/tags|lazy-lock.json|*.lock|*.log
+# ĐÚNG:
+^doc/tags$
+^lazy-lock\.json$
+^.*\.lock$
+^.*\.log$

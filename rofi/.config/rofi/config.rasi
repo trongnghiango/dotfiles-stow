@@ -1,0 +1,11 @@
+configuration {
+    modi: "drun,run,window";
+    show-icons: true;
+    icon-theme: "Papirus";
+    drun-display-format: "{name}";
+    location: 0;
+    font: "JetBrains Mono 12";
+}
+
+@theme "gruvbox-vintage"
+
