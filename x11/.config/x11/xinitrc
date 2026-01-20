@@ -1,30 +1,69 @@
 #!/bin/sh
 
 # ===============================================================
-# 1. KHỞI TẠO MÔI TRƯỜNG CƠ BẢN
+# 1. KHỞI TẠO MÔI TRƯỜNG & DBUS
 # ===============================================================
 
-# Khởi chạy D-Bus Session (Chỉ chạy 1 lần)
-# Đây là xương sống để các app giao tiếp với nhau
-if [ -z "$DBUS_SESSION_BUS_ADDRESS" ]; then
-  eval $(dbus-launch --sh-syntax --exit-with-session)
+# Cập nhật biến môi trường hệ thống (Quan trọng cho cả 2 distro)
+if command -v dbus-update-activation-environment >/dev/null 2>&1; then
+  dbus-update-activation-environment --systemd --all
 fi
 
-# Load cấu hình cá nhân (Theme, Font settings...)
+# Load cấu hình cá nhân
 if [ -f "${XDG_CONFIG_HOME:-$HOME/.config}/x11/xprofile" ]; then
   . "${XDG_CONFIG_HOME:-$HOME/.config}/x11/xprofile"
 elif [ -f "$HOME/.xprofile" ]; then
   . "$HOME/.xprofile"
 fi
 
-# Cập nhật biến môi trường cho DBus/Systemd (Fix lỗi theme con trỏ, fcitx...)
-dbus-update-activation-environment --systemd --all
-
 # ===============================================================
-# 2. ỨNG DỤNG CHẠY NỀN (BACKGROUND APPS)
+# 2. XỬ LÝ AUDIO (LOGIC THÔNG MINH CHO CẢ ARCH & NIXOS)
 # ===============================================================
 
-# Trayer: Chỉ chạy nếu chưa có (Tránh trùng lặp)
+# Hàm khởi động Audio thủ công (Dành cho Arch/Void...)
+start_audio_manual() {
+  # 1. Giết sạch tiến trình cũ (Fix lỗi re-login)
+  killall -9 pipewire wireplumber pipewire-pulse 2>/dev/null
+
+  # 2. Đợi một chút cho socket được giải phóng
+  sleep 0.5
+
+  # 3. Chạy lại từ đầu (Dùng lệnh command -v để tìm đúng đường dẫn)
+  # Wireplumber phải chạy sau pipewire
+  if command -v pipewire >/dev/null; then
+    pipewire &
+
+    if command -v wireplumber >/dev/null; then
+      wireplumber &
+    fi
+
+    if command -v pipewire-pulse >/dev/null; then
+      pipewire-pulse &
+    fi
+  fi
+}
+
+# Hàm khởi động Audio qua Systemd (Dành riêng cho NixOS)
+start_audio_systemd() {
+  # NixOS quản lý socket chặt chẽ, phải dùng systemctl
+  systemctl --user reset-failed pipewire wireplumber pipewire-pulse 2>/dev/null
+  systemctl --user restart pipewire wireplumber pipewire-pulse
+}
+
+# --- PHÁT HIỆN DISTRO ---
+if [ -f /etc/nixos/configuration.nix ]; then
+  # -> Đang chạy trên NixOS
+  (sleep 1 && start_audio_systemd && sleep 2 && pkill -RTMIN+11 dwmblocks) &
+else
+  # -> Đang chạy trên Arch (hoặc distro khác)
+  # Dùng cách thủ công vì nó ổn định với setup hiện tại của bạn
+  (start_audio_manual && sleep 2 && pkill -RTMIN+11 dwmblocks) &
+fi
+
+# ===============================================================
+# 3. ỨNG DỤNG NỀN
+# ===============================================================
+
 if ! pgrep -x "trayer" >/dev/null; then
   trayer --edge top --align left --widthtype request --padding 0 \
     --SetDockType true --tint 0x222222 --height 24 \
@@ -32,40 +71,7 @@ if ! pgrep -x "trayer" >/dev/null; then
 fi
 
 # ===============================================================
-# 3. QUẢN LÝ AUDIO (PIPEWIRE THỦ CÔNG)
-# Fix lỗi mất tiếng khi Relogin & Fix icon volume lúc boot
-# ===============================================================
-
-USER_ID=$(id -u)
-
-check_and_run() {
-  if ! pgrep -x "$1" >/dev/null; then
-    "$@" &
-  fi
-}
-
-# --- A. DỌN DẸP TÀN DƯ (ZOMBIE KILLER) ---
-# Nếu socket file không còn (do X crash) mà process vẫn sống -> Giết sạch
-if [ ! -e "/run/user/$USER_ID/pipewire-0" ] && pgrep -x pipewire >/dev/null; then
-  killall -9 pipewire pipewire-pulse wireplumber 2>/dev/null
-  sleep 1
-fi
-
-# --- B. KHỞI ĐỘNG TUẦN TỰ ---
-check_and_run pipewire
-sleep 1 # Đợi Core lên
-check_and_run wireplumber
-check_and_run pipewire-pulse
-
-# --- C. FIX ICON VOLUME (QUAN TRỌNG) ---
-# Đợi thêm 3s cho Audio ổn định, rồi gửi tín hiệu bắt dwmblocks cập nhật ngay.
-# Giả sử trong blocks.h volume dùng signal 10.
-(sleep 3 && pkill -RTMIN+11 dwmblocks) &
-
-# ===============================================================
 # 4. KHỞI ĐỘNG DWM
 # ===============================================================
 
-# Dùng exec để thay thế process shell hiện tại bằng dwm (Tiết kiệm RAM)
-# ssh-agent giữ key SSH để không phải nhập pass nhiều lần
 exec ssh-agent dwm
