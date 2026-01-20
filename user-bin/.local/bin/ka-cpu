@@ -1,16 +1,55 @@
 #!/bin/sh
 
+# --- 1. XỬ LÝ CLICK ---
 case $BLOCK_BUTTON in
-    1) setsid -f st -e btop ;;
-    3) notify-send "🪨 CPU load module" "Left click to open bashtop";;
+1) setsid -f st -e btop ;; # Click trái: Mở btop
+3)
+  # Click phải: Lấy nhiệt độ từ sensors, làm đẹp và notify
+  # Lọc lấy: Fan Speed, CPU Temp, Core Temp, Pin (nếu cần)
+  INFO=$(sensors | awk '
+            # Bắt dòng Fan
+            /^fan1:/ { printf "🌪️ Fan: %s RPM\n", $2 }
+            # Bắt dòng CPU (của thinkpad-isa)
+            /^CPU:/ { printf "🔥 CPU Package: %s\n", $2 }
+            # Bắt các Core (của coretemp-isa)
+            /^Core 0:/ { printf "1️⃣ Core 0: %s\n", $3 }
+            /^Core 1:/ { printf "2️⃣ Core 1: %s\n", $3 }
+        ')
+  notify-send "🌡️ Sensors Info (ThinkPad X230)" "$INFO"
+  ;;
 esac
 
-# Read /proc/stat twice to calculate load
-read -r cpu a b c previdle rest < /proc/stat
-prevtotal=$((a+b+c+previdle))
-sleep 0.2  # Reduced sleep for faster response (0.5 is a bit laggy for UI)
-read -r cpu a b c idle rest < /proc/stat
-total=$((a+b+c+idle))
-cpu=$((100*( (total-prevtotal) - (idle-previdle) ) / (total-prevtotal) ))
+# --- 2. TÍNH TOÁN CPU LOAD ---
+# Logic này của bạn đã chuẩn, giữ nguyên để nhẹ máy.
+# Đọc lần 1
+read -r cpu a b c previdle rest </proc/stat
+prevtotal=$((a + b + c + previdle))
 
-printf "^C4^ ^C15^$cpu%% "
+# Đợi 0.2s (đủ nhanh mà không lag bar)
+sleep 0.2
+
+# Đọc lần 2
+read -r cpu a b c idle rest </proc/stat
+total=$((a + b + c + idle))
+
+# Tính % (tránh chia cho 0)
+diff_total=$((total - prevtotal))
+diff_idle=$((idle - previdle))
+
+if [ "$diff_total" -eq 0 ]; then
+  cpu_usage=0
+else
+  cpu_usage=$((100 * (diff_total - diff_idle) / diff_total))
+fi
+
+# --- 3. HIỂN THỊ ICON MÀU MÈ ---
+# Thêm logic đổi icon/màu cảnh báo nếu CPU cao > 80%
+ICON=""
+COLOR="^C15^" # Mặc định trắng
+
+if [ "$cpu_usage" -ge 80 ]; then
+  COLOR="^C9^" # Đỏ (giả định palette màu số 9 là đỏ)
+  ICON="🔥"
+fi
+
+printf "^C4^$ICON $COLOR$cpu_usage%% "

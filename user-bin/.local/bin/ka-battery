@@ -1,12 +1,26 @@
 #!/bin/sh
 
+# ==========================================
+# 0. CẤU HÌNH MÀU SẮC (SỬA TẠI ĐÂY)
+# ==========================================
+# Bạn thay các số sau dấu ^C...^ để khớp với config.h của bạn
+COL_GREEN="^C2^"        # Màu xanh lá (Thường là OK)
+COL_LIGHTBLUE="^C6^"    # Màu xanh nhạt/Cyan
+COL_YELLOW="^c#FF8000^" # <--- SỬA SỐ NÀY NẾU CHƯA RA MÀU VÀNG (Thử 3, 4, 5, 11...)
+COL_RED="^C9^"          # Màu đỏ
+COL_DEFAULT="^C4^"      # Màu mặc định cho Icon (Blue?)
+COL_TEXT="^C15^"        # Màu trắng cho chữ
+
+# ==========================================
+# 1. XỬ LÝ SỰ KIỆN
+# ==========================================
 case $BLOCK_BUTTON in
-    1) notify-send "🔋 Battery Info" "Status: $(cat /sys/class/power_supply/BAT0/status 2>/dev/null)
+1) notify-send "🔋 Battery Info" "Status: $(cat /sys/class/power_supply/BAT0/status 2>/dev/null)
 Capacity: $(cat /sys/class/power_supply/BAT0/capacity 2>/dev/null)%" ;;
-    3) notify-send "🔋 Battery module" "🔋: discharging\n🛑: not charging\n♻: stagnant charge\n🔌: charging\n⚡: charged\n❗: battery very low!\n- Scroll to adjust brightness." ;;
-    4) brightnessctl set +1% ;;
-    5) brightnessctl set 1%- ;;
-    6) setsid -f "$TERMINAL" -e "$EDITOR" "$0" ;;
+3) notify-send "🔋 Battery module" "🔋: discharging\n🛑: not charging\n♻: stagnant charge\n🔌: charging\n⚡: charged\n❗: battery very low!\n- Scroll to adjust brightness." ;;
+4) brightnessctl set +1% ;;
+5) brightnessctl set 1%- ;;
+6) setsid -f "$TERMINAL" -e "$EDITOR" "$0" ;;
 esac
 
 BAT="/sys/class/power_supply/BAT0"
@@ -16,18 +30,68 @@ BAT="/sys/class/power_supply/BAT0"
 STAT=$(cat "$BAT/status" 2>/dev/null)
 CAP=$(cat "$BAT/capacity" 2>/dev/null)
 
+# ==========================================
+# 2. XỬ LÝ ICON VÀ LOGIC MÀU
+# ==========================================
+WARN=""
+ICON_COLOR="$COL_DEFAULT"
+
 case "$STAT" in
-    "Full") ICON="⚡" ;;
-    "Discharging") ICON="🔋" ;;
-    "Charging") ICON="🔌" ;;
-    "Not charging") ICON="🛑" ;;
-    "Unknown") ICON="♻️" ;;
-    *) ICON="🔋" ;;
+"Charging")
+  ICON="🔌"
+  ICON_COLOR="$COL_GREEN"
+  ;;
+"Not charging")
+  ICON="🛑"
+  ICON_COLOR="$COL_TEXT"
+  ;;
+"Unknown")
+  ICON="♻️"
+  ICON_COLOR="$COL_TEXT"
+  ;;
+"Full")
+  ICON="⚡ "
+  ICON_COLOR="$COL_GREEN"
+  ;;
+"Discharging")
+  # Giữ nguyên khoảng trắng (space) phía sau icon như cũ
+  if [ "$CAP" -ge 90 ]; then
+    ICON=" "
+  elif [ "$CAP" -ge 75 ]; then
+    ICON=" "
+  elif [ "$CAP" -ge 50 ]; then
+    ICON=" "
+  elif [ "$CAP" -ge 25 ]; then
+    ICON=" "
+  else
+    ICON=" "
+  fi
+
+  # Logic Cảnh báo
+  if [ "$CAP" -le 10 ]; then
+    WARN="🆘"
+  elif [ "$CAP" -le 25 ]; then
+    WARN="❗"
+  fi
+
+  # Logic MÀU ICON (Dùng biến đã định nghĩa ở trên)
+  if [ "$CAP" -gt 75 ]; then
+    ICON_COLOR="$COL_GREEN"
+  elif [ "$CAP" -gt 50 ]; then
+    ICON_COLOR="$COL_LIGHTBLUE"
+  elif [ "$CAP" -gt 25 ]; then
+    ICON_COLOR="$COL_YELLOW" # <--- Nó sẽ lấy màu bạn set ở đầu file
+  else
+    ICON_COLOR="$COL_RED"
+  fi
+  ;;
+*)
+  ICON="🔋"
+  ;;
 esac
 
-WARN=""
-if [ "$STAT" = "Discharging" ] && [ "$CAP" -le 25 ]; then
-    WARN="❗"
-fi
-
-printf "%s%s%d%%\n" "$ICON" "$WARN" "$CAP"
+# ==========================================
+# 3. HIỂN THỊ
+# ==========================================
+# Format: [Màu Icon][Icon+Warn] [Màu chữ][Số %][Reset]
+printf "%s%s%s%s%%^d^" "$ICON_COLOR" "$ICON$WARN" "$COL_TEXT" "$CAP"

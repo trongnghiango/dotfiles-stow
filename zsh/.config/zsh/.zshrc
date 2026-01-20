@@ -7,6 +7,14 @@ setopt autocd		# Automatically cd into typed directory.
 stty stop undef		# Disable ctrl-s to freeze terminal.
 setopt interactive_comments
 
+
+# --- Thêm bởi append_zshrc [2026-01-16 16:08:15] ---
+autoload -U compinit
+zstyle ':completion:*' menu select
+zmodload zsh/complist
+compinit
+# --- Kết thúc ---
+
 # History in cache directory:
 HISTFILE="${XDG_CACHE_HOME:-$HOME/.cache}/zsh/history"
 
@@ -98,8 +106,4 @@ export NVM_DIR="$HOME/.config/nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
 [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
 
-# --- Thêm bởi append_zshrc [2026-01-16 16:08:15] ---
-# vi sao kha bo do
-#
-# --- Kết thúc ---
 

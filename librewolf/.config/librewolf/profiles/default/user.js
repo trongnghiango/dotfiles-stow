@@ -1,37 +1,33 @@
-/*********************************************************
- * LibreWolf – X230 HD4000 optimized V2 (SAFE VERSION)
- *********************************************************/
+// ===== X230 HD4000 OPTIMIZED (FINAL SAFE) =====
 
-/*** GPU / RENDER ***/
-// KHÔNG ép buộc WebRender. Để trình duyệt tự quyết định.
-// user_pref("gfx.webrender.all", true); // <-- DÒNG NGUY HIỂM, ĐÃ XÓA
+/*** GPU & RENDER ***/
+// Để mặc định để tránh crash. Không ép force-enabled.
+user_pref("gfx.webrender.all", false);
+user_pref("layers.acceleration.force-enabled", false);
 
-/*** VIDEO – HARDWARE DECODING ***/
-user_pref("media.hardware-video-decoding.enabled", true); // Chỉ hỗ trợ H.264
-// XÓA: user_pref("media.ffmpeg.vaapi.enabled", true); // HD4000 không dùng VA-API
+/*** VIDEO DECODING (H.264 VA-API) ***/
+user_pref("media.hardware-video-decoding.enabled", true);
+user_pref("media.ffmpeg.vaapi.enabled", true);
+// HD4000 hỗ trợ H.264 rất tốt qua VA-API.
 
-// BLOCK HEAVY CODECS (Thay thế h264ify) - PHẦN NÀY RẤT TỐT
+/*** CODEC BLOCKING (QUAN TRỌNG) ***/
+// Chặn tuyệt đối codec nặng để ép Youtube về H.264
 user_pref("media.av1.enabled", false);
 user_pref("media.vp9.enabled", false);
 user_pref("media.mediasource.vp9.enabled", false);
 user_pref("media.webm.enabled", false);
 user_pref("media.mediasource.webm.enabled", false);
 
-/*** MEMORY (Tận dụng 16GB RAM) ***/
-user_pref("browser.cache.disk.enable", false); // Bảo vệ SSD
+/*** STABILITY FIX ***/
+// Tắt RDD process để tránh crash driver cũ khi decode video
+user_pref("media.rdd-process.enabled", false);
+
+/*** MEMORY (16GB RAM) ***/
+user_pref("browser.cache.disk.enable", false);
 user_pref("browser.cache.memory.enable", true);
-user_pref("browser.cache.memory.capacity", 1048576); // 1GB RAM Cache
+user_pref("browser.cache.memory.capacity", 1048576); // 1GB Cache
 user_pref("browser.sessionhistory.max_total_viewers", 6);
-user_pref("browser.tabs.unloadOnLowMemory", true); // Tự động dọn tab khi RAM thấp
 
-/*** PERFORMANCE & NETWORK ***/
-user_pref("dom.ipc.processCount", 4); // Phù hợp với 2C/4T
-user_pref("network.http.http3.enable", false); // Giảm tải CPU
-user_pref("network.http.max-connections", 900);
+/*** NETWORK ***/
+user_pref("network.http.http3.enable", false); // Tắt QUIC
 user_pref("general.smoothScroll", true);
-
-/*** PRIVACY & UX ***/
-// KHÔNG tắt RFP toàn cục. Nếu gặp lỗi site cụ thể, hãy tắt trong biểu tượng shield.
-// user_pref("privacy.resistFingerprinting", false); // <-- NÊN GIỮ MẶC ĐỊNH
-// user_pref("privacy.firstparty.isolate", false); // <-- NÊN GIỮ MẶC ĐỊNH
-user_pref("privacy.trackingprotection.enabled", true);

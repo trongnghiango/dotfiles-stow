@@ -1,42 +1,59 @@
 #!/bin/sh
 
-# Prints the current volume or 🔇 if muted.
-
+# --- 1. XỬ LÝ CLICK/SCROLL ---
 case $BLOCK_BUTTON in
-1)
-  setsid -w -f "$TERMINAL" -e pulsemixer
-  pkill -RTMIN+10 "${STATUSBAR:-dwmblocks}"
+1) setsid -f "$TERMINAL" -e pulsemixer ;; # Chuột trái: Mở Mixer
+2)
+  # Chuột giữa: Toggle Mute & Update ngay lập tức
+  wpctl set-mute @DEFAULT_SINK@ toggle
+  pkill -RTMIN+11 "${STATUSBAR:-dwmblocks}"
   ;;
-2) wpctl set-mute @DEFAULT_SINK@ toggle ;;
-4) wpctl set-volume @DEFAULT_SINK@ 1%+ ;;
-5) wpctl set-volume @DEFAULT_SINK@ 1%- ;;
-3) notify-send "📢 Volume module" "\- Shows volume 🔊, 🔇 if muted.
-- Middle click to mute.
-- Scroll to change." ;;
-6) setsid -f "$TERMINAL" -e "$EDITOR" "$0" ;;
+4)
+  # Lăn lên: Tăng 5% (1% quá chậm) & Update ngay
+  wpctl set-volume -l 1.5 @DEFAULT_SINK@ 2%+
+  pkill -RTMIN+11 "${STATUSBAR:-dwmblocks}"
+  ;;
+5)
+  # Lăn xuống: Giảm 5% & Update ngay
+  wpctl set-volume @DEFAULT_SINK@ 2%-
+  pkill -RTMIN+11 "${STATUSBAR:-dwmblocks}"
+  ;;
+3) notify-send "📢 Volume module" "🖱 Middle: Mute\n🖱 Scroll: Change Volume" ;;
 esac
 
-vol="$(wpctl get-volume @DEFAULT_AUDIO_SINK@)"
+# --- 2. LẤY DỮ LIỆU ---
+# Lấy cả dòng info một lần cho nhanh
+WP_OUTPUT=$(wpctl get-volume @DEFAULT_AUDIO_SINK@)
 
-# If muted, print 🔇 and exit.
-[ "$vol" != "${vol%\[MUTED\]}" ] && echo 🔇 && exit
+# --- 3. XỬ LÝ HIỂN THỊ ---
+if [ -z "$WP_OUTPUT" ]; then
+  # Trường hợp khởi động chưa xong -> Hiển thị tạm dấu 3 chấm thay vì icon lỗi
+  echo "^C4^ ^C15^..."
+  exit
+fi
 
-vol="${vol#Volume: }"
+# Kiểm tra Mute: Nếu chuỗi chứa [MUTED]
+if echo "$WP_OUTPUT" | grep -q "MUTED"; then
+  echo "^C3^ ^C15^Muted"
+  exit
+fi
 
-split() {
-  # For ommiting the . without calling and external program.
-  IFS=$2
-  set -- $1
-  printf '%s' "$@"
-}
+# Lọc lấy số Volume (Cắt chuỗi "Volume: 0.75" -> 0.75)
+# Dùng awk xử lý an toàn hơn split/IFS
+VOL_FLOAT=$(echo "$WP_OUTPUT" | awk '{print $2}')
 
-vol="$(printf "%.0f" "$(split "$vol" ".")")"
+# Chuyển đổi 0.75 -> 75 (Dùng awk để tính toán số học chuẩn xác)
+VOL_INT=$(awk -v v="$VOL_FLOAT" 'BEGIN { printf "%.0f", v * 100 }')
 
-case 1 in
-$((vol >= 70))) icon="🔊" ;;
-$((vol >= 30))) icon="🔉" ;;
-$((vol >= 1))) icon="🔈" ;;
-*) echo 🔇 && exit ;;
-esac
+# Chọn Icon theo mức độ
+if [ "$VOL_INT" -ge 70 ]; then
+  ICON="🔊"
+elif [ "$VOL_INT" -ge 30 ]; then
+  ICON="🔉"
+else
+  ICON="🔈"
+fi
 
-echo "$icon$vol%"
+# In ra kết quả (Thêm màu sắc cho đẹp nếu muốn)
+# ^C4^ là màu xanh dương (tùy palette), ^C15^ trắng
+echo "^C4^$ICON^C15^$VOL_INT%"

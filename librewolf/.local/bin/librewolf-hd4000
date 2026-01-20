@@ -1,7 +1,32 @@
 #!/usr/bin/env bash
+# Wrapper LibreWolf PRO for X230 (Fast Startup)
 
-export MOZ_X11_EGL=1
-export MOZ_DISABLE_RDD_SANDBOX=1
+# --- 1. CONFIG PATHS ---
+# Trỏ vào file chạy trong thư mục đã giải nén (Nhanh hơn chạy AppImage trực tiếp)
+APP_BIN="$HOME/Applications/AppImage/LibreWolf/librewolf_dist/AppRun"
+CONFIG_DIR="$HOME/.config/librewolf"
+
+# Fallback: Nếu chưa giải nén thì chạy AppImage cũ
+if [ ! -f "$APP_BIN" ]; then
+  APP_BIN="$HOME/Applications/AppImage/LibreWolf/LibreWolf-current.AppImage"
+fi
+
+# --- 2. FIX CHẬM (QUAN TRỌNG) ---
+# Fix lỗi chờ 25s trên dwm do thiếu Desktop Portal
+export GTK_USE_PORTAL=0
+
+# Fix lỗi cache GPU cũ gây khựng
+export MESA_SHADER_CACHE_DISABLE=false
+# (Nếu vẫn chậm thì đổi thành true, nhưng false thường tốt hơn cho lần sau)
+
+# --- 3. HARDWARE TWEAKS (X230) ---
+export LIBVA_DRIVER_NAME=i965
 export MOZ_USE_XINPUT2=1
+export MOZ_DISABLE_RDD_SANDBOX=1
+# Tắt dbus-glib để tránh timeout nếu dbus lỗi
+export MOZ_DBUS_REMOTE=1
 
-exec librewolf "$@"
+# --- 4. EXECUTE ---
+if [ ! -d "$CONFIG_DIR" ]; then mkdir -p "$CONFIG_DIR"; fi
+
+exec "$APP_BIN" --profile "$CONFIG_DIR" "$@"
