@@ -2,7 +2,7 @@
 
 {
   # Tắt PulseAudio cũ để tránh conflict
-  hardware.pulseaudio.enable = false;
+  services.pulseaudio.enable = false;
   security.rtkit.enable = true;
 
   services.pipewire = {
@@ -13,3 +13,4 @@
     wireplumber.enable = true;
   };
 }
+

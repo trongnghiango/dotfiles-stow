@@ -14,9 +14,19 @@
     inter
     noto-fonts
     noto-fonts-cjk-sans
-    noto-fonts-emoji
+    noto-fonts-color-emoji
     font-awesome
   ];
+
+  services.openssh = {
+    enable = true;
+    settings = {
+      PasswordAuthentication = true;
+      PermitRootLogin = "yes";
+    };
+  };
+
+  networking.firewall.allowedTCPPorts = [22];
 
   # Gói hệ thống cốt lõi (Build tools cho DWM/ST)
   environment.systemPackages = with pkgs; [
@@ -39,5 +49,8 @@
     unzip
     unrar
     dash # Shell tốc độ cao cho script /bin/sh
+    tree
+    android-tools
   ];
 }
+
