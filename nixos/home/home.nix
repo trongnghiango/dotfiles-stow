@@ -6,66 +6,64 @@
 
   # --- Cài đặt Phần mềm User ---
   home.packages = with pkgs; [
-    # GUI Apps
-    librewolf
-    nsxiv
-    zathura
-    mpv
-    dunst
-    rofi
-    calcurse
-    pavucontrol
-    networkmanagerapplet
-    trayer
-    xwallpaper
-    arandr
-
-    # CLI Tools (Dependencies cho scripts của bạn)
+    # 1. GUI Apps
+    librewolf nsxiv zathura mpv dunst rofi calcurse
+    pavucontrol networkmanagerapplet trayer xwallpaper arandr
+    
+    # 2. Âm thanh (Đã thêm vào đây)
+    pulsemixer      # Giao diện Mixer Terminal
+    pamixer         # Điều khiển volume CLI
+    wireplumber     # Để có lệnh wpctl
+    
+    # 3. CLI Tools & Neovim Helpers (Sửa lỗi checkhealth)
     neovim
-    fzf
-    ripgrep
-    fd
-    eza
-    bat
-    htop
-    btop
-    ncmpcpp
-    mpc
-    newsboat
-    neomutt
-    lf
-    ueberzugpp      # Thay thế ueberzug cũ (Cần cho lf preview ảnh)
-    ffmpeg
-    ffmpegthumbnailer
-    imagemagick
-    poppler-utils   # pdftoppm
-    atool
-    xclip
-    maim
-    slop
-    brightnessctl
-    libnotify
-    jq
-    socat
-    bc
-    mediainfo
+    lazygit
+    sqlite          # Cho Snacks picker
+    trash-cli       # Lệnh trash
+    ghostscript     # Xem PDF
+    tectonic        # Render LaTeX
+    util-linux      # Lệnh setsid cho script volume
+
+    # 4. Dev Tools & LSP (Thay thế Mason hoàn toàn)
+    lua-language-server
+    gopls
+    zls
+    nodePackages.typescript-language-server
+    rust-analyzer
+    pyright
+    vscode-langservers-extracted # html, css, jsonls
+    bash-language-server
+    nil
+    # Formatters/Linters
+    stylua
+    gotools
+    nodePackages.prettier
+    nodePackages.eslint_d
+    shellcheck
+    shfmt
+    ruff
+    # Runtimes
+    nodejs_22
+    python3
+    go
+    zig
+
+    # 5. CLI Essentials (Giữ nguyên của bạn)
+    fzf ripgrep fd eza bat htop btop ncmpcpp mpc
+    newsboat neomutt lf ueberzugpp ffmpeg ffmpegthumbnailer
+    imagemagick poppler-utils atool xclip maim slop
+    brightnessctl libnotify jq socat bc mediainfo
   ];
 
-  # --- SYMLINK CONFIGURATION (Thay thế Stow) ---
-  # Sử dụng 'mkOutOfStoreSymlink' để trỏ trực tiếp về ~/.dotfiles/
-  # Sửa file trong dotfiles -> Có tác dụng ngay lập tức.
-
+  # --- SYMLINK CONFIGURATION (Giữ nguyên logic của bạn) ---
   home.file = {
-    # 1. TẠO FILE POINTER (CHÌA KHÓA ĐỂ FIX LỖI)
-    # File này sẽ nằm tại ~/.zshenv, nội dung chỉ để trỏ tới config thực
+    # Pointer cho Zsh (Triết lý Clean Home của bạn)
     ".zshenv".text = ''
       export ZDOTDIR="$HOME/.config/zsh"
     '';
 
-    # 2. Symlink thư mục config Zsh thực tế
+    # Symlinks trỏ về dotfiles
     ".config/zsh".source = config.lib.file.mkOutOfStoreSymlink "${dotfiles}/zsh/.config/zsh";
-
-    # 3. Các symlink khác (Giữ nguyên như cũ)
     ".config/shell".source = config.lib.file.mkOutOfStoreSymlink "${dotfiles}/shell/.config/shell";
     ".config/nvim".source = config.lib.file.mkOutOfStoreSymlink "${dotfiles}/nvim/.config/nvim";
     ".config/lf".source = config.lib.file.mkOutOfStoreSymlink "${dotfiles}/lf/.config/lf";
@@ -82,32 +80,33 @@
     ".xinitrc".source = config.lib.file.mkOutOfStoreSymlink "${dotfiles}/x11/.config/x11/xinitrc";
     ".xprofile".source = config.lib.file.mkOutOfStoreSymlink "${dotfiles}/x11/.config/x11/xprofile";
     ".config/x11".source = config.lib.file.mkOutOfStoreSymlink "${dotfiles}/x11/.config/x11";
-    ".local/bin".source = config.lib.file.mkOutOfStoreSymlink "${dotfiles}/bin/.local/bin";
+
+    ".local/bin/base".source = config.lib.file.mkOutOfStoreSymlink "${dotfiles}/bin/.local/bin";
+    ".local/bin/user".source = config.lib.file.mkOutOfStoreSymlink "${dotfiles}/user-bin/.local/bin/user";
   };
+
+  # CẬP NHẬT PATH
+  home.sessionPath = [
+    "$HOME/.local/bin"        # Nơi chứa dwm, st (build tay)
+    "$HOME/.local/bin/base"   # Nơi chứa các script cơ bản
+    "$HOME/.local/bin/user"   # Nơi chứa các script ka-*
+  ];
 
   # Theme GTK
   gtk = {
     enable = true;
-    theme = {
-      name = "Arc-Dark";
-      package = pkgs.arc-theme;
-    };
-    iconTheme = {
-      name = "Papirus-Dark";
-      package = pkgs.papirus-icon-theme;
-    };
-    cursorTheme = {
-        name = "Adwaita";
-        package = pkgs.adwaita-icon-theme;
-    };
+    theme = { name = "Arc-Dark"; package = pkgs.arc-theme; };
+    iconTheme = { name = "Papirus-Dark"; package = pkgs.papirus-icon-theme; };
+    cursorTheme = { name = "Adwaita"; package = pkgs.adwaita-icon-theme; };
   };
 
   home.sessionVariables = {
     EDITOR = "nvim";
     TERMINAL = "st";
     BROWSER = "librewolf";
-    _JAVA_AWT_WM_NONREPARENTING = "1"; # Fix lỗi Java app trên DWM
+    _JAVA_AWT_WM_NONREPARENTING = "1";
   };
 
   home.stateVersion = "24.11";
 }
+
