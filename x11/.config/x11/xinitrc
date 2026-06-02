@@ -11,10 +11,26 @@ if command -v dbus-update-activation-environment >/dev/null 2>&1; then
 fi
 
 # --- THÊM DÒNG NÀY: Khởi động XDG Desktop Portal cho Electron/Obsidian ---
-if [ -f /usr/lib/xdg-desktop-portal-gtk ]; then
-  /usr/lib/xdg-desktop-portal &
-  /usr/lib/xdg-desktop-portal-gtk &
+# Tìm kiếm đường dẫn thực tế của portal-gtk
+PORTAL_GTK=""
+for path in "/usr/lib/xdg-desktop-portal-gtk" "/usr/libexec/xdg-desktop-portal-gtk"; do
+  if [ -f "$path" ]; then
+    PORTAL_GTK="$path"
+    break
+  fi
+done
+
+if [ -n "$PORTAL_GTK" ]; then
+  # Khởi động portal chính (thường nằm trong PATH)
+  if command -v xdg-desktop-portal >/dev/null; then
+    xdg-desktop-portal &
+  fi
+  "$PORTAL_GTK" &
 fi
+#if [ -f /usr/lib/xdg-desktop-portal-gtk ]; then
+#  /usr/lib/xdg-desktop-portal &
+#  /usr/lib/xdg-desktop-portal-gtk &
+#fi
 
 # Load cấu hình cá nhân
 if [ -f "${XDG_CONFIG_HOME:-$HOME/.config}/x11/xprofile" ]; then
