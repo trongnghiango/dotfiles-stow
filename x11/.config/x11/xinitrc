@@ -85,4 +85,4 @@ fi
 # 4. KHỞI ĐỘNG DWM
 # ===============================================================
 
-exec ssh-agent dwm
+exec ssh-agent $HOME/.local/bin/dwm

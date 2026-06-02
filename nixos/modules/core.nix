@@ -7,18 +7,39 @@
   nixpkgs.config.allowUnfree = true;
   nix.settings.experimental-features = [ "nix-command" "flakes" ];
 
-  # Fonts cần thiết cho DWM/St
+  # --- MỚI: nix-ld (Cứu cánh cho các binary tải ngoài Nix) ---
+  programs.nix-ld.enable = true;
+  programs.nix-ld.libraries = with pkgs; [
+    stdenv.cc.cc
+    zlib
+    openssl
+    curl
+  ];
+
+  # Fonts (Giữ nguyên của bạn)
   fonts.packages = with pkgs; [
+    nerd-fonts.blex-mono
     nerd-fonts.jetbrains-mono
     nerd-fonts.symbols-only
     inter
     noto-fonts
     noto-fonts-cjk-sans
-    noto-fonts-emoji
+    noto-fonts-color-emoji
     font-awesome
   ];
 
-  # Gói hệ thống cốt lõi (Build tools cho DWM/ST)
+  # SSH (Giữ nguyên của bạn)
+  services.openssh = {
+    enable = true;
+    settings = {
+      PasswordAuthentication = true;
+      PermitRootLogin = "yes";
+    };
+  };
+
+  networking.firewall.allowedTCPPorts = [ 22 ];
+
+  # Gói hệ thống cốt lõi (Giữ nguyên build tools cho DWM/ST)
   environment.systemPackages = with pkgs; [
     vim
     git
@@ -27,7 +48,6 @@
     gnumake
     gcc
     pkg-config
-    # Dependencies X11 để compile
     xorg.libX11
     xorg.libX11.dev
     xorg.libXinerama
@@ -35,9 +55,13 @@
     xorg.libXft
     xorg.libXft.dev
     xorg.xrandr
-    xorg.xsetroot # Cần cho dwmblocks
+    xorg.xsetroot
     unzip
     unrar
-    dash # Shell tốc độ cao cho script /bin/sh
+    dash
+    tree
+    tmux
+    android-tools
   ];
 }
+

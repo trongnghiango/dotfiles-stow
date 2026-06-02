@@ -8,3 +8,4 @@
     shell = pkgs.zsh;
   };
 }
+

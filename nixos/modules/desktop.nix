@@ -18,8 +18,9 @@
     enable = true;
     extraPackages = with pkgs; [
       intel-media-driver   # iHD Driver
-      vaapiIntel           # i965 Driver (Bắt buộc cho chip đời cũ này)
-      vaapiVdpau
+      # i965 Driver (Bắt buộc cho chip đời cũ này)
+      intel-vaapi-driver
+      libva-vdpau-driver
       libvdpau-va-gl
     ];
   };
@@ -27,7 +28,7 @@
   services.gvfs.enable = true;   # Mount USB/Phone
   services.udisks2.enable = true; # Auto-mount backend
   services.libinput.enable = true; # Touchpad support
-  
-  # Hỗ trợ Android Dev/Mount
-  services.udev.packages = [ pkgs.android-udev-rules ];
+  # Bật Dconf để Home Manager có thể config GTK theme
+  programs.dconf.enable = true;
 }
+

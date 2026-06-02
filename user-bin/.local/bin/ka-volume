@@ -1,4 +1,10 @@
-#!/bin/sh
+#!/usr/bin/env sh
+
+# Kiểm tra xem wpctl có tồn tại không để tránh lỗi treo script
+if ! command -v wpctl >/dev/null 2>&1; then
+    echo "No wpctl"
+    exit 1
+fi
 
 # --- 1. XỬ LÝ CLICK/SCROLL ---
 case $BLOCK_BUTTON in
