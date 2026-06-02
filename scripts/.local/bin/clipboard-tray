@@ -1,0 +1,40 @@
+#!/bin/sh
+
+# ==========================================
+# CẤU HÌNH MÀU SẮC Ở ĐÂY
+# ==========================================
+# Bạn có thể đổi mã màu hex tùy thích (Ví dụ: #FF0000 là đỏ, #00FF00 là xanh lá)
+# ICON_COLOR="#d7d7d7"
+# Hoặc màu nổi bật hơn:
+ICON_COLOR="#FF0000"
+
+# Đường dẫn tạm để lưu icon
+ICON_FILE="/tmp/clipboard-icon.svg"
+
+# ==========================================
+# 1. TẠO ICON SVG VỚI MÀU ĐÃ CHỌN
+# ==========================================
+# Đây là mã vẽ hình cái bảng kẹp (Clipboard)
+cat <<EOF >"$ICON_FILE"
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path fill-rule="evenodd" clip-rule="evenodd" d="M9 3C9 1.89543 9.89543 1 11 1H13C14.1046 1 15 1.89543 15 3V4H19C20.1046 4 21 4.89543 21 6V20C21 21.1046 20.1046 22 19 22H5C3.89543 22 3 21.1046 3 20V6C3 4.89543 3.89543 4 5 4H9V3ZM11 3H13V4H11V3ZM5 6H19V20H5V6Z" fill="$ICON_COLOR"/>
+<path d="M7 9H17V11H7V9Z" fill="$ICON_COLOR"/>
+<path d="M7 13H17V15H7V13Z" fill="$ICON_COLOR"/>
+</svg>
+EOF
+
+# ==========================================
+# 2. KHỞI ĐỘNG CLIPBOARD MANAGER
+# ==========================================
+pgrep -x clipmenud || clipmenud &
+
+CMD="st -n 'float-term' -t 'Clipboard Manager' -g 60x20 -e sh -c 'export CM_LAUNCHER=fzf; clipmenu'"
+
+# ==========================================
+# 3. CHẠY YAD VỚI FILE ICON VỪA TẠO
+# ==========================================
+# Thay --image="edit-paste" bằng đường dẫn file
+yad --notification \
+  --image="$ICON_FILE" \
+  --text="Clipboard History (Click to open)" \
+  --command="$CMD"

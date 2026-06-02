@@ -1,4 +1,4 @@
-#files: 853	version: 5.9
+#files: 863	version: 5.9
 
 _comps=(
 '-' '_precommand'
@@ -40,6 +40,7 @@ _comps=(
 'ansible-pull' '_ansible'
 'ansible-vault' '_ansible'
 'ant' '_ant'
+'antigravity' '_antigravity'
 'antiword' '_antiword'
 'aodh' '_openstack'
 'aoss' '_precommand'
@@ -135,6 +136,11 @@ _comps=(
 'cabal' '_cabal'
 'cal' '_cal'
 'calendar' '_calendar'
+'calibre' '_calibre'
+'calibredb' '_calibre'
+'calibre-debug' '_calibre'
+'calibre-server' '_calibre'
+'calibre-smtp' '_calibre'
 'cargo' '_cargo'
 'cat' '_cat'
 'catchsegv' '_precommand'
@@ -223,6 +229,7 @@ _comps=(
 'ctags-universal' '_ctags'
 'ctr' '_ctr'
 'curl' '_curl'
+'cursor' '_cursor'
 'cut' '_cut'
 'cvs' '_cvs'
 'darcs' '_darcs'
@@ -242,6 +249,7 @@ _comps=(
 'declare' '_typeset'
 '-default-' '_default'
 'delta' '_sccs'
+'deno' '_deno'
 'designate' '_openstack'
 'devtodo' '_devtodo'
 'df' '_df'
@@ -280,6 +288,8 @@ _comps=(
 'dunst' '_dunst'
 '_dunstctl' '_dunstctl'
 'dunstctl' '_dunstctl'
+'_dunstify' '_dunstify'
+'dunstify' '_dunstify'
 'dvibook' '_dvi'
 'dviconcat' '_dvi'
 'dvicopy' '_dvi'
@@ -292,6 +302,11 @@ _comps=(
 'dwb' '_webbrowser'
 'e2label' '_e2label'
 'eatmydata' '_precommand'
+'ebook-convert' '_calibre'
+'ebook-edit' '_calibre'
+'ebook-meta' '_calibre'
+'ebook-polish' '_calibre'
+'ebook-viewer' '_calibre'
 'ecasound' '_ecasound'
 'echotc' '_echotc'
 'echoti' '_echoti'
@@ -335,6 +350,7 @@ _comps=(
 'fc-match' '_xft_fonts'
 'fd' '_fd'
 'feh' '_feh'
+'fetch-ebook-metadata' '_calibre'
 'fetchmail' '_fetchmail'
 'ffmpeg' '_ffmpeg'
 'fg' '_jobs_fg'
@@ -592,6 +608,7 @@ _comps=(
 'hostnamectl' '_hostnamectl'
 'hotjava' '_webbrowser'
 'htop' '_htop'
+'hugo' '_hugo'
 'iceweasel' '_mozilla'
 'icombine' '_ispell'
 'iconv' '_iconv'
@@ -708,6 +725,8 @@ _comps=(
 'lpr' '_lp'
 'lprm' '_lp'
 'lpstat' '_lp'
+'lrf2lrs' '_calibre'
+'lrfviewer' '_calibre'
 'ls' '_ls'
 'lsattr' '_lsattr'
 'lsblk' '_lsblk'
@@ -720,7 +739,6 @@ _comps=(
 'ltrace' '_ltrace'
 'lua' '_lua'
 'luarocks' '_luarocks'
-'luarocks-admin' '_luarocks-admin'
 'lynx' '_lynx'
 'lz4' '_lz4'
 'lz4c' '_lz4'
@@ -855,6 +873,7 @@ _comps=(
 'nginx' '_nginx'
 'ngrep' '_ngrep'
 'nice' '_nice'
+'ninja' '_ninja'
 'nkf' '_nkf'
 'nl' '_nl'
 'nm' '_nm'
@@ -1038,6 +1057,7 @@ _comps=(
 'pyhtmlizer' '_twisted'
 'qdbus' '_qdbus'
 'qiv' '_qiv'
+'qpdf' '_qpdf'
 'quilt' '_quilt'
 'r' '_fc'
 'rake' '_rake'
@@ -1240,6 +1260,8 @@ _comps=(
 'systemd-cgtop' '_systemd'
 'systemd-delta' '_systemd-delta'
 'systemd-detect-virt' '_systemd'
+'systemd-hwdb' '_systemd-hwdb'
+'systemd-id128' '_systemd-id128'
 'systemd-inhibit' '_systemd-inhibit'
 'systemd-machine-id-setup' '_systemd'
 'systemd-notify' '_systemd'
@@ -1325,6 +1347,7 @@ _comps=(
 'type' '_which'
 'typeset' '_typeset'
 'udevadm' '_udevadm'
+'udisksctl' '_udisks2'
 'ulimit' '_ulimit'
 'uml_mconsole' '_uml'
 'uml_moo' '_uml'
@@ -1364,6 +1387,7 @@ _comps=(
 'urxvt256c-mlc' '_urxvt'
 'urxvtc' '_urxvt'
 'useradd' '_user_admin'
+'userdbctl' '_userdbctl'
 'userdel' '_users'
 'usermod' '_user_admin'
 'vacuumdb' '_postgresql'
@@ -1701,23 +1725,25 @@ bindkey '^[,' _history-complete-newer
 bindkey '^[/' _history-complete-older
 bindkey '^[~' _bash_complete-word
 
-autoload -Uz _bat _bluetoothctl _bootctl _busctl _bwrap \
-            _cargo _chafa _checkupdates _code _code-oss \
-            _coredumpctl _ctr _curl _docker _dunst \
-            _dunstctl _email-notmuch _eza _fd _flatpak \
-            _hostnamectl _img2sixel _insmod _journalctl _kernel-install \
-            _lf _localectl _loginctl _lsmod _luarocks \
-            _luarocks-admin _machinectl _mkinitcpio _mpv _mutt-wizard.zsh \
-            _networkctl _newsboat _notmuch _oomctl _p11-kit \
+autoload -Uz _antigravity _bat _bluetoothctl _bootctl _busctl \
+            _bwrap _calibre _cargo _chafa _checkupdates \
+            _code _code-oss _coredumpctl _ctr _curl \
+            _cursor _deno _docker _dunst _dunstctl \
+            _dunstify _email-notmuch _eza _fd _flatpak \
+            _hostnamectl _hugo _img2sixel _insmod _journalctl \
+            _kernel-install _lf _localectl _loginctl _lsmod \
+            _machinectl _mkinitcpio _mpv _mutt-wizard.zsh _networkctl \
+            _newsboat _ninja _notmuch _oomctl _p11-kit \
             _paccache _pacdiff _paclist _paclog-pkglist _pacman \
             _pacscripts _pacsearch _pacsort _pactree _pass \
-            _pip _pulseaudio _rankmirrors _resolvectl _rg \
-            _rmmod _run0 _sd_bus_address _sd_hosts_or_user_at_host _sd_machines \
-            _sd_outputmodes _sd_unit_files _sensors _sensors-detect _systemctl \
-            _systemd _systemd-analyze _systemd-delta _systemd-inhibit _systemd-nspawn \
-            _systemd-path _systemd-run _systemd-tmpfiles _timedatectl _trash \
-            _trash-empty _trash-list _trash-put _trash-restore _tree-sitter \
-            _trust _udevadm _updpkgsums _varlinkctl _wpctl \
+            _pip _pulseaudio _qpdf _rankmirrors _resolvectl \
+            _rg _rmmod _run0 _sd_bus_address _sd_hosts_or_user_at_host \
+            _sd_machines _sd_outputmodes _sd_unit_files _sensors _sensors-detect \
+            _systemctl _systemd _systemd-analyze _systemd-delta _systemd-hwdb \
+            _systemd-id128 _systemd-inhibit _systemd-nspawn _systemd-path _systemd-run \
+            _systemd-tmpfiles _timedatectl _trash _trash-empty _trash-list \
+            _trash-put _trash-restore _tree-sitter _trust _udevadm \
+            _udisks2 _updpkgsums _userdbctl _varlinkctl _wpctl \
             _xwallpaper _yay _yt-dlp _zathura _cdr \
             _all_labels _all_matches _alternative _approximate _arg_compile \
             _arguments _bash_completions _cache_invalid _call_function _combination \

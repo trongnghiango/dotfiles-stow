@@ -6,7 +6,14 @@
 
 # Cập nhật biến môi trường hệ thống (Quan trọng cho cả 2 distro)
 if command -v dbus-update-activation-environment >/dev/null 2>&1; then
-  dbus-update-activation-environment --systemd --all
+  #dbus-update-activation-environment --systemd --all
+  dbus-update-activation-environment --systemd DISPLAY XAUTHORITY --all
+fi
+
+# --- THÊM DÒNG NÀY: Khởi động XDG Desktop Portal cho Electron/Obsidian ---
+if [ -f /usr/lib/xdg-desktop-portal-gtk ]; then
+  /usr/lib/xdg-desktop-portal &
+  /usr/lib/xdg-desktop-portal-gtk &
 fi
 
 # Load cấu hình cá nhân
@@ -63,6 +70,10 @@ fi
 # ===============================================================
 # 3. ỨNG DỤNG NỀN
 # ===============================================================
+# --- THÊM DÒNG NÀY: Khởi động Clipboard Manager (BẮT BUỘC CHO DWM) ---
+if command -v copyq >/dev/null; then
+  copyq &
+fi
 
 if ! pgrep -x "trayer" >/dev/null; then
   trayer --edge top --align left --widthtype request --padding 0 \

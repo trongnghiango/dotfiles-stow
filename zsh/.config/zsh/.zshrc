@@ -107,3 +107,27 @@ export NVM_DIR="$HOME/.config/nvm"
 [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
 
 
+export FZF_DEFAULT_OPTS="
+--height=40%
+--border
+--reverse
+--info=inline
+"
+
+
+# pnpm
+export PNPM_HOME="/home/ka/.local/share/pnpm"
+case ":$PATH:" in
+  *":$PNPM_HOME:"*) ;;
+  *) export PATH="$PNPM_HOME:$PATH" ;;
+esac
+# pnpm end
+eval "$(direnv hook zsh)"
+
+#
+export GOROOT=/usr/local/go
+export GOPATH=$HOME/go
+export PATH=$PATH:$GOROOT/bin:$GOPATH/bin
+
+# bun completions
+[ -s "/home/ka/.bun/_bun" ] && source "/home/ka/.bun/_bun"

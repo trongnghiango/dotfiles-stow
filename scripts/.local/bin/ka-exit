@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+
+# 1. Gửi thông báo
+notify-send "System" "Closing applications..." -u critical -t 1000
+
+# 2. Đóng tất cả cửa sổ ứng dụng (Graceful close)
+# Lấy danh sách ID cửa sổ đang hiển thị
+WIN_IDS=$(xdotool search --onlyvisible --name ".*")
+
+if [ -n "$WIN_IDS" ]; then
+    # Gửi lệnh đóng cho từng cửa sổ (Tương đương Alt+F4 hoặc bấm X)
+    echo "$WIN_IDS" | xargs -I {} xdotool windowclose {}
+    
+    # 3. Đợi một chút để app kịp lưu và đóng (quan trọng!)
+    sleep 1
+fi
+
+# 4. Dọn dẹp các tiến trình nền (DWMBlocks...)
+pkill -f "dwmblocks"
+pkill -f "ka-"
+
+# 5. Thoát DWM (Gửi tín hiệu TERM để DWM gọi hàm quit)
+# Dùng pgrep để đảm bảo giết đúng process
+DWM_PID=$(pgrep -x dwm | head -n 1)
+[ -n "$DWM_PID" ] && kill -TERM "$DWM_PID"
+
+# Fallback: Nếu DWM chưa chết, dùng loginctl để force logout session (Systemd)
+sleep 0.5
+if pgrep -x dwm >/dev/null; then
+    loginctl terminate-session $XDG_SESSION_ID
+fi
