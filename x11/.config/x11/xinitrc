@@ -1,105 +1,152 @@
 #!/usr/bin/env sh
 
 # ==============================================================================
-# 1. KHỞI TẠO MÔI TRƯỜNG CƠ BẢN & D-BUS (BẮT BUỘC)
+# THƯ VIỆN HÀM TIỆN ÍCH (UTILITIES)
 # ==============================================================================
 
-# Khởi chạy D-Bus Session (Chỉ khởi chạy nếu chưa có)
-if [ -z "$DBUS_SESSION_BUS_ADDRESS" ]; then
-  eval $(dbus-launch --sh-syntax --exit-with-session)
-fi
+# Kiểm tra lệnh tồn tại
+is_installed() {
+  command -v "$1" >/dev/null 2>&1
+}
 
-# Cập nhật biến môi trường hệ thống cho D-Bus (Sửa lỗi theme con trỏ, fcitx, app phẳng...)
-if command -v dbus-update-activation-environment >/dev/null 2>&1; then
-  dbus-update-activation-environment --systemd DISPLAY XAUTHORITY --all
-fi
-
-# Khởi động GTK Portal thông minh (Hỗ trợ mở file nhanh cho Obsidian/Electron)
-for portal_path in "/usr/lib/xdg-desktop-portal-gtk" "/usr/libexec/xdg-desktop-portal-gtk"; do
-  if [ -f "$portal_path" ]; then
-    if command -v xdg-desktop-portal >/dev/null 2>&1; then
-      xdg-desktop-portal &
-    fi
-    "$portal_path" &
-    break
-  fi
-done
-
-# Nạp cấu hình cá nhân (.xprofile)
-if [ -f "${XDG_CONFIG_HOME:-$HOME/.config}/x11/xprofile" ]; then
-  . "${XDG_CONFIG_HOME:-$HOME/.config}/x11/xprofile"
-elif [ -f "$HOME/.xprofile" ]; then
-  . "$HOME/.xprofile"
-fi
-
-# ==============================================================================
-# 2. ỨNG DỤNG NỀN (BACKGROUND SERVICES)
-# ==============================================================================
-
-# Xác thực quyền GUI độc lập và siêu nhẹ (Polkit Agent)
-if [ -f /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1 ]; then
-  /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1 &
-elif command -v lxpolkit >/dev/null 2>&1; then
-  lxpolkit &
-fi
-
-# Quản lý Clipboard (Tránh mất lịch sử sao lưu trên DWM)
-if command -v copyq >/dev/null 2>&1; then
-  copyq &
-fi
-
-# Trình quản lý năng lượng (Tự động hóa việc ngủ khi gập màn hình laptop)
-if command -v xfce4-power-manager >/dev/null 2>&1; then
-  xfce4-power-manager &
-fi
-
-# Trayer: Khay hệ thống tối giản (Chỉ chạy duy nhất 1 tiến trình)
-if ! pgrep -x "trayer" >/dev/null; then
-  trayer --edge top --align left --widthtype request --padding 0 \
-    --SetDockType true --tint 0x222222 --height 24 \
-    --transparent true --alpha 0 &
-fi
-
-# ==============================================================================
-# 3. QUẢN LÝ THIẾT BỊ & ÂM THANH (ARCH vs NIXOS)
-# ==============================================================================
-
-USER_ID=$(id -u)
-
-check_and_run() {
+# Khởi chạy một tiến trình nền nếu chưa chạy
+run_once() {
   if ! pgrep -x "$1" >/dev/null; then
     "$@" &
   fi
 }
 
-# Tự động gỡ và gắn các thiết bị lưu trữ (USB, ổ cứng di động)
-if command -v udiskie >/dev/null 2>&1; then
-  udiskie &
-fi
-
-if [ -f /etc/nixos/configuration.nix ]; then
-  # NixOS: Khởi động lại dịch vụ qua Systemd User
-  systemctl --user reset-failed pipewire wireplumber pipewire-pulse 2>/dev/null
-  systemctl --user restart pipewire wireplumber pipewire-pulse
-else
-  # Arch/Void: Khởi động Pipewire tuần tự thủ công để tránh lỗi mất tiếng
-  if [ ! -e "/run/user/$USER_ID/pipewire-0" ] && pgrep -x pipewire >/dev/null; then
-    killall -9 pipewire pipewire-pulse wireplumber 2>/dev/null
-    sleep 1
+# Tự động cấu hình hiển thị dựa trên màn hình đang kết nối
+setup_display() {
+  if ! is_installed xrandr; then
+    return 1
   fi
 
-  check_and_run pipewire
-  sleep 1
-  check_and_run wireplumber
-  check_and_run pipewire-pulse
+  # Tìm màn hình chính đang kết nối
+  local monitor
+  monitor=$(xrandr | grep " connected primary" | awk '{print $1}')
+  [ -z "$monitor" ] && monitor=$(xrandr | grep " connected" | awk '{print $1}' | head -n 1)
+
+  # Fallback về Virtual-1 nếu không dò thấy màn hình kết nối cụ thể (môi trường ảo hóa)
+  [ -z "$monitor" ] && monitor="Virtual-1"
+
+  xrandr --output "$monitor" --auto
+  # xrandr --dpi 96
+}
+
+# Cấu hình âm thanh Pipewire tự động theo môi trường OS
+setup_audio() {
+  # 1. NixOS hoặc Arch Linux sử dụng Systemd user session
+  if is_installed systemctl && systemctl --user is-system-running >/dev/null 2>&1; then
+    systemctl --user reset-failed pipewire wireplumber pipewire-pulse 2>/dev/null
+    systemctl --user restart pipewire wireplumber pipewire-pulse
+    return 0
+  fi
+
+  # 2. Các hệ thống không dùng Systemd (Void, Alpine, hoặc chạy thủ công)
+  if is_installed pipewire; then
+    local user_id=$(id -u)
+    # Reset các tiến trình cũ nếu socket chưa được khởi tạo đúng cách
+    if [ ! -e "/run/user/$user_id/pipewire-0" ]; then
+      killall -9 pipewire pipewire-pulse wireplumber 2>/dev/null
+      sleep 1
+    fi
+    run_once pipewire
+    sleep 0.5
+    run_once wireplumber
+    sleep 0.5
+    run_once pipewire-pulse
+  fi
+}
+
+# Cấu hình D-Bus & XDG Portals
+setup_dbus_portals() {
+  [ -z "$DBUS_SESSION_BUS_ADDRESS" ] && eval $(dbus-launch --sh-syntax --exit-with-session)
+
+  # Đồng bộ biến môi trường sang D-Bus (và Systemd nếu có)
+  if is_installed dbus-update-activation-environment; then
+    if is_installed systemctl && systemctl --user is-system-running >/dev/null 2>&1; then
+      dbus-update-activation-environment --systemd --all 2>/dev/null
+    else
+      dbus-update-activation-environment --all 2>/dev/null
+    fi
+  fi
+
+  # Khởi chạy XDG Desktop Portal cho các ứng dụng GUI độc lập (Flatpak/Obsidian...)
+  local portal_path
+  for portal_path in "/usr/lib/xdg-desktop-portal-gtk" "/usr/libexec/xdg-desktop-portal-gtk"; do
+    if [ -f "$portal_path" ]; then
+      run_once xdg-desktop-portal
+      run_once "$portal_path"
+      break
+    fi
+  done
+}
+
+# ==============================================================================
+# TIẾN TRÌNH KHỞI ĐỘNG CHÍNH (MAIN FLOW)
+# ==============================================================================
+
+# 1. Đồng bộ môi trường D-Bus & Portals
+setup_dbus_portals
+
+# 2. Nạp cấu hình môi trường từ xprofile
+XPROFILE_PATH="${XDG_CONFIG_HOME:-$HOME/.config}/x11/xprofile"
+if [ -f "$XPROFILE_PATH" ]; then
+  . "$XPROFILE_PATH"
+elif [ -f "$HOME/.xprofile" ]; then
+  . "$HOME/.xprofile"
 fi
 
-# Gửi tín hiệu cập nhật âm lượng lên dwmblocks sau khi khởi động ổn định 3s
-(sleep 3 && pkill -RTMIN+11 dwmblocks) &
+# 3. Cấu hình phần cứng & Hiển thị
+setup_display
+setup_audio
 
-# ==============================================================================
-# 4. KHỞI ĐỘNG DWM
-# ==============================================================================
+# Thiết lập hình nền thông qua công cụ tùy biến
+if is_installed setbg; then
+  setbg "$HOME/Pictures/Wallpapers/" &
+fi
 
-# Chạy DWM thông qua SSH Agent bằng biến PATH an toàn
-exec ssh-agent dwm
+# 4. Quản lý xác thực (Polkit Agent)
+if [ -f /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1 ]; then
+  /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1 &
+elif is_installed lxpolkit; then
+  run_once lxpolkit
+fi
+
+# Khởi chạy trình quản lý mật khẩu gnome-keyring
+if is_installed gnome-keyring-daemon; then
+  eval $(gnome-keyring-daemon --start --components=pkcs11,secrets,ssh)
+  export SSH_AUTH_SOCK
+fi
+
+# 5. Các ứng dụng nền tự động chạy (Khả năng mở rộng dễ dàng)
+# Chỉ cần thêm tên lệnh vào danh sách AUTOSTART_APPS bên dưới để tự khởi động
+AUTOSTART_APPS="
+  dunst
+  udiskie
+  xfce4-power-manager
+  fcitx5
+  mpd
+  picom
+  unclutter
+  remapd
+"
+
+for app in $AUTOSTART_APPS; do
+  if is_installed "$app"; then
+    run_once "$app"
+  fi
+done
+
+# Khởi động thanh trạng thái dwmblocks
+if is_installed start-dwmblocks; then
+  start-dwmblocks &
+  # Cập nhật âm lượng lên dwmblocks sau khi khởi động ổn định 3s
+  (sleep 3 && pkill -RTMIN+11 dwmblocks) &
+fi
+
+# 6. Khởi động Window Manager cuối cùng
+if is_installed dwm; then
+  exec ssh-agent dwm
+fi
