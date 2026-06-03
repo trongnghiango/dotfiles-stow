@@ -27,10 +27,13 @@ cmd open ${{
             $EDITOR "$f" ;;
         image/*)
             setsid -f nsxiv -aio "$f" >/dev/null 2>&1 ;;
+            
+        # ĐÃ SỬA: Chạy nền mpv (setsid -f) và bỏ flag --no-config để nạp input.conf
         video/*)
-            mpv --no-config "$f" ;;
+            setsid -f mpv "$f" >/dev/null 2>&1 ;;
         audio/*)
-            mpv --no-video "$f" ;;
+            setsid -f mpv --no-video "$f" >/dev/null 2>&1 ;;
+            
         application/pdf|application/epub+zip)
             setsid -f zathura "$f" >/dev/null 2>&1 ;;
         *)
