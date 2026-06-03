@@ -231,6 +231,20 @@ cmd extract_fzf ${{
     lf -remote "send $id select extract"
 }}
 
+cmd fzf_jump ${{
+    # Tìm kiếm nhanh thư mục hoặc file trong bán kính 3 cấp thư mục con
+    res=$(find . -maxdepth 3 -not -path '*/.*' | fzf --prompt="Jump to > ")
+    if [ -n "$res" ]; then
+        if [ -d "$res" ]; then
+            lf -remote "send $id cd \"$res\""
+        else
+            lf -remote "send $id select \"$res\""
+        fi
+    fi
+}}
+# Map phím f để tìm kiếm nhảy nhanh
+map f fzf_jump
+
 # ---------- COMPRESS PRO (BACKUP) ----------
 cmd compress ${{
     clear
@@ -355,8 +369,21 @@ cmd unmount_archive ${{
     fi
 }}
 
+# Thêm lệnh chuyển file vào thùng rác hệ thống
+cmd trash ${{
+    trash-put -- $fx
+    lf -remote "send $id echo 'Đã chuyển vào Thùng rác hệ thống!'"
+}}
+# Đổi map phím D sang dùng thùng rác
+map D trash
 
 
+# Kéo thả file đang chọn ra các ứng dụng đồ họa (trình duyệt, discord...)
+cmd drag ${{
+    ripdrag -a -x "$fx" &
+}}
+# Map phím Ctrl + d để gọi tính năng kéo thả
+map <c-d> drag
 
 # =========================================================
 # KEYMAPS (KHÔNG ĐÈ PHÍM)
