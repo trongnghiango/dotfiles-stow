@@ -1,0 +1,36 @@
+#!/bin/sh
+
+case $BLOCK_BUTTON in
+    1) "$TERMINAL" -e nmtui; pkill -RTMIN+4 dwmblocks ;;
+    3) notify-send "🌐 Internet module" "\- Click to connect..." ;;
+    6) setsid -f "$TERMINAL" -e "$EDITOR" "$0" ;;
+esac
+
+wifiicon=""
+ethericon="❎"
+tunicon=""
+
+# Wifi check
+if [ -d /sys/class/net/w* ]; then
+    state=$(cat /sys/class/net/w*/operstate 2>/dev/null)
+    if [ "$state" = "up" ]; then
+        # Parse signal strength
+        wifiicon=$(awk '/^\s*w/ { print "📶", int($3 * 100 / 70) "% " }' /proc/net/wireless)
+    elif [ "$state" = "down" ]; then
+        # Check flags for disabled state
+        flags=$(cat /sys/class/net/w*/flags 2>/dev/null)
+        [ "$flags" = "0x1003" ] && wifiicon="📡 " || wifiicon="❌ "
+    fi
+fi
+
+# Ethernet check
+if [ -d /sys/class/net/e* ]; then
+    [ "$(cat /sys/class/net/e*/operstate 2>/dev/null)" = "up" ] && ethericon="🌐"
+fi
+
+# VPN/Tun check
+if [ -n "$(cat /sys/class/net/tun*/operstate 2>/dev/null)" ]; then
+    tunicon=" 🔒"
+fi
+
+printf "%s%s%s\n" "$wifiicon" "$ethericon" "$tunicon"

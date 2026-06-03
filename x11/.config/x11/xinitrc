@@ -1,40 +1,68 @@
-#!/bin/sh
+#!/usr/bin/env sh
 
-# ===============================================================
-# 1. KHỞI TẠO MÔI TRƯỜNG CƠ BẢN
-# ===============================================================
+# ==============================================================================
+# 1. KHỞI TẠO MÔI TRƯỜNG CƠ BẢN & D-BUS (BẮT BUỘC)
+# ==============================================================================
 
-# Khởi chạy D-Bus Session (Chỉ chạy 1 lần)
-# Đây là xương sống để các app giao tiếp với nhau
+# Khởi chạy D-Bus Session (Chỉ khởi chạy nếu chưa có)
 if [ -z "$DBUS_SESSION_BUS_ADDRESS" ]; then
   eval $(dbus-launch --sh-syntax --exit-with-session)
 fi
 
-# Load cấu hình cá nhân (Theme, Font settings...)
+# Cập nhật biến môi trường hệ thống cho D-Bus (Sửa lỗi theme con trỏ, fcitx, app phẳng...)
+if command -v dbus-update-activation-environment >/dev/null 2>&1; then
+  dbus-update-activation-environment --systemd DISPLAY XAUTHORITY --all
+fi
+
+# Khởi động GTK Portal thông minh (Hỗ trợ mở file nhanh cho Obsidian/Electron)
+for portal_path in "/usr/lib/xdg-desktop-portal-gtk" "/usr/libexec/xdg-desktop-portal-gtk"; do
+  if [ -f "$portal_path" ]; then
+    if command -v xdg-desktop-portal >/dev/null 2>&1; then
+      xdg-desktop-portal &
+    fi
+    "$portal_path" &
+    break
+  fi
+done
+
+# Nạp cấu hình cá nhân (.xprofile)
 if [ -f "${XDG_CONFIG_HOME:-$HOME/.config}/x11/xprofile" ]; then
   . "${XDG_CONFIG_HOME:-$HOME/.config}/x11/xprofile"
 elif [ -f "$HOME/.xprofile" ]; then
   . "$HOME/.xprofile"
 fi
 
-# Cập nhật biến môi trường cho DBus/Systemd (Fix lỗi theme con trỏ, fcitx...)
-dbus-update-activation-environment --systemd --all
+# ==============================================================================
+# 2. ỨNG DỤNG NỀN (BACKGROUND SERVICES)
+# ==============================================================================
 
-# ===============================================================
-# 2. ỨNG DỤNG CHẠY NỀN (BACKGROUND APPS)
-# ===============================================================
+# Xác thực quyền GUI độc lập và siêu nhẹ (Polkit Agent)
+if [ -f /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1 ]; then
+  /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1 &
+elif command -v lxpolkit >/dev/null 2>&1; then
+  lxpolkit &
+fi
 
-# Trayer: Chỉ chạy nếu chưa có (Tránh trùng lặp)
+# Quản lý Clipboard (Tránh mất lịch sử sao lưu trên DWM)
+if command -v copyq >/dev/null 2>&1; then
+  copyq &
+fi
+
+# Trình quản lý năng lượng (Tự động hóa việc ngủ khi gập màn hình laptop)
+if command -v xfce4-power-manager >/dev/null 2>&1; then
+  xfce4-power-manager &
+fi
+
+# Trayer: Khay hệ thống tối giản (Chỉ chạy duy nhất 1 tiến trình)
 if ! pgrep -x "trayer" >/dev/null; then
   trayer --edge top --align left --widthtype request --padding 0 \
     --SetDockType true --tint 0x222222 --height 24 \
     --transparent true --alpha 0 &
 fi
 
-# ===============================================================
-# 3. QUẢN LÝ AUDIO (PIPEWIRE THỦ CÔNG)
-# Fix lỗi mất tiếng khi Relogin & Fix icon volume lúc boot
-# ===============================================================
+# ==============================================================================
+# 3. QUẢN LÝ THIẾT BỊ & ÂM THANH (ARCH vs NIXOS)
+# ==============================================================================
 
 USER_ID=$(id -u)
 
@@ -44,28 +72,34 @@ check_and_run() {
   fi
 }
 
-# --- A. DỌN DẸP TÀN DƯ (ZOMBIE KILLER) ---
-# Nếu socket file không còn (do X crash) mà process vẫn sống -> Giết sạch
-if [ ! -e "/run/user/$USER_ID/pipewire-0" ] && pgrep -x pipewire >/dev/null; then
-  killall -9 pipewire pipewire-pulse wireplumber 2>/dev/null
-  sleep 1
+# Tự động gỡ và gắn các thiết bị lưu trữ (USB, ổ cứng di động)
+if command -v udiskie >/dev/null 2>&1; then
+  udiskie &
 fi
 
-# --- B. KHỞI ĐỘNG TUẦN TỰ ---
-check_and_run pipewire
-sleep 1 # Đợi Core lên
-check_and_run wireplumber
-check_and_run pipewire-pulse
+if [ -f /etc/nixos/configuration.nix ]; then
+  # NixOS: Khởi động lại dịch vụ qua Systemd User
+  systemctl --user reset-failed pipewire wireplumber pipewire-pulse 2>/dev/null
+  systemctl --user restart pipewire wireplumber pipewire-pulse
+else
+  # Arch/Void: Khởi động Pipewire tuần tự thủ công để tránh lỗi mất tiếng
+  if [ ! -e "/run/user/$USER_ID/pipewire-0" ] && pgrep -x pipewire >/dev/null; then
+    killall -9 pipewire pipewire-pulse wireplumber 2>/dev/null
+    sleep 1
+  fi
 
-# --- C. FIX ICON VOLUME (QUAN TRỌNG) ---
-# Đợi thêm 3s cho Audio ổn định, rồi gửi tín hiệu bắt dwmblocks cập nhật ngay.
-# Giả sử trong blocks.h volume dùng signal 10.
+  check_and_run pipewire
+  sleep 1
+  check_and_run wireplumber
+  check_and_run pipewire-pulse
+fi
+
+# Gửi tín hiệu cập nhật âm lượng lên dwmblocks sau khi khởi động ổn định 3s
 (sleep 3 && pkill -RTMIN+11 dwmblocks) &
 
-# ===============================================================
+# ==============================================================================
 # 4. KHỞI ĐỘNG DWM
-# ===============================================================
+# ==============================================================================
 
-# Dùng exec để thay thế process shell hiện tại bằng dwm (Tiết kiệm RAM)
-# ssh-agent giữ key SSH để không phải nhập pass nhiều lần
+# Chạy DWM thông qua SSH Agent bằng biến PATH an toàn
 exec ssh-agent dwm

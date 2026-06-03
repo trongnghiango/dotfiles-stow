@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+
+NEOVIDE_APP='neovide'
+CMD_NAME='Daily'
+#CMD_NAME='ObsidianToday'
+
+if ! command -v $NEOVIDE_APP 2>&1 >/dev/null; then
+  echo "$NEOVIDE_APP could not be found"
+  exit 1
+fi
+
+export WINIT_X11_SCALE_FACTOR=0.9
+exec $NEOVIDE_APP -- -c "$CMD_NAME"

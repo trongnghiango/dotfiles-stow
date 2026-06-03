@@ -1,0 +1,32 @@
+#!/bin/sh
+
+case $BLOCK_BUTTON in
+    1) setsid -f "$TERMINAL" -e bmon ;;
+    3) notify-send "🌐 Network traffic module" "🔻: Traffic received\n🔺: Traffic transmitted" ;;
+    6) setsid -f "$TERMINAL" -e "$EDITOR" "$0" ;;
+esac
+
+update() {
+    sum=0
+    # Use glob directly instead of shell expansion if possible, but your way handles multiple interfaces well
+    for arg; do
+        read -r i <"$arg"
+        sum=$((sum + i))
+    done
+    
+    cache="/tmp/nettraf_${1##*/}"
+    [ -f "$cache" ] && read -r old <"$cache" || old=0
+    
+    # Save current sum
+    echo "$sum" > "$cache"
+    
+    # Return delta
+    echo $((sum - old))
+}
+
+# Only check ethernet and wifi (wlan/eth) to avoid virtual interfaces spam
+rx=$(update /sys/class/net/[ew]*/statistics/rx_bytes)
+tx=$(update /sys/class/net/[ew]*/statistics/tx_bytes)
+
+# Format with numfmt
+printf "🔻%4sB 🔺%4sB\\n" $(numfmt --to=iec $rx $tx)
