@@ -1,0 +1,8 @@
+#!/usr/bin/env sh
+
+# Artix Linux-specific aliases
+
+alias p="pacman"
+alias pacman="sudo pacman"
+alias rc="sudo rc-service"
+alias rcup="sudo rc-update"

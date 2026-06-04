@@ -1,0 +1,10 @@
+#!/usr/bin/env sh
+
+# Khởi chạy âm thanh Pipewire thủ công trên Artix (không dùng systemd user services)
+if ! pgrep -x pipewire >/dev/null; then
+  pipewire >/dev/null 2>&1 &
+  sleep 0.1
+  wireplumber >/dev/null 2>&1 &
+  sleep 0.1
+  pipewire-pulse >/dev/null 2>&1 &
+fi
