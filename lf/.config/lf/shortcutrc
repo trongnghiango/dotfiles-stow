@@ -10,7 +10,7 @@ map Cpp cd ~/Pictures
 map Cvv cd ~/Videos 
 map Ebd $$EDITOR ~/.config/shell/bm-dirs 
 map Ecfx $$EDITOR ~/.config/x11/xresources 
-map Ecfv $$EDITOR ~/.config/nvim/init.vim 
-map Ecfz $$EDITOR ~/.zshrc 
+map Ecfv $$EDITOR ~/.config/nvim/init.lua 
+map Ecfz $$EDITOR ~/.config/zsh/.zshrc 
 map Ecfl $$EDITOR ~/.config/lf/lfrc 
 map EcfL $$EDITOR ~/.config/lf/scope 
