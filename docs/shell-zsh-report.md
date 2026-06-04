@@ -11,7 +11,10 @@ shell/
 ├── .zprofile                          # entry point login shell
 └── .config/shell/
     ├── profile                        # biến môi trường XDG + chương trình mặc định
-    ├── aliasrc                        # aliases toàn bộ shell
+    ├── aliasrc                        # aliases chung (cross-platform)
+    ├── aliasrc.arch                   # aliases dành riêng cho Arch Linux
+    ├── aliasrc.void                   # aliases dành riêng cho Void Linux
+    ├── aliasrc.nixos                  # aliases dành riêng cho NixOS
     ├── shortcutrc                     # cd shortcuts (alias dạng chữ)
     ├── shortcutenvrc                  # biến môi trường cho shortcut path
     ├── zshnameddirrc                  # named directories cho zsh (hash -d)
@@ -100,11 +103,27 @@ PS1="%B%{$fg[red]%}[%{$fg[yellow]%}%n%{$fg[green]%}@...%{$fg[blue]%}%M ...]%{$re
   - `HIST_IGNORE_DUPS` — bỏ qua lệnh trùng
   - `HIST_REDUCE_BLANKS` — nén khoảng trắng thừa
 
-### 3c. Source các file shell config (dòng 29-33)
+### 3c. Source các file shell config (dòng 29-41)
 
-Thứ tự: `shortcutrc` → `shortcutenvrc` → `aliasrc` → `zshnameddirrc`
+Thứ tự: `shortcutrc` → `shortcutenvrc` → `aliasrc` → OS detection → `zshnameddirrc`
 
-**Can thiệp:** Nạp tất cả alias, shortcut cd, env shortcuts vào môi trường zsh.
+```sh
+[ -f ".../shortcutrc" ]     && source ".../shortcutrc"
+[ -f ".../shortcutenvrc" ]  && source ".../shortcutenvrc"
+[ -f ".../aliasrc" ]        && source ".../aliasrc"
+
+# OS-specific aliases (arch / void / nixos)
+if [ -f /etc/os-release ]; then
+  OS=$(grep ^ID= /etc/os-release | cut -d= -f2 | tr -d '"' | tr '[:upper:]' '[:lower:]')
+  OS_ALIASRC=".../aliasrc.$OS"
+  [ -f "$OS_ALIASRC" ] && source "$OS_ALIASRC"
+fi
+
+[ -f ".../zshnameddirrc" ]  && source ".../zshnameddirrc"
+```
+
+- Sau khi source `aliasrc` chung, tự động detect OS từ `/etc/os-release` và source `aliasrc.arch` / `aliasrc.void` / `aliasrc.nixos` tương ứng
+- Pattern giống `xinitrc.$OS` — khi cài OS mới chỉ cần tạo `aliasrc.<tên_os>`
 
 ### 3d. Autocomplete (dòng 35-40)
 
@@ -138,14 +157,26 @@ _comp_options+=(globdots)
 | `Ctrl+E` | Edit command line hiện tại | nvim |
 | Tab complete | `hjkl` để di chuyển | zsh/complist |
 
-### 3f. NVM (dòng 94-96)
+### 3f. NVM — lazy load (dòng 94-105)
 
 ```sh
 export NVM_DIR="$HOME/.config/nvm"
-[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+
+_nvm_lazy_load() {
+  unset -f nvm node npm npx
+  [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+  [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
+}
+
+nvm() { _nvm_lazy_load; nvm "$@"; }
+node() { _nvm_lazy_load; node "$@"; }
+npm() { _nvm_lazy_load; npm "$@"; }
+npx() { _nvm_lazy_load; npx "$@"; }
 ```
 
-- **Can thiệp:** Mỗi terminal mới load nvm (~200ms overhead). Dữ liệu ở `~/.config/nvm` thay vì `~/.nvm`.
+- **Lazy loading:** Chỉ load nvm khi gõ `nvm`, `node`, `npm`, hoặc `npx` lần đầu — tiết kiệm ~200ms mỗi terminal
+- `_nvm_lazy_load` tự huỷ các hàm giả (`unset -f`), source `nvm.sh` thật, lần sau gọi binary thật trong PATH
+- Dữ liệu ở `~/.config/nvm` thay vì `~/.nvm`
 
 ### 3g. FZF (dòng 98-103)
 
@@ -200,7 +231,9 @@ source /usr/share/zsh/plugins/fast-syntax-highlighting/fast-syntax-highlighting.
 
 ---
 
-## 4. `shell/.config/shell/aliasrc` — Aliases
+## 4. `shell/.config/shell/aliasrc` — Aliases chung
+
+Aliases được tách làm 2 lớp: **chung** (`aliasrc`) và **OS-specific** (`aliasrc.arch`, `aliasrc.void`, `aliasrc.nixos`).
 
 ### 4a. Override lệnh
 
@@ -210,15 +243,15 @@ source /usr/share/zsh/plugins/fast-syntax-highlighting/fast-syntax-highlighting.
 | `startx` | `startx $XINITRC` | Dùng đúng xinitrc path |
 | `mbsync` | `mbsync -c $MBSYNCRC` | Dùng đúng config path |
 
-### 4b. Sudo wrapper
+### 4b. Sudo wrapper (chung)
 
 ```sh
-for command in mount umount sv pacman updatedb su shutdown poweroff reboot; do
+for command in mount umount updatedb su shutdown poweroff reboot; do
   alias $command="sudo $command"
 done
 ```
 
-**Can thiệp:** mount, umount, pacman, shutdown, reboot... luôn chạy sudo. `sv` dành cho Void Linux (runit), không gây lỗi trên Arch.
+**Can thiệp:** mount, umount, shutdown, reboot... luôn chạy sudo (cross-platform). `pacman` (Arch) và `sv` (Void) được chuyển xuống file OS-specific.
 
 ### 4c. Interactive safety aliases
 
@@ -234,21 +267,50 @@ done
 - `eza` available → `eza --icons --group-directories-first`
 - fallback → `ls -hN --color=auto --group-directories-first`
 
-### 4e. Short aliases
+### 4e. Short aliases (chung)
 
-| Alias | Gọi | Platform |
-|-------|-----|----------|
-| `ka` | `killall` | Chung |
-| `g` | `git` | Chung |
-| `e`/`v` | `$EDITOR` (nvim) | Chung |
-| `p` | `pacman` | Arch |
-| `xi` | `sudo xbps-install` | Void |
-| `xr` | `sudo xbps-remove -R` | Void |
-| `xq` | `xbps-query` | Void |
-| `sdn` | `shutdown -h now` | Chung |
-| `lf` | `lfub` | File manager |
-| `magit` | `nvim -c MagitOnly` | Git UI |
-| `ref` | refresh shortcuts | Chung |
+| Alias | Gọi |
+|-------|-----|
+| `ka` | `killall` |
+| `g` | `git` |
+| `e`/`v` | `$EDITOR` (nvim) |
+| `sdn` | `shutdown -h now` |
+| `lf` | `lfub` |
+| `magit` | `nvim -c MagitOnly` |
+| `ref` | refresh shortcuts |
+
+---
+
+## 4x. OS-specific alias files
+
+### `aliasrc.arch` (Arch Linux)
+
+| Alias | Gọi |
+|-------|-----|
+| `p` | `pacman` |
+| `pacman` | `sudo pacman` |
+
+### `aliasrc.void` (Void Linux)
+
+| Alias | Gọi |
+|-------|-----|
+| `xi` | `sudo xbps-install` |
+| `xr` | `sudo xbps-remove -R` |
+| `xq` | `xbps-query` |
+| `sv` | `sudo sv` |
+
+### `aliasrc.nixos` (NixOS)
+
+| Alias | Gọi |
+|-------|-----|
+| `nrs` | `sudo nixos-rebuild switch` |
+| `nrt` | `sudo nixos-rebuild test` |
+| `nu` | `nix-env -u` |
+| `nq` | `nix-env -q` |
+| `ni` | `nix-env -i` |
+| `ne` | `nix-env -e` |
+| `nc` | `nix-collect-garbage` |
+| `ncf` | `nix-collect-garbage -d` |
 
 ---
 
@@ -334,9 +396,9 @@ Login (tty1)
   ↓ (nếu không vào X)
 .zshrc    ─── source shell files, vi mode, completion, tools
   ↓
-shortcutrc / shortcutenvrc / aliasrc / zshnameddirrc
+shortcutrc / shortcutenvrc / aliasrc → [OS detect] aliasrc.{arch,void,nixos} / zshnameddirrc
   ↓
-NVM → FZF → pnpm → Go → bun → direnv → fast-syntax-highlighting
+NVM (lazy) → FZF → pnpm → Go → bun → direnv → fast-syntax-highlighting
   ↓
 Prompt sẵn sàng
 ```
@@ -354,11 +416,53 @@ Prompt sẵn sàng
 | Vi mode | Zsh command line + readline | 🔴 Cao |
 | Auto startx | Tự vào X ở tty1 | 🔴 Cao |
 | Direnv | Auto env theo thư mục | 🟡 Trung bình |
-| NVM | Mỗi terminal mới (~200ms) | 🟡 Trung bình |
-| Sudo aliases | mount/umount/pacman/shutdown... | 🟡 Trung bình |
+| NVM (lazy) | Chỉ load khi dùng Node | 🟢 Nhẹ |
+| Sudo aliases | mount/umount/shutdown... (tuỳ OS) | 🟡 Trung bình |
 | Safety aliases (cp/mv/rm) | Hành vi copy/move/delete | 🟡 Trung bình |
 | `QT_QPA_PLATFORMTHEME` | Ứng dụng Qt (Obsidian...) | 🟢 Nhẹ |
 | `_JAVA_AWT_WM_NONREPARENTING` | Java apps trong dwm | 🟢 Nhẹ |
 | `MOZ_USE_XINPUT2` | Firefox scroll mượt | 🟢 Nhẹ |
 | fast-syntax-highlighting | Zsh input realtime | 🟢 Nhẹ |
 | Shortcut cd/env/named | Navigation trong shell | 🟢 Nhẹ |
+
+---
+
+## Lịch sử sửa đổi
+
+### 2026-06-04 — Refactor shell/zsh config (commit `f696f35`)
+
+#### `shell/.config/shell/profile`
+- **Fix bug** dòng 12: sửa điều kiện `[ -d "$HOME/.local/bin" ]` → `[ -d "$HOME/Applications/bin" ]` (sai logic kiểm tra thư mục)
+- **Xoá** `export GOPATH="$XDG_DATA_HOME/go"` — chuyển về `.zshrc` (`$HOME/go`)
+- **Xoá** `export FZF_DEFAULT_OPTS` — chuyển về `.zshrc` (bản chi tiết hơn)
+
+#### `shell/.config/shell/shortcutenvrc`
+- **Đồng bộ:** `~/.local/src/dwmblocks/config.h` → `$HOME/.local/src/dwmblocks/config.h`
+
+#### `shell/.config/shell/zshnameddirrc`
+- **Đồng bộ:** `~/.local/src/dwmblocks/config.h` → `$HOME/.local/src/dwmblocks/config.h`
+
+#### `shell/.config/shell/aliasrc` — Tách OS-specific
+- **Xoá** `sv` và `pacman` khỏi vòng lặp sudo wrapper (chuyển xuống file OS-specific)
+- **Xoá** `p`, `xi`, `xr`, `xq` khỏi short aliases (chuyển xuống file OS-specific)
+- Thêm OS detection vào `.zshrc` để source `aliasrc.$OS`
+
+#### File mới: `aliasrc.arch`
+- `p` → `pacman`, `pacman` → `sudo pacman`
+
+#### File mới: `aliasrc.void`
+- `xi` → `sudo xbps-install`, `xr` → `sudo xbps-remove -R`, `xq` → `xbps-query`
+- `sv` → `sudo sv`
+
+#### File mới: `aliasrc.nixos`
+- `nrs`/`nrt` → nixos-rebuild, `nu`/`nq`/`ni`/`ne` → nix-env, `nc`/`ncf` → nix-collect-garbage
+
+#### `zsh/.config/zsh/.zshrc`
+- **Xoá** block duplicate `compinit` (do `append_zshrc` thêm vào trước đó)
+- **Thêm** OS detection sau khi source `aliasrc`
+- **Sắp xếp lại thứ tự:** NVM → FZF → pnpm → Go → bun → direnv → fast-syntax-highlighting
+- **Chuyển** fast-syntax-highlighting xuống cuối cùng (đúng theo yêu cầu plugin)
+- **Thay thế** NVM eager load bằng lazy load — chỉ source `nvm.sh` khi gõ `nvm`/`node`/`npm`/`npx` lần đầu
+
+### 2026-06-04 — File report được tạo
+- `docs/shell-zsh-report.md` — report chi tiết về cấu hình shell/zsh
