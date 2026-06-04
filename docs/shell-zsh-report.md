@@ -466,3 +466,18 @@ Prompt sẵn sàng
 
 ### 2026-06-04 — File report được tạo
 - `docs/shell-zsh-report.md` — report chi tiết về cấu hình shell/zsh
+
+### 2026-06-04 — Thay `~` bằng `$HOME` (commit `e6665fd`)
+
+#### `shell/.config/shell/aliasrc`
+- `find ~/.local/bin` → `find "$HOME/.local/bin"`
+
+#### `shell/.config/shell/shortcutrc`
+- `cfb="$EDITOR ~/.local/src/dwmblocks/config.h"` → `cfb="$EDITOR $HOME/.local/src/dwmblocks/config.h"`
+
+#### `shell/.config/shell/bm-files`
+- `cfb	~/.local/src/dwmblocks/config.h` → `cfb	$HOME/.local/src/dwmblocks/config.h`
+
+### Verify `profile:70` — lệnh `shortcuts`
+- Xác nhận lệnh `shortcuts` tồn tại tại `~/.local/bin/shortcuts`, là symlink trỏ đến `.dotfiles/bin/.local/bin/shortcuts`
+- Dòng 70 trong `profile`: `[ ! -f "$XDG_CONFIG_HOME/shell/shortcutrc" ] && setsid -f shortcuts` — chỉ generate file `shortcutrc` nếu chưa tồn tại, hoạt động bình thường, không phải lỗi
