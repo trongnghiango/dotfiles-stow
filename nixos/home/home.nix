@@ -68,7 +68,6 @@
     ".config/nvim".source = config.lib.file.mkOutOfStoreSymlink "${dotfiles}/nvim/.config/nvim";
     ".config/lf".source = config.lib.file.mkOutOfStoreSymlink "${dotfiles}/lf/.config/lf";
     ".config/dunst".source = config.lib.file.mkOutOfStoreSymlink "${dotfiles}/dunst/.config/dunst";
-    ".config/newsboat".source = config.lib.file.mkOutOfStoreSymlink "${dotfiles}/bin/.local/share/newsboat";
     ".config/mpd".source = config.lib.file.mkOutOfStoreSymlink "${dotfiles}/media/.config/mpd";
     ".config/ncmpcpp".source = config.lib.file.mkOutOfStoreSymlink "${dotfiles}/media/.config/ncmpcpp";
     ".config/mpv".source = config.lib.file.mkOutOfStoreSymlink "${dotfiles}/media/.config/mpv";
@@ -81,15 +80,13 @@
     ".xprofile".source = config.lib.file.mkOutOfStoreSymlink "${dotfiles}/x11/.config/x11/xprofile";
     ".config/x11".source = config.lib.file.mkOutOfStoreSymlink "${dotfiles}/x11/.config/x11";
 
-    ".local/bin/base".source = config.lib.file.mkOutOfStoreSymlink "${dotfiles}/bin/.local/bin";
-    ".local/bin/user".source = config.lib.file.mkOutOfStoreSymlink "${dotfiles}/user-bin/.local/bin/user";
+    ".local/bin/scripts".source = config.lib.file.mkOutOfStoreSymlink "${dotfiles}/scripts/.local/bin";
   };
 
   # CẬP NHẬT PATH
   home.sessionPath = [
-    "$HOME/.local/bin"        # Nơi chứa dwm, st (build tay)
-    "$HOME/.local/bin/base"   # Nơi chứa các script cơ bản
-    "$HOME/.local/bin/user"   # Nơi chứa các script ka-*
+    "$HOME/.local/bin"          # Nơi chứa dwm, st, scripts
+    "$HOME/.local/bin/scripts"  # Fallback cho dotfiles scripts
   ];
 
   # Theme GTK
