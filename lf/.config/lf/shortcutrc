@@ -14,3 +14,4 @@ map Ecfv $$EDITOR ~/.config/nvim/init.lua
 map Ecfz $$EDITOR ~/.config/zsh/.zshrc 
 map Ecfl $$EDITOR ~/.config/lf/lfrc 
 map EcfL $$EDITOR ~/.config/lf/scope 
+map Ecfh $$EDITOR ~/.config/lf/README.md 
