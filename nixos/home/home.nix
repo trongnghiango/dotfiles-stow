@@ -7,7 +7,7 @@
   # --- Cài đặt Phần mềm User ---
   home.packages = with pkgs; [
     # 1. GUI Apps
-    librewolf nsxiv zathura mpv dunst rofi calcurse
+    nsxiv zathura mpv dunst rofi calcurse
     pavucontrol networkmanagerapplet trayer xwallpaper arandr
     
     # 2. Âm thanh (Đã thêm vào đây)
@@ -72,7 +72,6 @@
     ".config/ncmpcpp".source = config.lib.file.mkOutOfStoreSymlink "${dotfiles}/media/.config/ncmpcpp";
     ".config/mpv".source = config.lib.file.mkOutOfStoreSymlink "${dotfiles}/media/.config/mpv";
     ".config/nsxiv".source = config.lib.file.mkOutOfStoreSymlink "${dotfiles}/nsxiv/.config/nsxiv";
-    ".config/librewolf".source = config.lib.file.mkOutOfStoreSymlink "${dotfiles}/librewolf/.config/librewolf";
     ".config/tmux".source = config.lib.file.mkOutOfStoreSymlink "${dotfiles}/tmux/.config/tmux";
 
     # X11 & Scripts
@@ -100,7 +99,7 @@
   home.sessionVariables = {
     EDITOR = "nvim";
     TERMINAL = "st";
-    BROWSER = "librewolf";
+    BROWSER = "brave";
     _JAVA_AWT_WM_NONREPARENTING = "1";
   };
 
