@@ -49,7 +49,7 @@ fi
 alias \
   grep="grep --color=auto" \
   diff="diff --color=auto" \
-  ccat="highlight --out-format=ansi" \
+  ccat="bat --style=plain --color=always" \
   ip="ip -color=auto"
 
 # These common commands are just too long! Abbreviate them.
