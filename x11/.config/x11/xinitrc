@@ -31,13 +31,18 @@ for portal_path in "/usr/lib/xdg-desktop-portal-gtk" "/usr/libexec/xdg-desktop-p
 done  # <--- ĐÃ SỬA THÀNH DONE TẠI ĐÂY
 
 # ==============================================================================
-# 2. NẠP CẤU HÌNH BIẾN MÔI TRƯỜNG CÁ NHÂN
+# 2. NẠP CẤU HÌNH BIẾN MÔI TRƯỜNG CÁ NHÂN & XRESOURCES
 # ==============================================================================
 XPROFILE_PATH="${XDG_CONFIG_HOME:-$HOME/.config}/x11/xprofile"
 if [ -f "$XPROFILE_PATH" ]; then
   . "$XPROFILE_PATH"
 elif [ -f "$HOME/.xprofile" ]; then
   . "$HOME/.xprofile"
+fi
+
+XRESOURCES_PATH="${XDG_CONFIG_HOME:-$HOME/.config}/x11/xresources"
+if [ -f "$XRESOURCES_PATH" ]; then
+  command -v xrdb >/dev/null 2>&1 && xrdb -merge "$XRESOURCES_PATH"
 fi
 
 # ==============================================================================
