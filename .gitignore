@@ -2,3 +2,6 @@
 zsh/.config/zsh/.zcompdump*
 shell/.config/shell/profile.local
 HANDOFF.md
+
+temp.md
+setup_arch/
