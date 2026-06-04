@@ -1,13 +1,9 @@
 #!/usr/bin/env sh
 
-# ==============================================================================
-# 1. KHỞI CHẠY ÂM THANH (DÙNG SYSTEMD ĐỂ KHÔNG BỊ TRỄ)
-# ==============================================================================
+# Khởi chạy âm thanh Pipewire qua Systemd (Arch)
 if command -v systemctl >/dev/null 2>&1 && systemctl --user is-system-running >/dev/null 2>&1; then
-  # Đảm bảo các dịch vụ âm thanh được chạy (nếu đã chạy sẽ không ảnh hưởng gì và khởi động cực nhanh 0.02s)
   systemctl --user start pipewire wireplumber pipewire-pulse 2>/dev/null
 else
-  # Fallback cho hệ thống không dùng systemd, chỉ chạy nếu chưa có tiến trình
   if ! pgrep -x pipewire >/dev/null; then
     pipewire >/dev/null 2>&1 &
     sleep 0.1
@@ -16,37 +12,3 @@ else
     pipewire-pulse >/dev/null 2>&1 &
   fi
 fi
-
-
-# 2. Cấu hình hiển thị (Tự động dò cổng màn hình)
-if command -v xrandr >/dev/null 2>&1; then
-  monitor=$(xrandr | grep " connected primary" | awk '{print $1}')
-  [ -z "$monitor" ] && monitor=$(xrandr | grep " connected" | awk '{print $1}' | head -n 1)
-  [ -z "$monitor" ] && monitor="Virtual-1"
-  xrandr --output "$monitor" --auto
-fi
-
-# Thiết lập hình nền
-command -v setbg >/dev/null 2>&1 && setbg "$HOME/Pictures/Wallpapers/" &
-
-# 3. Các ứng dụng nền của Arch
-autostart="clipboard-tray dunst udiskie xfce4-power-manager fcitx5 mpd picom unclutter remapd"
-for program in $autostart; do
-  if command -v "$program" >/dev/null 2>&1; then
-    if [ ${#program} -gt 15 ]; then
-      pgrep -f "$program" >/dev/null || "$program" &
-    else
-      pgrep -x "$program" >/dev/null || "$program" &
-    fi
-  fi
-done
-
-# Khay hệ thống trayer
-if command -v trayer >/dev/null 2>&1; then
-  pgrep -x trayer >/dev/null || trayer --edge top --align left --widthtype request --padding 0 \
-    --SetDockType true --tint 0x222222 --height 24 --transparent true --alpha 0 &
-fi
-
-# Signal dwmblocks
-command -v start-dwmblocks >/dev/null 2>&1 && start-dwmblocks &
-(sleep 3 && pkill -RTMIN+11 dwmblocks) &

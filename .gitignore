@@ -1,2 +1,3 @@
 .zcompdump*
 zsh/.config/zsh/.zcompdump*
+shell/.config/shell/profile.local

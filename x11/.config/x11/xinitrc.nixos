@@ -1,31 +1,5 @@
 #!/usr/bin/env sh
 
-# 1. Khởi chạy âm thanh qua Systemd User của NixOS
+# Khởi chạy âm thanh Pipewire qua Systemd User (NixOS)
 systemctl --user reset-failed pipewire wireplumber pipewire-pulse 2>/dev/null
 systemctl --user restart pipewire wireplumber pipewire-pulse
-
-# 2. Cấu hình hiển thị (Tự động dò cổng màn hình)
-if command -v xrandr >/dev/null 2>&1; then
-  monitor=$(xrandr | grep " connected primary" | awk '{print $1}')
-  [ -z "$monitor" ] && monitor=$(xrandr | grep " connected" | awk '{print $1}' | head -n 1)
-  [ -z "$monitor" ] && monitor="Virtual-1"
-  xrandr --output "$monitor" --auto
-fi
-
-# Thiết lập hình nền
-command -v setbg >/dev/null 2>&1 && setbg "$HOME/Pictures/Wallpapers/" &
-
-# 3. Các ứng dụng nền của NixOS
-# (NixOS quản lý các package qua Nix store, việc dùng command -v/pgrep giúp đảm bảo an toàn)
-autostart="clipboard-tray dunst udiskie xfce4-power-manager fcitx5 mpd picom unclutter remapd"
-for program in $autostart; do
-  pgrep -x "$program" >/dev/null || "$program" &
-done
-
-# Khởi chạy khay hệ thống trayer
-pgrep -x trayer >/dev/null || trayer --edge top --align left --widthtype request --padding 0 \
-  --SetDockType true --tint 0x222222 --height 24 --transparent true --alpha 0 &
-
-# Signal dwmblocks
-command -v start-dwmblocks >/dev/null 2>&1 && start-dwmblocks &
-(sleep 3 && pkill -RTMIN+11 dwmblocks) &
