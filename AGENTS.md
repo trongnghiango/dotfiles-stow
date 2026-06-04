@@ -17,6 +17,7 @@ Each top-level directory is a Stow package containing `$HOME`-relative paths:
 | `nixos/` | flake.nix, hosts/thinkbox/, home/home.nix |
 | `lf/` | lf file manager (vi binds, ueberzug preview) |
 | `media/` | mpv, ncmpcpp, mpd configs |
+| `opencode/` | 9Router gateway config, 3 combo tiers (KhaBoDo, KhaSimple, KhaThinking) |
 
 ## Key commands / workflow
 
