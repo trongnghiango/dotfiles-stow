@@ -15,7 +15,7 @@
 [ -n "bf" ] && export bf="/home/ka/.config/shell/bm-files" 
 [ -n "bd" ] && export bd="/home/ka/.config/shell/bm-dirs" 
 [ -n "cfx" ] && export cfx="/home/ka/.config/x11/xresources" 
-[ -n "cfb" ] && export cfb="~/.local/src/dwmblocks/config.h" 
+[ -n "cfb" ] && export cfb="$HOME/.local/src/dwmblocks/config.h" 
 [ -n "cfv" ] && export cfv="/home/ka/.config/nvim/init.vim" 
 [ -n "cfz" ] && export cfz="/home/ka/.config/zsh/.zshrc" 
 [ -n "cfa" ] && export cfa="/home/ka/.config/shell/aliasrc" 

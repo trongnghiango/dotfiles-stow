@@ -1,0 +1,8 @@
+#!/bin/sh
+
+# Void Linux-specific aliases
+
+alias xi="sudo xbps-install"
+alias xr="sudo xbps-remove -R"
+alias xq="xbps-query"
+alias sv="sudo sv"

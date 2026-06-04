@@ -1,0 +1,12 @@
+#!/bin/sh
+
+# NixOS-specific aliases
+
+alias nrs="sudo nixos-rebuild switch"
+alias nrt="sudo nixos-rebuild test"
+alias nu="nix-env -u"
+alias nq="nix-env -q"
+alias ni="nix-env -i"
+alias ne="nix-env -e"
+alias nc="nix-collect-garbage"
+alias ncf="nix-collect-garbage -d"
