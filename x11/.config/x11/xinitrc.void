@@ -1,0 +1,35 @@
+#!/usr/bin/env sh
+
+# 1. Khởi chạy âm thanh thủ công tuần tự
+killall -9 pipewire pipewire-pulse wireplumber 2>/dev/null
+sleep 0.5
+pipewire &
+sleep 0.5
+wireplumber &
+sleep 0.5
+pipewire-pulse &
+
+# 2. Cấu hình hiển thị
+if command -v xrandr >/dev/null 2>&1; then
+  monitor=$(xrandr | grep " connected primary" | awk '{print $1}')
+  [ -z "$monitor" ] && monitor=$(xrandr | grep " connected" | awk '{print $1}' | head -n 1)
+  [ -z "$monitor" ] && monitor="Virtual-1"
+  xrandr --output "$monitor" --auto
+fi
+
+# Thiết lập hình nền
+command -v setbg >/dev/null 2>&1 && setbg "$HOME/Pictures/Wallpapers/" &
+
+# 3. Các ứng dụng nền của Void
+autostart="clipboard-tray dunst udiskie xfce4-power-manager fcitx5 mpd picom unclutter remapd"
+for program in $autostart; do
+  pgrep -x "$program" >/dev/null || "$program" &
+done
+
+# Khay hệ thống trayer
+pgrep -x trayer >/dev/null || trayer --edge top --align left --widthtype request --padding 0 \
+  --SetDockType true --tint 0x222222 --height 24 --transparent true --alpha 0 &
+
+# Signal dwmblocks
+command -v start-dwmblocks >/dev/null 2>&1 && start-dwmblocks &
+(sleep 3 && pkill -RTMIN+11 dwmblocks) &

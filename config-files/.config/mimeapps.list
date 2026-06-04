@@ -30,3 +30,4 @@ application/x-extension-htm=brave-browser.desktop;
 application/x-extension-html=brave-browser.desktop;
 application/x-extension-shtml=brave-browser.desktop;
 application/xhtml+xml=brave-browser.desktop;
+x-scheme-handler/antigravity=antigravity.desktop
