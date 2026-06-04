@@ -1,8 +1,0 @@
-# SAI: *.sqlite*|*.png|*.cache|profiles.ini|firefox-mpris/|Profile Groups/
-# ĐÚNG:
-^.*\.sqlite.*$
-^.*\.png$
-^.*\.cache$
-^profiles\.ini$
-^firefox-mpris/
-^Profile Groups/
