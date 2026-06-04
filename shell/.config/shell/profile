@@ -69,11 +69,5 @@ export _JAVA_AWT_WM_NONREPARENTING=1      # Fix for Java applications in dwm
 
 [ ! -f "$XDG_CONFIG_HOME/shell/shortcutrc" ] && setsid -f shortcuts >/dev/null 2>&1
 
-# Start graphical server on user's current tty if not already running.
-[ "$(tty)" = "/dev/tty1" ] && ! pidof -s Xorg >/dev/null 2>&1 && exec startx "$XINITRC"
-
 # 9Router API key for opencode provider (moved to profile.local to prevent secret leaks)
 [ -f "${XDG_CONFIG_HOME:-$HOME/.config}/shell/profile.local" ] && . "${XDG_CONFIG_HOME:-$HOME/.config}/shell/profile.local"
-
-# Switch escape and caps if tty and no passwd required:
-sudo -n loadkeys "$XDG_DATA_HOME/larbs/ttymaps.kmap" 2>/dev/null
