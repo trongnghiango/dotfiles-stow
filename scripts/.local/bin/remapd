@@ -1,8 +1,20 @@
-#!/bin/bash
+#!/usr/bin/env sh
 
 # Rerun the remaps script whenever a new input device is added.
 
+echo "[$(date)] remapd started" > /tmp/remapd.log
+
+# Chạy cấu hình phím lần đầu
+echo "[$(date)] Running initial remaps" >> /tmp/remapd.log
+remaps >> /tmp/remapd.log 2>&1
+
 while :; do
-	remaps
-	grep -qP -m1 '[^un]bind.+\/[^:]+\(usb\)' <(udevadm monitor -u -t seat -s input -s usb)
+	# Theo dõi thiết bị đầu vào, ghi lỗi của udevadm nếu có
+	if ! grep -qP -m1 '[^un]bind.+\/[^:]+\(usb\)' <(udevadm monitor -u -t seat -s input -s usb) 2>>/tmp/remapd.log; then
+		echo "[$(date)] udevadm failed, sleeping 2s to prevent CPU spam" >> /tmp/remapd.log
+		sleep 2
+	fi
+	echo "[$(date)] Device event detected, rerunning remaps" >> /tmp/remapd.log
+	remaps >> /tmp/remapd.log 2>&1
+	sleep 0.5
 done
