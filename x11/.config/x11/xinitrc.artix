@@ -2,6 +2,12 @@
 
 # Khởi chạy âm thanh Pipewire thủ công trên Artix (không dùng systemd user services)
 if ! pgrep -x pipewire >/dev/null; then
+  # Đảm bảo D-Bus socket khả dụng cho Pipewire trước khi khởi chạy
+  for i in $(seq 1 20); do
+    [ -n "$DBUS_SESSION_BUS_ADDRESS" ] && break
+    sleep 0.05
+  done
+
   pipewire >/dev/null 2>&1 &
   sleep 0.1
   wireplumber >/dev/null 2>&1 &

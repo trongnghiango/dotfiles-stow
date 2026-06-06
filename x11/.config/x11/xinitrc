@@ -13,7 +13,9 @@ if [ -z "$DBUS_SESSION_BUS_ADDRESS" ] && [ -S "/run/user/$(id -u)/bus" ]; then
 fi
 
 if [ -z "$DBUS_SESSION_BUS_ADDRESS" ]; then
-  eval $(dbus-launch --sh-syntax --exit-with-session)
+  if command -v dbus-launch >/dev/null 2>&1; then
+    eval $(dbus-launch --sh-syntax --exit-with-session)
+  fi
 fi
 
 if command -v dbus-update-activation-environment >/dev/null 2>&1; then
