@@ -28,8 +28,8 @@ case $BLOCK_BUTTON in
 esac
 
 # --- 2. LẤY DỮ LIỆU ---
-# Lấy cả dòng info một lần cho nhanh
-WP_OUTPUT=$(wpctl get-volume @DEFAULT_AUDIO_SINK@)
+# Lấy cả dòng info một lần cho nhanh, có timeout tránh treo trên VM
+WP_OUTPUT=$(timeout 1s wpctl get-volume @DEFAULT_AUDIO_SINK@ 2>/dev/null)
 
 # --- 3. XỬ LÝ HIỂN THỊ ---
 if [ -z "$WP_OUTPUT" ]; then
