@@ -19,7 +19,7 @@ esac
 
 case $BLOCK_BUTTON in
     1) notify-send "Calendar" "$(cal | sed "s/\<$(date +'%e' | tr -d ' ')\>/<b><span color='red'>&<\/span><\/b>/")" ;;
-    2) setsid -f "$TERMINAL" -e calcurse ;;
+    2) ifinstalled calcurse && setsid -f "$TERMINAL" -e calcurse ;;
     3) notify-send "📅 Time" "Left: Month view\nMiddle: Calcurse" ;;
     6) setsid -f "$TERMINAL" -e "$EDITOR" "$0" ;;
 esac

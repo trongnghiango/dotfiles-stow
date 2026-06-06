@@ -2,7 +2,7 @@
 
 # --- 1. XỬ LÝ CLICK ---
 case $BLOCK_BUTTON in
-1) setsid -f st -e btop ;; # Click trái: Mở btop
+1) ifinstalled btop && setsid -f st -e btop ;; # Click trái: Mở btop
 3)
   # Click phải: Lấy nhiệt độ từ sensors, làm đẹp và notify
   # Lọc lấy: Fan Speed, CPU Temp, Core Temp, Pin (nếu cần)
