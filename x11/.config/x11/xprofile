@@ -3,8 +3,8 @@
 # ==============================================================================
 # 1. BIẾN MÔI TRƯỜNG & ĐƯỜNG DẪN PATH
 # ==============================================================================
-# Xuất đường dẫn script cá nhân nếu cần
-# export PATH="$HOME/.local/bin/scripts:$PATH"
+# Xuất đường dẫn script cá nhân và binary của người dùng
+export PATH="$HOME/.local/bin:$HOME/.local/bin/scripts:$PATH"
 
 # ==============================================================================
 # 2. CẤU HÌNH BỘ GÕ TIẾNG VIỆT (FCITX5)
