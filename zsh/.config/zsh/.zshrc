@@ -38,7 +38,7 @@ fi
 autoload -U compinit
 zstyle ':completion:*' menu select
 zmodload zsh/complist
-compinit
+compinit -u
 _comp_options+=(globdots)		# Include hidden files.
 
 # vi mode

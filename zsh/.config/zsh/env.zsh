@@ -37,4 +37,6 @@ export PATH=$PATH:$GOPATH/bin
 [ -s "/home/ka/.bun/_bun" ] && source "/home/ka/.bun/_bun" 2>/dev/null
 
 # Direnv
-eval "$(direnv hook zsh)"
+if command -v direnv &>/dev/null; then
+  eval "$(direnv hook zsh)"
+fi

@@ -45,7 +45,7 @@ launch() {
   # 2. Dùng xargs để bắt lấy chữ in ra và ném lên thanh bar
   # 3. Chạy nền (&)
 
-  "$PROG" | xargs -0 -I {} xsetroot -name "{}" &
+  "$PROG" | while read -r line; do xsetroot -name "$line"; done &
 }
 
 # Hàm hiển thị trạng thái đang khởi động (Visual Feedback)
