@@ -11,8 +11,8 @@ remaps >> /tmp/remapd.log 2>&1
 while :; do
 	# Theo dõi thiết bị đầu vào, ghi lỗi của udevadm nếu có
 	if ! grep -qP -m1 '[^un]bind.+\/[^:]+\(usb\)' <(udevadm monitor -u -t seat -s input -s usb) 2>>/tmp/remapd.log; then
-		echo "[$(date)] udevadm failed, sleeping 2s to prevent CPU spam" >> /tmp/remapd.log
-		sleep 2
+		echo "[$(date)] udevadm monitor failed or was interrupted. Exiting remapd daemon to prevent keyboard lock." >> /tmp/remapd.log
+		exit 1
 	fi
 	echo "[$(date)] Device event detected, rerunning remaps" >> /tmp/remapd.log
 	remaps >> /tmp/remapd.log 2>&1
