@@ -1,0 +1,117 @@
+#!/bin/bash
+
+# Script to decrypt a LUKS partition containing LVM and mount/unmount its Logical Volumes.
+# Default target device is /dev/sdb2.
+
+set -e
+
+# Elevate privileges to root at the start to avoid nested sudo prompting issues.
+if [ "$EUID" -ne 0 ]; then
+    exec sudo "$0" "$@"
+fi
+
+MAPPER_NAME="crypt_lvm_drive"
+MOUNT_ROOT="/mnt/crypt_lvm"
+
+usage() {
+    echo "Usage: $(basename "$0") [mount|umount] [device]"
+    echo "Default device: /dev/sdb2"
+    exit 1
+}
+
+if [ -z "$1" ] || { [ "$1" != "mount" ] && [ "$1" != "umount" ]; }; then
+    usage
+fi
+
+ACTION="$1"
+DEVICE="${2:-/dev/sdb2}"
+
+do_mount() {
+    if [ ! -b "$DEVICE" ]; then
+        echo "Error: Block device '$DEVICE' does not exist."
+        exit 1
+    fi
+
+    # Decrypt LUKS partition if not already decrypted
+    if [ -e "/dev/mapper/$MAPPER_NAME" ]; then
+        echo "Device is already decrypted at /dev/mapper/$MAPPER_NAME."
+    else
+        echo "Decrypting $DEVICE into /dev/mapper/$MAPPER_NAME..."
+        cryptsetup luksOpen "$DEVICE" "$MAPPER_NAME"
+    fi
+
+    echo "Scanning and activating LVM volume groups..."
+    vgscan
+    vgchange -ay
+    vgscan --mknodes
+
+    # Retrieve Volume Group name associated with our decrypted mapper device
+    VG_NAME=$(pvs --noheadings -o vg_name "/dev/mapper/$MAPPER_NAME" 2>/dev/null | xargs)
+
+    if [ -z "$VG_NAME" ]; then
+        echo "Error: No LVM Volume Group found on /dev/mapper/$MAPPER_NAME."
+        exit 1
+    fi
+
+    echo "Found Volume Group: $VG_NAME"
+
+    # Get all Logical Volumes in this Volume Group
+    LVS=$(lvs --noheadings -o lv_name "$VG_NAME" 2>/dev/null | xargs)
+
+    if [ -z "$LVS" ]; then
+        echo "Error: No Logical Volumes found in Volume Group '$VG_NAME'."
+        exit 1
+    fi
+
+    # Mount each Logical Volume
+    for lv in $LVS; do
+        # Do not mount swap volumes
+        LV_PATH="/dev/$VG_NAME/$lv"
+        # Check if it's a swap partition
+        if blkid -o value -s TYPE "$LV_PATH" | grep -q "swap"; then
+            echo "Skipping swap volume: $LV_PATH"
+            continue
+        fi
+
+        MOUNT_POINT="$MOUNT_ROOT/$VG_NAME/$lv"
+        echo "Mounting $LV_PATH to $MOUNT_POINT..."
+        mkdir -p "$MOUNT_POINT"
+        mount "$LV_PATH" "$MOUNT_POINT"
+        echo "Successfully mounted to $MOUNT_POINT"
+    done
+}
+
+do_umount() {
+    if [ -e "/dev/mapper/$MAPPER_NAME" ]; then
+        VG_NAME=$(pvs --noheadings -o vg_name "/dev/mapper/$MAPPER_NAME" 2>/dev/null | xargs)
+        
+        if [ -n "$VG_NAME" ]; then
+            LVS=$(lvs --noheadings -o lv_name "$VG_NAME" 2>/dev/null | xargs)
+            for lv in $LVS; do
+                MOUNT_POINT="$MOUNT_ROOT/$VG_NAME/$lv"
+                if mountpoint -q "$MOUNT_POINT" 2>/dev/null; then
+                    echo "Unmounting $MOUNT_POINT..."
+                    umount "$MOUNT_POINT"
+                fi
+            done
+            
+            echo "Deactivating LVM Volume Group '$VG_NAME'..."
+            vgchange -an "$VG_NAME"
+        fi
+
+        echo "Closing LUKS device /dev/mapper/$MAPPER_NAME..."
+        cryptsetup luksClose "$MAPPER_NAME"
+        echo "Decrypted drive closed and locked successfully."
+    else
+        echo "LUKS device /dev/mapper/$MAPPER_NAME is already closed/not active."
+    fi
+}
+
+case "$ACTION" in
+    mount)
+        do_mount
+        ;;
+    umount)
+        do_umount
+        ;;
+esac

@@ -30,17 +30,17 @@ if [[ $icon == 01 ]]; then
 elif [[ $icon == 02 ]]; then
 	emoji_con="⛅"
 elif [[ $icon == 03 ]]; then
-	emoji_con="🌫️"
+	emoji_con="🌫"
 elif [[ $icon == 04 ]]; then
-	emoji_con="☁️"
+	emoji_con="☁"
 elif [[ $icon == 09 ]]; then
-	emoji_con="🌧️"
+	emoji_con="🌧"
 elif [[ $icon == 10 ]]; then
-	emoji_con="🌦️"
+	emoji_con="🌦"
 elif [[ $icon == 11 ]]; then
-	emoji_con="🌩️"
+	emoji_con="🌩"
 elif [[ $icon == 13 ]]; then
-	emoji_con="❄️"
+	emoji_con="❄"
 elif [[ $icon == 50 ]]; then
 	emoji_con="💨"
 else

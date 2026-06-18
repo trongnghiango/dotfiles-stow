@@ -23,14 +23,14 @@ lock(){
     kill -44 $(pidof dwmblocks)
 }
 
-case "$(printf "🔒 lock\n🚪 leave $WM\n♻️ renew $WM\n🐻 hibernate\n🔃 reboot\n🖥️shutdown\n💤 sleep\n📺 display off" | dmenu -i -p 'Action: ')" in
+case "$(printf "🔒 lock\n🚪 leave $WM\n♻ renew $WM\n🐻 hibernate\n🔃 reboot\n🖥 shutdown\n💤 sleep\n📺 display off" | dmenu -i -p 'Action: ' -fn "BlexMono Nerd Font:style=SemiBold:size=14" -nb "#2E3440" -nf "#d7d7d7" -sb "#3b4252" -sf "#d7d7d7")" in
 	'🔒 lock') lock ;;
 	"🚪 leave $WM") kill -TERM "$(wmpid)" ;;
-	"♻️ renew $WM") kill -HUP "$(wmpid)" ;;
+	"♻ renew $WM") kill -HUP "$(wmpid)" ;;
 	'🐻 hibernate') slock $ctl hibernate -i ;;
 	'💤 sleep') slock $ctl suspend -i ;;
 	'🔃 reboot') $ctl reboot -i ;;
-	'🖥️shutdown') $ctl poweroff -i ;;
+	'🖥 shutdown') $ctl poweroff -i ;;
 	'📺 display off') xset dpms force off ;;
 	*) exit 1 ;;
 esac
