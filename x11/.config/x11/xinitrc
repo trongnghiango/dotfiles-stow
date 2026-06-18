@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 
 # Ghi log khởi động X11 để debug
-exec > "$HOME/.xinitrc.log" 2>&1
+exec >"$HOME/.xinitrc.log" 2>&1
 set -x
 
 # ==============================================================================
@@ -34,7 +34,7 @@ for portal_path in "/usr/lib/xdg-desktop-portal-gtk" "/usr/libexec/xdg-desktop-p
     "$portal_path" &
     break
   fi
-done  # <--- ĐÃ SỬA THÀNH DONE TẠI ĐÂY
+done # <--- ĐÃ SỬA THÀNH DONE TẠI ĐÂY
 
 # ==============================================================================
 # 2. NẠP CẤU HÌNH BIẾN MÔI TRƯỜNG CÁ NHÂN & XRESOURCES
@@ -60,7 +60,6 @@ elif command -v lxpolkit >/dev/null 2>&1; then
   pgrep -x lxpolkit >/dev/null || lxpolkit &
 fi
 
-
 if command -v gnome-keyring-daemon >/dev/null 2>&1; then
   eval $(gnome-keyring-daemon --start --components=pkcs11,secrets,ssh)
   export SSH_AUTH_SOCK
@@ -72,7 +71,7 @@ fi
 if [ -f /etc/os-release ]; then
   # Trích xuất ID hệ điều hành (ví dụ: arch, void, nixos) và chuyển thành chữ thường
   OS=$(grep ^ID= /etc/os-release | cut -d= -f2 | tr -d '"' | tr '[:upper:]' '[:lower:]')
-  
+
   OS_CONFIG="${XDG_CONFIG_HOME:-$HOME/.config}/x11/xinitrc.$OS"
   if [ -f "$OS_CONFIG" ]; then
     . "$OS_CONFIG"
@@ -124,3 +123,4 @@ command -v start-dwmblocks >/dev/null 2>&1 && start-dwmblocks &
 # 8. KHỞI ĐỘNG WINDOW MANAGER
 # ==============================================================================
 exec ssh-agent dwm
+

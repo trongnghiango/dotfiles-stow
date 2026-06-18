@@ -12,3 +12,5 @@ else
     pipewire-pulse >/dev/null 2>&1 &
   fi
 fi
+
+# PipeWire được quản lý bởi systemd-user
