@@ -33,8 +33,14 @@ fi
 export GOPATH=$HOME/go
 export PATH=$PATH:$GOPATH/bin
 
+# Bun
+export BUN_INSTALL="$HOME/.bun"
+if [ -d "$BUN_INSTALL/bin" ]; then
+  export PATH="$BUN_INSTALL/bin:$PATH"
+fi
+
 # Bun completions
-[ -s "/home/ka/.bun/_bun" ] && source "/home/ka/.bun/_bun" 2>/dev/null
+[ -s "$BUN_INSTALL/_bun" ] && source "$BUN_INSTALL/_bun" 2>/dev/null
 
 # Direnv
 if command -v direnv &>/dev/null; then

@@ -1,0 +1,16 @@
+# ~/.config/direnv/direnvrc
+# Custom configurations and layout extensions for direnv
+
+# Support layout virtualenv <path_to_venv> (e.g. layout virtualenv .venv)
+layout_virtualenv() {
+  local venv_path="${1:-.venv}"
+
+  if [[ -d "$venv_path" ]]; then
+    export VIRTUAL_ENV="${PWD}/${venv_path}"
+    PATH_add "${VIRTUAL_ENV}/bin"
+  else
+    echo "direnv: [ERROR] Virtualenv not found at: ${venv_path}." >&2
+    echo "direnv: [ERROR] Please create it first: python -m venv ${venv_path}" >&2
+    return 1
+  fi
+}
