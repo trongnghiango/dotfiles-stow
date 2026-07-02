@@ -21,6 +21,7 @@ vim.g.loaded_ruby_provider = 0
 -- ============================================================================
 -- Editor Behavior
 -- ============================================================================
+vim.o.background = "dark"
 vim.opt.mouse = "a"
 vim.opt.clipboard = "unnamedplus"
 vim.opt.undofile = true

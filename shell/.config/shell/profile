@@ -11,10 +11,20 @@ fi
 
 [ -d "$HOME/Applications/bin" ] && export PATH="$HOME/Applications/bin:$PATH"
 
+# Node / Package Manager Environment
+export NPM_CONFIG_PREFIX="$HOME/.npm-global"
+export PNPM_HOME="$HOME/.local/share/pnpm"
+
+# Add package manager bin paths to PATH
+[ -d "$NPM_CONFIG_PREFIX/bin" ] && export PATH="$NPM_CONFIG_PREFIX/bin:$PATH"
+[ -d "$PNPM_HOME" ] && export PATH="$PNPM_HOME:$PATH"
+
+
 unsetopt PROMPT_SP 2>/dev/null
 
 # Default programs:
 export EDITOR="nvim"
+export NVIM_NOTTYFAST=1
 export TERMINAL="st"
 export TERMINAL_PROG="st"
 export BROWSER="brave"

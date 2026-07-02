@@ -1,4 +1,5 @@
 # Luke's config for the Zoomer Shell
+typeset -U path PATH
 
 # Enable colors and change prompt:
 autoload -U colors && colors	# Load colors
@@ -71,3 +72,7 @@ bindkey -M visual '^[[P' vi-delete
 
 # Load syntax highlighting; should be last.
 source /usr/share/zsh/plugins/fast-syntax-highlighting/fast-syntax-highlighting.plugin.zsh 2>/dev/null
+
+# Load shared profile configuration if it exists.
+# Zsh's typeset -U at the top guarantees PATH remains clean and duplicate-free.
+[ -f "$HOME/.config/shell/profile" ] && source "$HOME/.config/shell/profile"
