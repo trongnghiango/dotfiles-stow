@@ -7,6 +7,7 @@ PS1="%B%{$fg[red]%}[%{$fg[yellow]%}%n%{$fg[green]%}@%{$fg[blue]%}%M %{$fg[magent
 setopt autocd		# Automatically cd into typed directory.
 stty stop undef		# Disable ctrl-s to freeze terminal.
 setopt interactive_comments
+unsetopt PROMPT_SP
 
 # Load environment modules (includes PATH, history sizes, and variables)
 [ -f "$ZDOTDIR/env.zsh" ] && source "$ZDOTDIR/env.zsh"
@@ -28,7 +29,7 @@ setopt HIST_REDUCE_BLANKS
 
 # OS-specific aliases (arch / void / nixos)
 if [ -f /etc/os-release ]; then
-  OS=$(grep ^ID= /etc/os-release | cut -d= -f2 | tr -d '"' | tr '[:upper:]' '[:lower:]')
+  OS=$(. /etc/os-release && echo "$ID")
   OS_ALIASRC="${XDG_CONFIG_HOME:-$HOME/.config}/shell/aliasrc.$OS"
   [ -f "$OS_ALIASRC" ] && source "$OS_ALIASRC"
 fi

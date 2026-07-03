@@ -69,8 +69,8 @@ fi
 # 4. NẠP CẤU HÌNH THEO TỪNG HỆ ĐIỀU HÀNH (ARCH / VOID / NIXOS)
 # ==============================================================================
 if [ -f /etc/os-release ]; then
-  # Trích xuất ID hệ điều hành (ví dụ: arch, void, nixos) và chuyển thành chữ thường
-  OS=$(grep ^ID= /etc/os-release | cut -d= -f2 | tr -d '"' | tr '[:upper:]' '[:lower:]')
+  # Trích xuất ID hệ điều hành (ví dụ: arch, void, nixos)
+  OS=$(. /etc/os-release && echo "$ID")
 
   OS_CONFIG="${XDG_CONFIG_HOME:-$HOME/.config}/x11/xinitrc.$OS"
   if [ -f "$OS_CONFIG" ]; then

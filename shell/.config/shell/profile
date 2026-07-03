@@ -20,8 +20,6 @@ export PNPM_HOME="$HOME/.local/share/pnpm"
 [ -d "$PNPM_HOME" ] && export PATH="$PNPM_HOME:$PATH"
 
 
-unsetopt PROMPT_SP 2>/dev/null
-
 # Default programs:
 export EDITOR="nvim"
 export NVIM_NOTTYFAST=1
