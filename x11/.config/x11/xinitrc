@@ -85,11 +85,7 @@ if command -v xrandr >/dev/null 2>&1; then
   monitor=$(xrandr | grep " connected primary" | awk '{print $1}')
   [ -z "$monitor" ] && monitor=$(xrandr | grep " connected" | awk '{print $1}' | head -n 1)
   [ -z "$monitor" ] && monitor="Virtual-1"
-  if [ "$monitor" = "Virtual-1" ]; then
-    xrandr --output "$monitor" --mode 1360x768
-  else
-    xrandr --output "$monitor" --auto
-  fi
+  xrandr --output "$monitor" --auto
 fi
 
 command -v setbg >/dev/null 2>&1 && setbg "$HOME/Pictures/Wallpapers/" &
@@ -100,11 +96,7 @@ command -v setbg >/dev/null 2>&1 && setbg "$HOME/Pictures/Wallpapers/" &
 autostart="clipboard-tray dunst udiskie xfce4-power-manager fcitx5 mpd picom unclutter remapd"
 for program in $autostart; do
   if command -v "$program" >/dev/null 2>&1; then
-    if [ ${#program} -gt 15 ]; then
-      pgrep -f "$program" >/dev/null || "$program" &
-    else
-      pgrep -x "$program" >/dev/null || "$program" &
-    fi
+    pgrep -u "$USER" -x "$program" >/dev/null || "$program" &
   fi
 done
 

@@ -18,9 +18,6 @@ export FZF_DEFAULT_OPTS="
 --info=inline
 "
 
-# PNPM
-export PNPM_HOME="/home/ka/.local/share/pnpm"
-export PATH="$PNPM_HOME:$PATH"
 
 # Go
 if [ -d "/usr/local/go" ]; then

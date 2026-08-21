@@ -77,3 +77,6 @@ source /usr/share/zsh/plugins/fast-syntax-highlighting/fast-syntax-highlighting.
 # Load shared profile configuration if it exists.
 # Zsh's typeset -U at the top guarantees PATH remains clean and duplicate-free.
 [ -f "$HOME/.config/shell/profile" ] && source "$HOME/.config/shell/profile"
+
+# opencode
+# PATH centralized in profile

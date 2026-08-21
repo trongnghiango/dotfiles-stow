@@ -10,7 +10,7 @@ show_dashboard() {
   # System status
   echo "║  $(date '+%Y-%m-%d %H:%M:%S')"
   echo "║  Uptime: $(uptime -p)"
-  echo "║  Load: $(cat /proc/loadavg | awk '{print $1,$2,$3}')"
+  echo "║  Load: $(awk '{print $1,$2,$3}' /proc/loadavg)"
 
   # Docker status
   if command -v docker &>/dev/null; then
