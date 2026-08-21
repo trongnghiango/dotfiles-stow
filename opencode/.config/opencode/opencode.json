@@ -9,42 +9,28 @@
         "apiKey": "{env:ROUTER9_API_KEY}"
       },
       "models": {
-        "KhaBoDo_1.0": {
-          "name": "KhaBoDo (Main Combo)",
+        "ka.base": {
+          "name": "Base (Main Combo)",
           "modalities": {
             "input": ["text"],
             "output": ["text"]
           }
         },
-        "KhaSimple": {
-          "name": "KhaSimple (Simple Combo)",
+        "ka.simple": {
+          "name": "Simple (Simple Combo)",
           "modalities": {
             "input": ["text"],
             "output": ["text"]
           }
         },
-        "KhaThinking": {
-          "name": "KhaThinking (Thinking Combo)",
+        "ka.reason": {
+          "name": "Thinking (Thinking Combo)",
           "modalities": {
             "input": ["text"],
             "output": ["text"]
           }
         }
       }
-    }
-  },
-  "model": "9router/KhaBoDo_1.0",
-  "small_model": "9router/KhaSimple",
-  "agent": {
-    "explorer": {
-      "description": "Fast explorer — dùng combo đơn giản",
-      "mode": "subagent",
-      "model": "9router/KhaSimple"
-    },
-    "thinker": {
-      "description": "Suy luận sâu — dùng combo thinking",
-      "mode": "subagent",
-      "model": "9router/KhaThinking"
     }
   }
 }

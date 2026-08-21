@@ -1,0 +1,126 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+DNS_PROVIDER="${1:-cloudflare}"
+
+case "$DNS_PROVIDER" in
+cloudflare)
+  DNS4="1.1.1.1 1.0.0.1"
+  DNS6="2606:4700:4700::1111,2606:4700:4700::1001"
+  ;;
+google)
+  DNS4="8.8.8.8 8.8.4.4"
+  DNS6="2001:4860:4860::8888,2001:4860:4860::8844"
+  ;;
+quad9)
+  DNS4="9.9.9.9 149.112.112.112"
+  DNS6="2620:fe::fe,2620:fe::9"
+  ;;
+opendns)
+  DNS4="208.67.222.222 208.67.220.220"
+  DNS6="2620:119:35::35,2620:119:53::53"
+  ;;
+*)
+  echo "Usage: $(basename "$0") {cloudflare|google|quad9|opendns}"
+  exit 1
+  ;;
+esac
+
+echo "DNS Provider : $DNS_PROVIDER"
+echo "IPv4 DNS     : $DNS4"
+echo "IPv6 DNS     : $DNS6"
+echo
+
+############################################################
+# NetworkManager
+############################################################
+
+if command -v nmcli >/dev/null 2>&1 &&
+  systemctl is-active --quiet NetworkManager; then
+
+  echo "[INFO] Using NetworkManager"
+
+  DEVICE=$(ip route | awk '/default/ {print $5; exit}')
+
+  if [[ -z "$DEVICE" ]]; then
+    echo "[ERROR] No default route found."
+    exit 1
+  fi
+
+  CONNECTION=$(
+    nmcli -t -f GENERAL.CONNECTION device show "$DEVICE" |
+      cut -d: -f2
+  )
+
+  if [[ -z "$CONNECTION" ]]; then
+    echo "[ERROR] Cannot determine active connection."
+    exit 1
+  fi
+
+  echo "[INFO] Device     : $DEVICE"
+  echo "[INFO] Connection : $CONNECTION"
+
+  sudo nmcli connection modify "$CONNECTION" \
+    ipv4.ignore-auto-dns yes \
+    ipv4.dns "$DNS4"
+
+  if ip -6 route show default >/dev/null 2>&1 &&
+    ip -6 route show default | grep -q .; then
+
+    sudo nmcli connection modify "$CONNECTION" \
+      ipv6.ignore-auto-dns yes \
+      ipv6.dns "$DNS6"
+  fi
+
+  sudo nmcli device reapply "$DEVICE" ||
+    sudo nmcli connection up "$CONNECTION"
+
+  echo
+  echo "[OK] DNS updated."
+
+  echo
+  echo "Current DNS:"
+  nmcli device show "$DEVICE" | grep DNS || true
+
+  exit 0
+fi
+
+############################################################
+# systemd-resolved
+############################################################
+
+if command -v resolvectl >/dev/null 2>&1 &&
+  systemctl is-active --quiet systemd-resolved; then
+
+  echo "[INFO] Using systemd-resolved"
+
+  sudo mkdir -p /etc/systemd/resolved.conf.d
+
+  sudo tee /etc/systemd/resolved.conf.d/dns.conf >/dev/null <<EOF
+[Resolve]
+DNS=$DNS4
+FallbackDNS=
+DNSStubListener=yes
+EOF
+
+  sudo systemctl restart systemd-resolved
+
+  echo
+  echo "[OK] DNS updated."
+
+  echo
+  resolvectl status
+
+  exit 0
+fi
+
+############################################################
+# Unsupported
+############################################################
+
+echo "[ERROR] No supported DNS manager found."
+echo
+echo "Supported:"
+echo "  - NetworkManager"
+echo "  - systemd-resolved"
+exit 1
