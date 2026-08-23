@@ -7,3 +7,7 @@ temp.md
 setup_arch/
 # Claude AI / Local tools
 *claude-code-url-handler.desktop
+
+# Fcitx5 runtime cache
+**/fcitx5/conf/cached_layouts
+**/fcitx5/conf/notifications.conf

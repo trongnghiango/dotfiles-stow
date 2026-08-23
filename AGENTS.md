@@ -18,6 +18,7 @@ Each top-level directory is a Stow package containing `$HOME`-relative paths:
 | `lf/` | lf file manager (vi binds, ueberzug preview, interactive extract/compress, README guide via Ecfh) |
 | `media/` | mpv, ncmpcpp, mpd configs |
 | `opencode/` | 9Router gateway config, 3 combo tiers (KhaBoDo, KhaSimple, KhaThinking) |
+| `fcitx5/` | Fcitx5 IME configs (profile, hotkey Super+Space, bamboo.conf for Telex) |
 
 ## Key commands / workflow
 
