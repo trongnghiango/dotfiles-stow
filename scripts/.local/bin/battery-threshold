@@ -1,0 +1,69 @@
+#!/usr/bin/env bash
+# ==============================================================================
+# Script: battery-threshold
+# Description: Tự động phát hiện và thiết lập ngưỡng sạc pin ThinkPad qua systemd
+# ==============================================================================
+set -euo pipefail
+
+# 1. Tự động chuyển quyền sang root nếu cần
+if [[ $EUID -ne 0 ]]; then
+    exec sudo "$0" "$@"
+fi
+
+# 2. Thiết lập tham số ngưỡng (Mặc định: 50% - 60%)
+START=${1:-50}
+STOP=${2:-60}
+SERVICE_FILE="/etc/systemd/system/battery-threshold.service"
+
+# 3. Tự động phát hiện đường dẫn pin (BAT0, BAT1, ...)
+BAT_PATH=""
+for bat in /sys/class/power_supply/BAT*; do
+    if [[ -f "$bat/charge_control_start_threshold" && -f "$bat/charge_control_end_threshold" ]]; then
+        BAT_PATH="$bat"
+        break
+    fi
+done
+
+if [[ -z "$BAT_PATH" ]]; then
+    echo "❌ Lỗi: Không tìm thấy pin hỗ trợ charge_control threshold trên thiết bị này!" >&2
+    exit 1
+fi
+
+# 4. Tạo nội dung Systemd Service chuẩn
+NEW_CONTENT="[Unit]
+Description=ThinkPad Battery Threshold
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/bash -c \"echo $START > $BAT_PATH/charge_control_start_threshold\"
+ExecStart=/usr/bin/bash -c \"echo $STOP > $BAT_PATH/charge_control_end_threshold\"
+
+[Install]
+WantedBy=multi-user.target"
+
+# 5. Kiểm tra Idempotency (Đã tồn tại & Đúng cấu hình -> Bỏ qua)
+IS_ENABLED=$(systemctl is-enabled battery-threshold.service 2>/dev/null || echo "not-found")
+
+if [[ -f "$SERVICE_FILE" ]] && [[ "$(cat "$SERVICE_FILE")" == "$NEW_CONTENT" ]] && [[ "$IS_ENABLED" == "enabled" ]]; then
+    echo "⚡ [Bỏ qua] Service đã tồn tại với ngưỡng (${START}% - ${STOP}%) và đang hoạt động."
+    exit 0
+fi
+
+# 6. Tạo mới hoặc Cập nhật
+ACTION="Tạo mới"
+[[ -f "$SERVICE_FILE" ]] && ACTION="Cập nhật"
+
+echo "⚙️  Đang ${ACTION} service (${BAT_PATH##*/}) với ngưỡng: ${START}% -> ${STOP}%..."
+echo "$NEW_CONTENT" > "$SERVICE_FILE"
+
+systemctl daemon-reload
+systemctl enable --now battery-threshold.service
+
+# 7. Hiển thị kết quả kiểm tra thực tế từ sysfs
+CUR_START=$(cat "$BAT_PATH/charge_control_start_threshold")
+CUR_STOP=$(cat "$BAT_PATH/charge_control_end_threshold")
+
+echo "✅ [Thành công] ${ACTION} hoàn tất!"
+echo "   - File service : $SERVICE_FILE"
+echo "   - Trạng thái   : $(systemctl is-enabled battery-threshold.service)"
+echo "   - Ngưỡng thực tế: Bắt đầu: ${CUR_START}% | Ngắt sạc: ${CUR_STOP}%"
