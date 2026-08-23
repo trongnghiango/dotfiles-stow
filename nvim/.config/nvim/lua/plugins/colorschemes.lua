@@ -1,21 +1,6 @@
--- Colorschemes: Theme configurations
+---@type LazySpec
+-- Colorschemes: Curated theme configurations
 return {
-  -- XÓA HOẶC COMMENT ĐOẠN NÀY ĐI
-  -- {
-  --   "f-person/auto-dark-mode.nvim",
-  --   opts = {
-  --     update_interval = 1000,
-  --     set_dark_mode = function()
-  --       require("yukinord").setup({ style = "dark" })
-  --       vim.cmd([[colorscheme yukinord]])
-  --     end,
-  --     set_light_mode = function()
-  --       require("yukinord").setup({ style = "light" })
-  --       vim.cmd([[colorscheme yukinord]])
-  --     end,
-  --   },
-  -- },
-
   -- ════════════════════════════════════════════════════════════════════════════
   -- Yukinord (default)
   -- ════════════════════════════════════════════════════════════════════════════

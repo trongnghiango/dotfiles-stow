@@ -1,3 +1,5 @@
+---@type LazySpec
+-- LSP: Language Server Protocol configuration, Mason, and tooling
 return {
   {
     "neovim/nvim-lspconfig",

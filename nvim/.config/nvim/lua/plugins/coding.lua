@@ -1,3 +1,4 @@
+---@type LazySpec
 -- Coding: Completion, treesitter, and dev tools
 return {
   -- ════════════════════════════════════════════════════════════════════════════

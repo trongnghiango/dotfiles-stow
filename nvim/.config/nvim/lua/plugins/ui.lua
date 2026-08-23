@@ -1,3 +1,4 @@
+---@type LazySpec
 -- UI: Which-key, diagnostics display, notifications, and visual enhancements
 return {
   -- ════════════════════════════════════════════════════════════════════════════

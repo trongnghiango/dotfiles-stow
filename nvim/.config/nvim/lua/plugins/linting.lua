@@ -1,3 +1,4 @@
+---@type LazySpec
 -- Linting: nvim-lint configuration
 return {
   "mfussenegger/nvim-lint",

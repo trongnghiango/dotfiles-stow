@@ -1,3 +1,4 @@
+---@type LazySpec
 -- Editor: Navigation, text objects, pairs, statusline, and utilities
 return {
   -- ════════════════════════════════════════════════════════════════════════════

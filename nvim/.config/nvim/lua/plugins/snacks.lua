@@ -1,3 +1,5 @@
+---@type LazySpec
+-- Snacks.nvim: Core utilities, picker, explorer, dashboard, and quick navigation
 return {
   "folke/snacks.nvim",
   priority = 1000,

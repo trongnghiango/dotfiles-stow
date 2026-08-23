@@ -1,3 +1,5 @@
+---@type LazySpec
+-- Python: Virtualenv management, project root detection, and dev commands
 return {
   dir = vim.fn.stdpath("config"),
   name = "python-custom-tools",
