@@ -59,8 +59,6 @@ export LESS_TERMCAP_us="$(printf '%b' '\e[1;32m')"
 export LESS_TERMCAP_ue="$(printf '%b' '\e[0m')"
 export LESSOPEN="| bat --style=plain --color=always %s 2>/dev/null"
 
-# --- Shell Shortcuts (auto-generate nếu chưa có) ---
-[ ! -f "$XDG_CONFIG_HOME/shell/shortcutrc" ] && setsid -f shortcuts >/dev/null 2>&1
 
 # --- Local overrides (API keys, machine-specific — không vào git) ---
 [ -f "$XDG_CONFIG_HOME/shell/profile.local" ] && . "$XDG_CONFIG_HOME/shell/profile.local"
