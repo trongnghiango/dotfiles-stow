@@ -296,6 +296,7 @@ setup_stow() {
     nvim
     lf
     hypr      # custom keybindings override (~/.config/hypr/bindings.lua)
+    brave     # ~/.config/brave-flags.conf (GPU acceleration, Wayland native, zero-copy)
     fcitx5
     opencode
     media

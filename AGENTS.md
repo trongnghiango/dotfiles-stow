@@ -23,6 +23,7 @@ Each top-level directory is a Stow package containing `$HOME`-relative paths:
 | `scripts/` | `~/.local/bin`: Wayland CLI utilities (`stow-safe`, `ka-setup`, `ytdl-cut`, `battery-threshold`, `gm`, `otp`, `weath`, `rssget`, etc.) |
 | `lf/` | `~/.config/lf/`: lf file manager (vi binds, modern Wayland previewer: Chafa, Bat, Eza, PDF/EPUB cover) |
 | `hypr/` | `~/.config/hypr/bindings.lua`: DWM Hybrid keybinding overrides |
+| `brave/` | `~/.config/brave-flags.conf`: GPU acceleration, Wayland native, zero-copy, HTTP/3 |
 | `media/` | `~/.config/{mpv,ncmpcpp,mpd}`: PipeWire audio optimizations, GPU Wayland mpv, TUI music player |
 | `opencode/` | `~/.config/opencode/`: 9Router gateway config, 3 combo tiers (KhaBoDo, KhaSimple, KhaThinking) |
 | `yay/` | `~/.config/yay/`: yay AUR helper config |
