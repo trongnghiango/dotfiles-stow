@@ -1,28 +1,32 @@
 [Default Applications]
+# Text & Code
+text/plain=nvim.desktop;text.desktop;
+text/x-shellscript=nvim.desktop;text.desktop;
+text/markdown=nvim.desktop;text.desktop;
+application/json=nvim.desktop;text.desktop;
+application/xml=nvim.desktop;text.desktop;
 
-# xdg-open will use these settings to determine how to open filetypes.
-# These .desktop entries can also be seen and changed in ~/.local/share/applications/
+# Images — imv
+image/png=imv.desktop;img.desktop;
+image/jpeg=imv.desktop;img.desktop;
+image/gif=imv.desktop;img.desktop;
+image/webp=imv.desktop;img.desktop;
+image/svg+xml=imv.desktop;img.desktop;
 
-text/x-shellscript=text.desktop;
-x-scheme-handler/magnet=torrent.desktop;
-application/x-bittorrent=torrent.desktop;
-x-scheme-handler/mailto=mail.desktop;
-text/plain=text.desktop;
-application/postscript=pdf.desktop;
-application/pdf=pdf.desktop;
-image/png=img.desktop;
-image/jpeg=img.desktop;
-image/gif=img.desktop;
-application/rss+xml=rss.desktop
-video/x-matroska=video.desktop
-video/mp4=video.desktop
-x-scheme-handler/lbry=lbry.desktop
-inode/directory=file.desktop
-application/lrf=calibre-lrfviewer.desktop
-x-scheme-handler/claude-cli=claude-code-url-handler.desktop
-x-scheme-handler/obsidian=obsidian.desktop
+# Video & Audio — mpv
+video/x-matroska=mpv.desktop;video.desktop;
+video/mp4=mpv.desktop;video.desktop;
+video/webm=mpv.desktop;video.desktop;
+video/quicktime=mpv.desktop;video.desktop;
+audio/mpeg=mpv.desktop;audio.desktop;
+audio/flac=mpv.desktop;audio.desktop;
+audio/ogg=mpv.desktop;audio.desktop;
 
-# Web browsers - Brave as default
+# Documents
+application/pdf=org.pwmt.zathura.desktop;pdf.desktop;
+application/postscript=org.pwmt.zathura.desktop;pdf.desktop;
+
+# Web browsers — Brave as default
 x-scheme-handler/http=brave-browser.desktop;
 x-scheme-handler/https=brave-browser.desktop;
 text/html=brave-browser.desktop;
@@ -30,4 +34,12 @@ application/x-extension-htm=brave-browser.desktop;
 application/x-extension-html=brave-browser.desktop;
 application/x-extension-shtml=brave-browser.desktop;
 application/xhtml+xml=brave-browser.desktop;
-x-scheme-handler/antigravity=antigravity.desktop
+
+# Handlers & Tools
+x-scheme-handler/magnet=torrent.desktop;
+application/x-bittorrent=torrent.desktop;
+x-scheme-handler/mailto=mail.desktop;
+x-scheme-handler/claude-cli=claude-code-url-handler.desktop;
+x-scheme-handler/obsidian=obsidian.desktop;
+x-scheme-handler/antigravity=antigravity.desktop;
+inode/directory=file.desktop;

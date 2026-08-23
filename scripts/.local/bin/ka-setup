@@ -291,6 +291,7 @@ setup_stow() {
   local packages=(
     shell     # profile, zshenv, aliasrc (phải stow trước zsh)
     zsh       # .zshrc, .zprofile, env.zsh (cần ZDOTDIR từ shell)
+    git       # ~/.config/git/config, ignore (aliases, delta diff, rebase)
     tmux
     nvim
     lf

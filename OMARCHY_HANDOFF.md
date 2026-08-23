@@ -15,6 +15,7 @@ Chúng ta đã thống nhất chiến lược cái gì nên ghi đè và cái g�
 - **`shell` & `zsh`**: Zsh là shell mặc định (thay thế Bash của Omarchy). Kiến trúc sạch sẽ: nạp biến môi trường từ `~/.config/shell/profile` vào `~/.zprofile`, toàn bộ config zsh bị ép vào `~/.config/zsh` (chuẩn XDG).
 - **`nvim`**: Cấu hình Lua custom (ghi đè LazyVim mặc định của Omarchy).
 - **`tmux`**: Prefix `C-Space` và Vi-mode (ghi đè Tmux mặc định của Omarchy).
+- **`git`**: Cấu hình Git alias chuyên nghiệp (`st`, `co`, `lg`, `cm`), tự động rebase khi pull, tích hợp Delta syntax highlighting diff.
 - **`opencode`**: Khai báo 9Router Gateway và custom LLM models.
 - **`fcitx5`**: Bộ gõ tiếng Việt Bamboo Telex.
 - **`media`**: Cấu hình `mpv` tối ưu Pipewire, `mpd` daemon và `ncmpcpp` TUI (đã gỡ bỏ sạch sẽ mã rác gọi tín hiệu cho `dwmblocks` của X11 cũ).

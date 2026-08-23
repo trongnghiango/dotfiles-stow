@@ -1,0 +1,9 @@
+# Global Git Ignore
+.DS_Store
+Thumbs.db
+*~
+*.swp
+*.swo
+.direnv/
+.env.local
+.cache/

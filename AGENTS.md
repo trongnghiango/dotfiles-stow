@@ -18,6 +18,7 @@ Each top-level directory is a Stow package containing `$HOME`-relative paths:
 | `zsh/` | `~/.config/zsh/`: .zshrc, vi mode, env.zsh |
 | `nvim/` | `~/.config/nvim/`: init.lua (modularized), lua/{core,plugins,utils}/ — fully custom |
 | `tmux/` | `~/.config/tmux/`: prefix `C-Space`, vi navigation, escape-time 0 |
+| `git/` | `~/.config/git/`: config, ignore (aliases, delta diff, rebase, branch/tag sort) |
 | `fcitx5/` | `~/.config/fcitx5/`: Fcitx5 IME configs (profile, Bamboo Telex, toggle hotkeys) |
 | `scripts/` | `~/.local/bin`: Wayland CLI utilities (`stow-safe`, `ka-setup`, `battery-threshold`, `gm`, `otp`, `weath`, `rssget`, etc.) |
 | `lf/` | `~/.config/lf/`: lf file manager (vi binds, ueberzug preview, extract/compress) |
