@@ -41,7 +41,7 @@ case "$mimetype" in
     # --------------------------------------------------------------------------
     image/*)
         if command -v chafa >/dev/null 2>&1; then
-            chafa -s "${width}x${height}" --animate false "$file"
+            chafa --format symbols --symbols vhalf --color-space din99d -s "${width}x${height}" --animate false "$file"
             exit 0
         elif command -v mediainfo >/dev/null 2>&1; then
             mediainfo "$file"
@@ -63,7 +63,7 @@ case "$mimetype" in
         fi
 
         if [ -f "$thumb" ] && command -v chafa >/dev/null 2>&1; then
-            chafa -s "${width}x${height}" --animate false "$thumb"
+            chafa --format symbols --symbols vhalf --color-space din99d -s "${width}x${height}" --animate false "$thumb"
             exit 0
         elif command -v mediainfo >/dev/null 2>&1; then
             mediainfo "$file"
@@ -82,7 +82,7 @@ case "$mimetype" in
         fi
 
         if [ -f "$thumb" ] && command -v chafa >/dev/null 2>&1; then
-            chafa -s "${width}x${height}" --animate false "$thumb"
+            chafa --format symbols --symbols vhalf --color-space din99d -s "${width}x${height}" --animate false "$thumb"
             exit 0
         elif command -v pdftotext >/dev/null 2>&1; then
             pdftotext "$file" - 2>/dev/null | head -n "$height"
