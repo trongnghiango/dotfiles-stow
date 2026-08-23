@@ -92,7 +92,7 @@ case "$mimetype" in
         ;;
 
     # --------------------------------------------------------------------------
-    # PDF Documents
+    # PDF Documents & Books
     # --------------------------------------------------------------------------
     application/pdf|*/pdf)
         hash=$(stat --printf '%n\0%i\0%s\0%Y' -- "$(readlink -f "$file")" 2>/dev/null | sha256sum | cut -d' ' -f1)
@@ -101,7 +101,7 @@ case "$mimetype" in
             pdftoppm -jpeg -f 1 -singlefile "$file" "$CACHE_DIR/$hash" >/dev/null 2>&1
         fi
 
-        if [ -f "$thumb" ]; then
+        if [ -f "$thumb" ] && [ -s "$thumb" ]; then
             if [ "$TERM" = "xterm-kitty" ] || [ -n "${KITTY_WINDOW_ID:-}" ] || [ "${TERM_PROGRAM:-}" = "ghostty" ] || [ -n "${GHOSTTY_RESOURCES_DIR:-}" ]; then
                 chafa --format kitty -s "${calc_width}x${calc_height}" --animate false "$thumb"
                 exit 0
@@ -114,6 +114,37 @@ case "$mimetype" in
             fi
         elif command -v pdftotext >/dev/null 2>&1; then
             pdftotext "$file" - 2>/dev/null | head -n "$calc_height"
+            exit 0
+        fi
+        ;;
+
+    # --------------------------------------------------------------------------
+    # EPUB & E-Books (Cover extraction)
+    # --------------------------------------------------------------------------
+    application/epub+zip|*/epub|application/x-mobipocket-ebook)
+        hash=$(stat --printf '%n\0%i\0%s\0%Y' -- "$(readlink -f "$file")" 2>/dev/null | sha256sum | cut -d' ' -f1)
+        thumb="$CACHE_DIR/${hash}.jpg"
+        if [ ! -f "$thumb" ] && command -v unzip >/dev/null 2>&1; then
+            # Extract cover image from EPUB
+            cover_file=$(unzip -l "$file" 2>/dev/null | grep -iE '(cover.*\.(jpe?g|png|webp))|((image|img).*\.(jpe?g|png|webp))' | head -n 1 | awk '{print $NF}')
+            if [ -n "$cover_file" ]; then
+                unzip -p "$file" "$cover_file" > "$thumb" 2>/dev/null
+            fi
+        fi
+
+        if [ -f "$thumb" ] && [ -s "$thumb" ]; then
+            if [ "$TERM" = "xterm-kitty" ] || [ -n "${KITTY_WINDOW_ID:-}" ] || [ "${TERM_PROGRAM:-}" = "ghostty" ] || [ -n "${GHOSTTY_RESOURCES_DIR:-}" ]; then
+                chafa --format kitty -s "${calc_width}x${calc_height}" --animate false "$thumb"
+                exit 0
+            elif [ "$TERM" = "foot" ] || [ "$TERM" = "foot-extra" ]; then
+                chafa --format sixels -s "${calc_width}x${calc_height}" --animate false "$thumb"
+                exit 0
+            elif command -v chafa >/dev/null 2>&1; then
+                chafa --format symbols --symbols sextant+quad+half+block --color-space din99d -s "${calc_width}x${calc_height}" --animate false "$thumb"
+                exit 0
+            fi
+        elif command -v mediainfo >/dev/null 2>&1; then
+            mediainfo "$file"
             exit 0
         fi
         ;;
