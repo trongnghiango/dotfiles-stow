@@ -36,6 +36,10 @@ o.bind("SUPER + BACKSLASH", "Toggle window split (Horizontal/Vertical)", hl.dsp.
 -- Ẩn / Hiện thanh Top Bar (DWM togglebar)
 o.bind_toggle("SUPER + B", "Toggle top bar", "bar")
 
+-- Bật / Tắt khoảng cách viền cửa sổ (Toggle Gaps <-> None)
+o.bind("SUPER + A", "Toggle window gaps (Default/None)", "omarchy-hyprland-window-gaps-toggle")
+o.bind("SUPER + ALT + 0", "Toggle window gaps (DWM style)", "omarchy-hyprland-window-gaps-toggle")
+
 -- Phóng to MAXIMIZED (Monocle [M] - VẪN GIỮ THANH TOPBAR STATUS)
 o.bind("SUPER + M", "Toggle maximized (keep topbar)", hl.dsp.window.fullscreen({ mode = "maximized" }))
 o.bind("SUPER + Z", "Toggle maximized (keep topbar)", hl.dsp.window.fullscreen({ mode = "maximized" }))
