@@ -44,19 +44,21 @@ o.bind("SUPER + Z", "Toggle maximized (keep topbar)", hl.dsp.window.fullscreen({
 o.bind("SUPER + F", "Toggle true fullscreen", hl.dsp.window.fullscreen({ mode = "fullscreen" }))
 
 -- ------------------------------------------------------------------------------
--- 3. VIM STACK NAVIGATION & MOVING (h / j / k / l)
+-- 3. VIM STACK NAVIGATION & MOVING (Chuẩn DWM focusstack / movestack)
 -- ------------------------------------------------------------------------------
--- Di chuyển con trỏ (Focus window theo hướng Vim)
+-- Di chuyển con trỏ tuần tự qua Stack (Duyệt mượt mà cả ở chế độ Tiled lẫn Maximized / Monocle)
+o.bind("SUPER + J", "Focus next window in stack", hl.dsp.window.cycle_next())
+o.bind("SUPER + K", "Focus prev window in stack", hl.dsp.window.cycle_next({ next = false }))
+
+-- Điều hướng không gian 2D (Trái / Phải)
 o.bind("SUPER + H", "Focus left window", hl.dsp.focus({ direction = "l" }))
 o.bind("SUPER + L", "Focus right window", hl.dsp.focus({ direction = "r" }))
-o.bind("SUPER + J", "Focus below window", hl.dsp.focus({ direction = "d" }))
-o.bind("SUPER + K", "Focus above window", hl.dsp.focus({ direction = "u" }))
 
--- Đổi vị trí cửa sổ (Swap window)
+-- Hoán đổi vị trí cửa sổ trong Stack (movestack DWM)
+o.bind("SUPER + SHIFT + J", "Swap next window in stack", "hyprctl dispatch swapnext")
+o.bind("SUPER + SHIFT + K", "Swap prev window in stack", "hyprctl dispatch swapnext prev")
 o.bind("SUPER + SHIFT + H", "Swap window left", hl.dsp.window.swap({ direction = "l" }))
 o.bind("SUPER + SHIFT + L", "Swap window right", hl.dsp.window.swap({ direction = "r" }))
-o.bind("SUPER + SHIFT + J", "Swap window down", hl.dsp.window.swap({ direction = "d" }))
-o.bind("SUPER + SHIFT + K", "Swap window up", hl.dsp.window.swap({ direction = "u" }))
 
 -- ------------------------------------------------------------------------------
 -- 4. RESIZE RATIO (DWM setmfact)
