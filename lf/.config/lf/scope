@@ -6,10 +6,16 @@
 set -C -f
 
 file="$1"
-width="$2"
-height="$3"
-x="$4"
-y="$5"
+width="${2:-80}"
+height="${3:-25}"
+x="${4:-0}"
+y="${5:-0}"
+
+# Calculate safe preview dimensions to prevent line-wrapping artifacts
+[ "$width" -le 0 ] 2>/dev/null && width=80
+[ "$height" -le 0 ] 2>/dev/null && height=25
+calc_width=$((width > 2 ? width - 1 : width))
+calc_height=$((height > 1 ? height - 1 : height))
 
 [ ! -f "$file" ] && [ ! -d "$file" ] && exit 1
 
@@ -21,11 +27,11 @@ CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/lf/thumbnails"
 # ------------------------------------------------------------------------------
 if [ -d "$file" ]; then
     if command -v eza >/dev/null 2>&1; then
-        eza --tree --level=2 --icons --color=always --group-directories-first "$file" | head -n "$height"
+        eza --tree --level=2 --icons --color=always --group-directories-first "$file" | head -n "$calc_height"
     elif command -v tree >/dev/null 2>&1; then
-        tree -C -L 2 --noreport "$file" | head -n "$height"
+        tree -C -L 2 --noreport "$file" | head -n "$calc_height"
     else
-        ls -la --color=always "$file" | head -n "$height"
+        ls -la --color=always "$file" | head -n "$calc_height"
     fi
     exit 0
 fi
@@ -37,11 +43,11 @@ mimetype=$(file --dereference --brief --mime-type -- "$file" 2>/dev/null)
 
 case "$mimetype" in
     # --------------------------------------------------------------------------
-    # Images
+    # Images (High-res sextant/quad symbols, exact fit)
     # --------------------------------------------------------------------------
     image/*)
         if command -v chafa >/dev/null 2>&1; then
-            chafa --format symbols --symbols vhalf --color-space din99d -s "${width}x${height}" --animate false "$file"
+            chafa --format symbols --symbols sextant+quad+half+block --color-space din99d -s "${calc_width}x${calc_height}" --animate false "$file"
             exit 0
         elif command -v mediainfo >/dev/null 2>&1; then
             mediainfo "$file"
@@ -63,7 +69,7 @@ case "$mimetype" in
         fi
 
         if [ -f "$thumb" ] && command -v chafa >/dev/null 2>&1; then
-            chafa --format symbols --symbols vhalf --color-space din99d -s "${width}x${height}" --animate false "$thumb"
+            chafa --format symbols --symbols sextant+quad+half+block --color-space din99d -s "${calc_width}x${calc_height}" --animate false "$thumb"
             exit 0
         elif command -v mediainfo >/dev/null 2>&1; then
             mediainfo "$file"
@@ -82,10 +88,10 @@ case "$mimetype" in
         fi
 
         if [ -f "$thumb" ] && command -v chafa >/dev/null 2>&1; then
-            chafa --format symbols --symbols vhalf --color-space din99d -s "${width}x${height}" --animate false "$thumb"
+            chafa --format symbols --symbols sextant+quad+half+block --color-space din99d -s "${calc_width}x${calc_height}" --animate false "$thumb"
             exit 0
         elif command -v pdftotext >/dev/null 2>&1; then
-            pdftotext "$file" - 2>/dev/null | head -n "$height"
+            pdftotext "$file" - 2>/dev/null | head -n "$calc_height"
             exit 0
         fi
         ;;
