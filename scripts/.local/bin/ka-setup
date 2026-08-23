@@ -36,6 +36,7 @@ show_help() {
   echo -e "  ${GREEN}docker${NC}    Cấu hình quyền Docker (non-root) & socket activation."
   echo -e "  ${GREEN}ime${NC}       Cài đặt fcitx5-bamboo cho bộ gõ Tiếng Việt."
   echo -e "  ${GREEN}battery${NC}   Cấu hình ngưỡng sạc pin ThinkPad (50-60%)."
+  echo -e "  ${GREEN}gpu-fix${NC}   Sửa lỗi boot kernel của đồ họa lai (i915/nvidia)."
   echo ""
 }
 
@@ -79,6 +80,14 @@ setup_pam() {
   # Chèn dòng cấu hình
   sudo sed -i '/auth\s\+include\s\+system-local-login/a auth       optional     pam_gnome_keyring.so' "$pam_file"
   sudo sed -i '/session\s\+include\s\+system-local-login/a session    optional     pam_gnome_keyring.so auto_start' "$pam_file"
+
+  # Cấu hình cho SDDM (Display Manager)
+  local sddm_file="/etc/pam.d/sddm"
+  if [ -f "$sddm_file" ] && ! grep -q "^-auth\s\+optional\s\+pam_gnome_keyring.so" "$sddm_file"; then
+    log_info "Bổ sung cấu hình tự động mở khóa keyring cho SDDM..."
+    sudo cp "$sddm_file" "${sddm_file}.bak"
+    sudo sed -i '/auth\s\+include\s\+system-login/a -auth       optional    pam_gnome_keyring.so' "$sddm_file"
+  fi
 
   # Kiểm tra lại
   if grep -q "pam_gnome_keyring.so" "$pam_file"; then
@@ -182,6 +191,39 @@ setup_battery() {
     battery-threshold
   else
     log_warn "Chưa tìm thấy lệnh battery-threshold trong PATH."
+  fi
+}
+
+# ------------------------------------------------------------------------------
+# 5. Fix lỗi Kernel đồ họa lai (Hybrid Graphics)
+# ------------------------------------------------------------------------------
+setup_gpu_fix() {
+  log_step "Sửa lỗi Kernel boot (i915 lspcon & nvidia i2c timeout)..."
+  local cmdline_file="/etc/kernel/cmdline"
+  
+  if [ ! -f "$cmdline_file" ]; then
+    log_warn "Không tìm thấy $cmdline_file. Hệ thống không sử dụng UKI chuẩn, bỏ qua..."
+    return 1
+  fi
+  
+  # i915.enable_dpcd_backlight=0 fix lỗi lspcon port D probe
+  # ucsi_ccg.disable=1 fix lỗi nvidia i2c timeout khi nvidia GPU ngủ
+  local params="i915.enable_dpcd_backlight=0 ucsi_ccg.disable=1"
+  local current_cmdline=$(cat "$cmdline_file")
+  
+  if echo "$current_cmdline" | grep -q "ucsi_ccg.disable=1"; then
+    log_success "Tham số fix lỗi kernel đồ họa lai đã được cấu hình từ trước (Bỏ qua)."
+  else
+    log_info "Cập nhật tham số kernel vào $cmdline_file..."
+    sudo cp "$cmdline_file" "${cmdline_file}.bak"
+    echo "$current_cmdline $params" | sudo tee "$cmdline_file" >/dev/null
+    
+    log_info "Đang build lại Kernel Image (mkinitcpio)... Quá trình này sẽ mất một lúc."
+    if sudo mkinitcpio -P; then
+      log_success "Đã build lại Kernel Image thành công. Vui lòng KHỞI ĐỘNG LẠI (Reboot) để áp dụng."
+    else
+      log_error "Lỗi khi chạy mkinitcpio. Hãy kiểm tra lại cấu hình hệ thống."
+    fi
   fi
 }
 
@@ -307,6 +349,9 @@ case "$CMD" in
   battery)
     setup_battery
     ;;
+  gpu-fix)
+    setup_gpu_fix
+    ;;
   all)
     setup_shell
     echo ""
@@ -319,6 +364,8 @@ case "$CMD" in
     setup_ime
     echo ""
     setup_battery
+    echo ""
+    setup_gpu_fix
     ;;
   *)
     show_help
