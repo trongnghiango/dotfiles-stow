@@ -26,14 +26,6 @@ setopt HIST_REDUCE_BLANKS
 [ -f "${XDG_CONFIG_HOME:-$HOME/.config}/shell/shortcutrc" ] && source "${XDG_CONFIG_HOME:-$HOME/.config}/shell/shortcutrc"
 [ -f "${XDG_CONFIG_HOME:-$HOME/.config}/shell/shortcutenvrc" ] && source "${XDG_CONFIG_HOME:-$HOME/.config}/shell/shortcutenvrc"
 [ -f "${XDG_CONFIG_HOME:-$HOME/.config}/shell/aliasrc" ] && source "${XDG_CONFIG_HOME:-$HOME/.config}/shell/aliasrc"
-
-# OS-specific aliases (arch / void / nixos)
-if [ -f /etc/os-release ]; then
-  OS=$(. /etc/os-release && echo "$ID")
-  OS_ALIASRC="${XDG_CONFIG_HOME:-$HOME/.config}/shell/aliasrc.$OS"
-  [ -f "$OS_ALIASRC" ] && source "$OS_ALIASRC"
-fi
-
 [ -f "${XDG_CONFIG_HOME:-$HOME/.config}/shell/zshnameddirrc" ] && source "${XDG_CONFIG_HOME:-$HOME/.config}/shell/zshnameddirrc"
 
 # Basic auto/tab complete:
@@ -77,6 +69,3 @@ source /usr/share/zsh/plugins/fast-syntax-highlighting/fast-syntax-highlighting.
 # Load shared profile configuration if it exists.
 # Zsh's typeset -U at the top guarantees PATH remains clean and duplicate-free.
 [ -f "$HOME/.config/shell/profile" ] && source "$HOME/.config/shell/profile"
-
-# opencode
-# PATH centralized in profile

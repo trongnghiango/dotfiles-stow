@@ -1,66 +1,71 @@
 #!/bin/sh
+# ==============================================================================
+# ALIASRC - Clean Shell Aliases for Arch Linux & Omarchy
+# ==============================================================================
 
-# Use neovim for vim if present.
+# Editor aliases
 [ -x "$(command -v nvim)" ] && alias vim="nvim" vimdiff="nvim -d"
+alias e='$EDITOR'
+alias v='$EDITOR'
 
-[ -f "$MBSYNCRC" ] && alias mbsync='mbsync -c $MBSYNCRC'
+# Package manager (Arch Linux & Omarchy)
+alias p="pacman"
+alias pacman="sudo pacman"
+alias y="yay"
+alias update="yay -Syu"
 
-# sudo not required for some system commands
+# Sudo shortcuts for common system tasks
 for command in mount umount updatedb su shutdown poweroff reboot; do
   alias $command="sudo $command"
 done
 unset command
 
+# Quick edit local scripts with fzf
 se() {
-  choice="$(find "$HOME/.local/bin" -mindepth 1 -printf '%P\n' | fzf)"
-  [ -f "$HOME/.local/bin/$choice" ] && $EDITOR "$HOME/.local/bin/$choice"
+  choice="$(find "$HOME/.local/bin" -mindepth 1 -printf '%P\n' 2>/dev/null | fzf)"
+  [ -n "$choice" ] && [ -f "$HOME/.local/bin/$choice" ] && $EDITOR "$HOME/.local/bin/$choice"
 }
 
-# Verbosity and settings that you pretty much just always are going to want.
+# Safer & Verbose File Operations
 alias \
   cp="cp -iv" \
   mv="mv -iv" \
   rm="rm -vI" \
   bc="bc -ql" \
   rsync="rsync -vrPlu" \
-  mkd="mkdir -pv" \
-  yt="yt-dlp --embed-metadata -i" \
-  yta="yt -x -f bestaudio/best" \
-  ytt="yt --skip-download --write-thumbnail" \
-  ffmpeg="ffmpeg -hide_banner"
+  mkd="mkdir -pv"
 
-# Colorize commands when possible.
-# Kiểm tra xem eza có được cài chưa
-if command -v eza >/dev/null; then
-  # Nếu có eza, dùng eza
+# Modern CLI tools
+if command -v eza >/dev/null 2>&1; then
   alias ls="eza --icons --group-directories-first"
   alias ll="eza -al --icons --group-directories-first"
   alias la="eza -a --icons --group-directories-first"
   alias lt="eza -aT --icons --group-directories-first"
 else
-  # Nếu không, fallback về ls truyền thống
   alias ls="ls -hN --color=auto --group-directories-first"
+  alias ll="ls -halN --color=auto --group-directories-first"
 fi
 
-#
 alias \
   grep="grep --color=auto" \
   diff="diff --color=auto" \
   ccat="bat --style=plain --color=always" \
   ip="ip -color=auto"
 
-# These common commands are just too long! Abbreviate them.
+# Media & Download
 alias \
-  ka="killall" \
-  g="git" \
-  trem="transmission-remote" \
-  YT="youtube-viewer" \
-  sdn="shutdown -h now" \
-  e='$EDITOR' \
-  v='$EDITOR' \
-  z="zathura"
+  yt="yt-dlp --embed-metadata -i" \
+  yta="yt -x -f bestaudio/best" \
+  ytt="yt --skip-download --write-thumbnail" \
+  ffmpeg="ffmpeg -hide_banner"
 
+# Common Abbreviations
 alias \
-  lf="lfub" \
-  magit="nvim -c MagitOnly" \
-  ref='shortcuts >/dev/null; source ${XDG_CONFIG_HOME:-$HOME/.config}/shell/shortcutrc ; source ${XDG_CONFIG_HOME:-$HOME/.config}/shell/shortcutenvrc ; source ${XDG_CONFIG_HOME:-$HOME/.config}/shell/zshnameddirrc'
+  g="git" \
+  ka="killall" \
+  sdn="shutdown -h now" \
+  z="zathura" \
+  lf="lfub"
+
+# Refresh shell bookmarks & shortcuts
+alias ref='shortcuts >/dev/null 2>&1; [ -f "${XDG_CONFIG_HOME:-$HOME/.config}/shell/shortcutrc" ] && . "${XDG_CONFIG_HOME:-$HOME/.config}/shell/shortcutrc"; [ -f "${XDG_CONFIG_HOME:-$HOME/.config}/shell/shortcutenvrc" ] && . "${XDG_CONFIG_HOME:-$HOME/.config}/shell/shortcutenvrc"'
