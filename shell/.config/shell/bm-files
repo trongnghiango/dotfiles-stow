@@ -3,21 +3,20 @@
 # keys	filename				description
 bf	${XDG_CONFIG_HOME:-$HOME/.config}/shell/bm-files	# This file, a list of bookmarked files
 bd	${XDG_CONFIG_HOME:-$HOME/.config}/shell/bm-dirs		# A list of bookmarked directories similar to this file
-cfx	${XDG_CONFIG_HOME:-$HOME/.config}/x11/xresources	# Colors, themes and variables for X11
-cfb	$HOME/.local/src/dwmblocks/config.h			# dwmblocks: the status bar for dwm
-
+cfhy	${XDG_CONFIG_HOME:-$HOME/.config}/hypr/hyprland.lua	# Hyprland config
+cff	${XDG_CONFIG_HOME:-$HOME/.config}/fcitx5/config		# Fcitx5 config
 
 # These do not update automatically, but on the next new instance of a program:
 
-cfv	${XDG_CONFIG_HOME:-$HOME/.config}/nvim/init.vim		# vim/neovim config
+cfv	${XDG_CONFIG_HOME:-$HOME/.config}/nvim/init.lua		# neovim main config
 cfz	$ZDOTDIR/.zshrc						# zsh (shell) config
-cfa	${XDG_CONFIG_HOME:-$HOME/.config}/shell/aliasrc		# aliases used by zsh (and potentially other shells)
-cfp	${XDG_CONFIG_HOME:-$HOME/.config}/shell/profile		# profile file for login settings for zsh
+cfa	${XDG_CONFIG_HOME:-$HOME/.config}/shell/aliasrc		# aliases used by zsh
+cfp	${XDG_CONFIG_HOME:-$HOME/.config}/shell/profile		# profile file for login settings
 cfm	${XDG_CONFIG_HOME:-$HOME/.config}/mutt/muttrc		# mutt (email client) config
 cfn	${XDG_CONFIG_HOME:-$HOME/.config}/newsboat/config	# newsboat (RSS reader)
 cfu	${XDG_CONFIG_HOME:-$HOME/.config}/newsboat/urls		# RSS urls for newsboat
-cfmb	${XDG_CONFIG_HOME:-$HOME/.config}/ncmpcpp/bindings	# ncmpcpp (music player) keybinds file
-cfmc	${XDG_CONFIG_HOME:-$HOME/.config}/ncmpcpp/config	# ncmpcpp (music player) config
-cfl	${XDG_CONFIG_HOME:-$HOME/.config}/lf/lfrc		# lf (file browser) config
-cfL	${XDG_CONFIG_HOME:-$HOME/.config}/lf/scope		# lf's scope/preview file
-cfX	${XDG_CONFIG_HOME:-$HOME/.config}/nsxiv/exec/key-handler	# nsxiv (image viewer) key/script handler
+cfmb	${XDG_CONFIG_HOME:-$HOME/.config}/ncmpcpp/bindings	# ncmpcpp keybinds file
+cfmc	${XDG_CONFIG_HOME:-$HOME/.config}/ncmpcpp/config	# ncmpcpp config
+cfl	${XDG_CONFIG_HOME:-$HOME/.config}/lf/lfrc		# lf config
+cfL	${XDG_CONFIG_HOME:-$HOME/.config}/lf/scope		# lf scope/preview file
+cft	${XDG_CONFIG_HOME:-$HOME/.config}/tmux/tmux.conf	# tmux config

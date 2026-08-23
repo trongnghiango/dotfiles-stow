@@ -2,7 +2,7 @@
 
 # ==============================================================================
 # KA SYSTEM SETUP & AUTO-CONFIG (ka-setup)
-# Description: Post-install autoconfig helper for Arch Linux + DWM
+# Description: Post-install autoconfig helper for Arch Linux + Omarchy (Wayland)
 # ==============================================================================
 
 # COLORS
@@ -23,7 +23,7 @@ log_step() { echo -e "${CYAN}➜ $1${NC}"; }
 show_help() {
   echo -e "${BOLD}Hệ thống tự động cấu hình (ka-setup)${NC}"
   echo "========================================================"
-  echo "Cấu hình nhanh môi trường sau khi cài đặt Arch Linux & Dotfiles."
+  echo "Cấu hình nhanh môi trường sau khi cài đặt Arch Linux / Omarchy & Dotfiles."
   echo ""
   echo -e "${BOLD}SỬ DỤNG:${NC}"
   echo "  ka-setup <command>"
@@ -32,6 +32,8 @@ show_help() {
   echo -e "  ${GREEN}all${NC}       Chạy toàn bộ các bước cấu hình."
   echo -e "  ${GREEN}pam${NC}       Cấu hình tự động mở khóa gnome-keyring tại TTY."
   echo -e "  ${GREEN}docker${NC}    Cấu hình quyền Docker (non-root) & socket activation."
+  echo -e "  ${GREEN}ime${NC}       Cài đặt fcitx5-bamboo cho bộ gõ Tiếng Việt."
+  echo -e "  ${GREEN}battery${NC}   Cấu hình ngưỡng sạc pin ThinkPad (50-60%)."
   echo ""
 }
 
@@ -156,6 +158,32 @@ setup_docker() {
 }
 
 # ------------------------------------------------------------------------------
+# 3. Cài đặt IME Tiếng Việt (Fcitx5 Bamboo)
+# ------------------------------------------------------------------------------
+setup_ime() {
+  log_step "Kiểm tra và cài đặt bộ gõ tiếng Việt Fcitx5 Bamboo..."
+  if pacman -Qi fcitx5-bamboo &>/dev/null; then
+    log_success "Package fcitx5-bamboo đã được cài đặt."
+  else
+    log_info "Đang cài đặt fcitx5-bamboo..."
+    sudo pacman -S --needed --noconfirm fcitx5-bamboo
+    log_success "Cài đặt fcitx5-bamboo thành công."
+  fi
+}
+
+# ------------------------------------------------------------------------------
+# 4. Cấu hình Pin ThinkPad
+# ------------------------------------------------------------------------------
+setup_battery() {
+  log_step "Kiểm tra và cấu hình ngưỡng sạc pin ThinkPad..."
+  if command -v battery-threshold &>/dev/null; then
+    battery-threshold
+  else
+    log_warn "Chưa tìm thấy lệnh battery-threshold trong PATH."
+  fi
+}
+
+# ------------------------------------------------------------------------------
 # MAIN
 # ------------------------------------------------------------------------------
 if [ $# -eq 0 ]; then
@@ -172,10 +200,20 @@ case "$CMD" in
   docker)
     setup_docker
     ;;
+  ime)
+    setup_ime
+    ;;
+  battery)
+    setup_battery
+    ;;
   all)
     setup_pam
     echo ""
     setup_docker
+    echo ""
+    setup_ime
+    echo ""
+    setup_battery
     ;;
   *)
     show_help
