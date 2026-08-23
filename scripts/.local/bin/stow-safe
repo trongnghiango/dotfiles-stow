@@ -86,25 +86,26 @@ _backup_conflicts() {
   local conflict_count=0
   local manifest_entries=()
 
-  log_info "Scanning for conflicts in '$package'..."
+  log_info "Scanning for conflicts in '$package'..." >&2
 
   while IFS= read -r target; do
     if [ -e "$target" ] && [ ! -L "$target" ]; then
-      # Real file or directory exists — potential conflict
+      # Real file or directory exists — backup and remove so stow can link
       local rel="${target#"$TARGET_DIR/"}"
       local dest="$backup_dir/$rel"
       mkdir -p "$(dirname "$dest")"
       cp -a "$target" "$dest"
+      rm -rf "$target"
       manifest_entries+=("$target")
       ((conflict_count++))
-      log_warn "Conflict backed up: ${DIM}$target${NC}"
+      log_warn "Conflict backed up & cleared: ${DIM}$target${NC}" >&2
 
     elif [ -L "$target" ]; then
       local link_target
       link_target="$(readlink "$target")"
       # Symlink pointing elsewhere — warn but don't block
       if [[ "$link_target" != "$DOTFILES_DIR/$package"* ]]; then
-        log_warn "Existing foreign symlink: $target ${DIM}→ $link_target${NC}"
+        log_warn "Existing foreign symlink: $target ${DIM}→ $link_target${NC}" >&2
       fi
     fi
   done < <(_get_stow_targets "$package")
@@ -120,10 +121,10 @@ _backup_conflicts() {
       echo "target=$TARGET_DIR"
       echo "count=$conflict_count"
     } > "$backup_dir/META"
-    log_ok "$conflict_count file(s) backed up → $backup_dir"
-    echo "$backup_dir"  # Caller captures this
+    log_ok "$conflict_count file(s) backed up → $backup_dir" >&2
+    echo "$backup_dir"  # Caller captures this on stdout
   else
-    log_info "No conflicts found — no backup needed."
+    log_info "No conflicts found — no backup needed." >&2
     echo ""
   fi
 }
