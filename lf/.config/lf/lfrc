@@ -1,242 +1,104 @@
-# =========================================================
-# BASIC
-# =========================================================
-set ifs "\n"
-set scrolloff 10
-set icons
-set period 1
-set hiddenfiles ".*:*.aux:*.log:*.bbl:*.bcf:*.blg:*.run.xml"
-set autoquit true
-set info size:time
+# ==============================================================================
+# LF CONFIGURATION — Omarchy Wayland Optimized
+# ==============================================================================
 
-# =========================================================
-# PREVIEW
-# =========================================================
+# ------------------------------------------------------------------------------
+# 1. CORE & DISPLAY OPTIONS
+# ------------------------------------------------------------------------------
+set shell /bin/sh
+set shellopts '-eu'
+set ifs "\n"
+set scrolloff 8
+set ratios 1:2:3
+set tabstop 4
+set cursorpreviewfmt "\033[7m"
+set period 1
+set icons true
+set info size:time
+set dircounts true
+set timefmt "2006-01-02 15:04"
+set autoquit true
+set drawbox false
+set hidden true
+set hiddenfiles ".*:*.aux:*.log:*.bbl:*.bcf:*.blg:*.run.xml"
+set preview true
 set previewer ~/.config/lf/scope
 set cleaner ~/.config/lf/cleaner
-set preview true
+set mouse true
 
-# =========================================================
-# COMMANDS
-# =========================================================
+# ------------------------------------------------------------------------------
+# 2. CUSTOM COMMANDS
+# ------------------------------------------------------------------------------
 
-# ---------- OPEN ----------
+# Open file with default Omarchy handler
 cmd open ${{
-    case $(file --mime-type "$(readlink -f "$f")" -b) in
-        text/*|application/json|inode/x-empty|application/x-subrip)
+    test -L "$f" && f=$(readlink -f "$f")
+    mime=$(file --mime-type -Lb "$f")
+    case "$mime" in
+        text/*|application/json|inode/x-empty|application/x-subrip|application/xml|application/javascript)
             $EDITOR "$f" ;;
         image/*)
-            setsid -f nsxiv -aio "$f" >/dev/null 2>&1 ;;
-            
-        # ĐÃ SỬA: Chạy nền mpv (setsid -f) và bỏ flag --no-config để nạp input.conf
+            setsid -f imv "$f" >/dev/null 2>&1 ;;
         video/*)
             setsid -f mpv "$f" >/dev/null 2>&1 ;;
         audio/*)
             setsid -f mpv --no-video "$f" >/dev/null 2>&1 ;;
-            
-        application/pdf|application/epub+zip)
-            setsid -f zathura "$f" >/dev/null 2>&1 ;;
+        application/pdf|application/epub+zip|application/postscript)
+            if command -v zathura >/dev/null 2>&1; then
+                setsid -f zathura "$f" >/dev/null 2>&1
+            else
+                setsid -f xdg-open "$f" >/dev/null 2>&1
+            fi ;;
         *)
-            setsid -f "$OPENER" "$f" >/dev/null 2>&1 ;;
+            setsid -f xdg-open "$f" >/dev/null 2>&1 ;;
     esac
 }}
 
-# ---------- MKDIR ----------
+# Directory & File creation
 cmd mkdir $mkdir -p "$@"
+cmd touch $touch "$@"
 
-# ---------- DELETE ----------
-cmd delete ${{
-    clear
-    printf "Delete:\n%s\n\nConfirm? [y/N]: " "$fx"
-    read ans
-    [ "$ans" = "y" ] && rm -rf -- $fx
-}}
-
-# ---------- BULK RENAME ----------
+# Bulk rename with Neovim
 cmd bulkrename ${{
     tmp_old=$(mktemp)
     tmp_new=$(mktemp)
+    trap 'rm -f "$tmp_old" "$tmp_new"' EXIT
 
-    printf "%s\n" $fx > "$tmp_old"
+    [ -n "$fx" ] && printf "%s\n" $fx > "$tmp_old" || printf "%s\n" $f > "$tmp_old"
     cp "$tmp_old" "$tmp_new"
 
     $EDITOR "$tmp_new"
 
     paste "$tmp_old" "$tmp_new" | while IFS=$'\t' read -r a b; do
-        [ "$a" != "$b" ] && [ ! -e "$b" ] && mv -- "$a" "$b"
+        [ "$a" != "$b" ] && [ -e "$a" ] && [ ! -e "$b" ] && mv -n -- "$a" "$b"
     done
-
-    rm -f "$tmp_old" "$tmp_new"
+    lf -remote "send $id load"
 }}
 
+# Safe trash using trash-cli with fallback
+cmd trash ${{
+    if command -v trash-put >/dev/null 2>&1; then
+        trash-put -- $fx
+        lf -remote "send $id echo 'Moved to trash: $fx'"
+    else
+        clear
+        printf "trash-cli not found! Permanently delete? [y/N]: "
+        read ans
+        [ "$ans" = "y" ] && rm -rf -- $fx
+    fi
+}}
 
-# ---------- 3. SMART EXTRACT (Tự tìm part đầu) ----------
-cmd extract ${{
+# Permanent delete with confirmation
+cmd delete ${{
     clear
-    [ -z "$fx" ] && echo "No selection" && read && exit 1
-
-    printf "Extract:\n%s\n\nConfirm? [y/N]: " "$fx"
+    printf "\033[1;31mPERMANENT DELETE:\033[0m\n%s\n\nAre you sure? [y/N]: " "$fx"
     read ans
-    [ "$ans" != "y" ] && exit 0
-
-    for f in $fx; do
-        # Logic xử lý split files: Luôn trỏ về .001
-        target="$f"
-        if echo "$f" | grep -qE "\.[0-9]{3}$"; then
-            base="${f%.*}"
-            [ -f "${base}.001" ] && target="${base}.001"
-        fi
-
-        # Tên thư mục đầu ra
-        out="${f%.7z*}" # Xóa đuôi mở rộng để làm tên thư mục
-        out="${out%.*}" # Xử lý kỹ hơn cho trường hợp .tar.gz
-
-        case "$target" in
-            *.7z|*.7z.001) 7z x "$target" -o"$out" ;;
-            *.zip) unzip "$target" -d "$out" ;;
-            *.tar) tar xf "$target" ;;
-            *.tar.gz|*.tgz) tar xzf "$target" ;;
-            *.tar.xz) tar xJf "$target" ;;
-            *.rar) unrar x "$target" "$out/" ;;
-            *) echo "Unsupported: $target" ;;
-        esac
-    done
-    read
+    [ "$ans" = "y" ] && rm -rf -- $fx
 }}
 
-# ---------- EXTRACT FZF (UNIX/POSIX COMPLIANT) ----------
-cmd extract_fzf ${{
-    # Xóa màn hình và kiểm tra file đầu vào
-    clear
-    [ -z "$f" ] && exit 1
-
-    # 1. TỰ TÌM FILE GỐC (Logic chuẩn POSIX)
-    # Thay vì regex phức tạp, dùng logic string đơn giản
-    target="$f"
-    case "$f" in
-        *.0[0-9][0-9]) # Bắt đuôi .001, .002...
-            base="${f%.*}"
-            if [ -f "${base}.001" ]; then
-                target="${base}.001"
-            fi
-            ;;
-    esac
-
-    printf "\033[1;33m⏳ Parsing archive (Portable Mode)...\033[0m\n"
-
-    # 2. TẠO TEMP DIR (Hỗ trợ cả Linux & macOS)
-    # Dùng template XXXXXX để an toàn trên BSD/macOS
-    tmp_dir=$(mktemp -d "${TMPDIR:-/tmp}/lf_ext.XXXXXX")
-    
-    # Trap chuẩn POSIX: Chỉ bắt signal EXIT
-    trap 'rm -rf "$tmp_dir"' EXIT
-
-    # 3. ĐỌC DỮ LIỆU (-slt là chuẩn nhất)
-    if ! 7z l -slt "$target" > "$tmp_dir/raw_slt"; then
-        printf "\033[1;31m❌ Error reading archive.\033[0m\n"
-        read temp
-        exit 1
-    fi
-
-    # 4. PARSE DỮ LIỆU (AWK CHUẨN UNIX)
-    # RS="" : Paragraph mode (hoạt động trên cả GNU awk và BSD awk/macOS)
-    # FS="\n" : Mỗi dòng là 1 trường
-    awk '
-    BEGIN { RS=""; FS="\n" }
-    {
-        path=""; attr="";
-        for(i=1; i<=NF; i++) {
-            # Tìm dòng bắt đầu bằng "Path = "
-            if ($i ~ /^Path = /)       path = substr($i, 8)
-            # Tìm dòng bắt đầu bằng "Attributes = "
-            if ($i ~ /^Attributes = /) attr = substr($i, 14)
-        }
-
-        # Bỏ qua nếu thiếu dữ liệu
-        if (path == "" || attr == "") next
-
-        # Xác định loại
-        if (attr ~ /D/) type="DIR"
-        else            type="FILE"
-
-        print type "\t" path
-    }' "$tmp_dir/raw_slt" > "$tmp_dir/parsed_list"
-
-    # 5. TẠO VIEW FULL
-    sort "$tmp_dir/parsed_list" | awk -F'\t' '
-    {
-        if ($1 == "DIR") printf "\033[1;34m📂 %s\033[0m\t%s/\n", $2, $2
-        else             printf "📄 %s\t%s\n", $2, $2
-    }' > "$tmp_dir/view_full"
-
-    # 6. TẠO VIEW SMART (LEVEL 2)
-    sort "$tmp_dir/parsed_list" | awk -F'\t' '
-    {
-        type=$1; path=$2
-        n = split(path, a, "/")
-
-        # Logic Level 2
-        if (n >= 3) {
-            show = a[1] "/" a[2]
-            real = show "/"
-            type = "DIR"
-        } else {
-            show = path
-            if (type == "DIR") real = path "/"
-            else               real = path
-        }
-        # In ra: KeySort TAB Type TAB Show TAB Real
-        # KeySort dùng để sort unique
-        print show "\t" type "\t" show "\t" real
-    }' | sort -u -k1,1 | awk -F'\t' '
-    {
-        # Cột 2 là Type, Cột 3 là Show, Cột 4 là Real
-        if ($2 == "DIR") printf "\033[1;34m📂 %s\033[0m\t%s\n", $3, $4
-        else             printf "📄 %s\t%s\n", $3, $4
-    }' > "$tmp_dir/view_smart"
-
-    # 7. CHẠY FZF (Giữ nguyên vì fzf xử lý luồng chuẩn)
-    # Kiểm tra fzf có tồn tại không
-    if ! command -v fzf >/dev/null 2>&1; then
-         printf "Error: fzf not found.\n" && read && exit 1
-    fi
-
-    sel=$(cat "$tmp_dir/view_smart" | fzf \
-        --ansi \
-        --delimiter="\t" --with-nth=1 \
-        --prompt="Mode: SMART > " \
-        --header="CTRL-F: Full | CTRL-R: Smart | TAB: Multi" \
-        --bind "ctrl-f:reload(cat \"$tmp_dir/view_full\")+change-prompt(Mode: FULL > )" \
-        --bind "ctrl-r:reload(cat \"$tmp_dir/view_smart\")+change-prompt(Mode: SMART > )" \
-        --preview "echo {2}" \
-        --preview-window=up:1 \
-        --height=90% --layout=reverse -m)
-
-    [ -z "$sel" ] && exit 0
-
-    mkdir -p extract
-    
-    # Dùng while read thay vì pipe trực tiếp để an toàn hơn với biến
-    echo "$sel" | awk -F'\t' '{print $2}' | while IFS= read -r p; do
-        # Xử lý wildcard an toàn
-        case "$p" in
-            */) 7z x "$target" "${p}*" -oextract -y >/dev/null 2>&1 ;;
-            *)  7z x "$target" "$p" -oextract -y >/dev/null 2>&1 ;;
-        esac
-    done
-    
-    # Đếm file dùng find chuẩn POSIX
-    count=$(find extract -type f | wc -l)
-    # Loại bỏ khoảng trắng thừa do wc sinh ra
-    count=$(echo "$count" | tr -d ' ') 
-    
-    printf "\033[1;32m✔ Extracted %s files.\033[0m\n" "$count"
-    lf -remote "send $id select extract"
-}}
-
+# Fuzzy jump into directory / file
 cmd fzf_jump ${{
-    # Tìm kiếm nhanh thư mục hoặc file trong bán kính 3 cấp thư mục con
-    res=$(find . -maxdepth 3 -not -path '*/.*' | fzf --prompt="Jump to > ")
+    res=$(find . -maxdepth 3 -not -path '*/.*' 2>/dev/null | fzf --prompt="Jump > " --height=40% --reverse)
     if [ -n "$res" ]; then
         if [ -d "$res" ]; then
             lf -remote "send $id cd \"$res\""
@@ -245,198 +107,240 @@ cmd fzf_jump ${{
         fi
     fi
 }}
-# Map phím f để tìm kiếm nhảy nhanh
-map f fzf_jump
 
-# ---------- COMPRESS PRO (BACKUP) ----------
+# Fuzzy full-text search with ripgrep
+cmd fzf_search ${{
+    if ! command -v rg >/dev/null 2>&1 || ! command -v fzf >/dev/null 2>&1; then
+        lf -remote "send $id echo 'rg or fzf not installed!'"
+        exit 1
+    fi
+    res=$(rg --column --line-number --no-heading --color=always --smart-case "" 2>/dev/null | \
+          fzf --ansi --delimiter=: --nth=4.. --prompt="Search content > " --height=50% --reverse | \
+          cut -d: -f1)
+    [ -n "$res" ] && lf -remote "send $id select \"$res\""
+}}
+
+# Wayland Clipboard helpers
+cmd copy_path ${{
+    printf "%s" "$fx" | wl-copy
+    lf -remote "send $id echo 'Copied full path to clipboard'"
+}}
+
+cmd copy_name ${{
+    printf "%s" "$fx" | sed 's!.*/!!' | wl-copy
+    lf -remote "send $id echo 'Copied file name to clipboard'"
+}}
+
+cmd copy_dir ${{
+    dirname "$f" | wl-copy
+    lf -remote "send $id echo 'Copied directory path to clipboard'"
+}}
+
+cmd copy_content ${{
+    if [ -f "$f" ]; then
+        wl-copy < "$f"
+        lf -remote "send $id echo 'Copied file contents to clipboard'"
+    fi
+}}
+
+# Multi-threaded compression
 cmd compress ${{
     clear
-    [ -z "$fx" ] && echo "Chưa chọn file nào!" && read && exit 1
+    [ -z "$fx" ] && echo "No files selected!" && read && exit 1
 
-    # 1. Tạo tên file mặc định: [Tên_Thư_Mục_Hiện_Tại]_[Ngày-Tháng].7z
-    # Giúp backup nhanh mà không cần gõ nhiều
     current_dir=$(basename "$PWD")
     date_str=$(date +%Y-%m-%d)
     default_name="${current_dir}_${date_str}.7z"
 
-    printf "\033[1;34m=== CHẾ ĐỘ NÉN & BACKUP DATA ===\033[0m\n"
-    printf "Files đang chọn: \033[1;33m$(echo "$fx" | wc -l)\033[0m item(s)\n"
-    
-    # Nhập tên (Enter để lấy tên mặc định)
-    printf "Tên file nén (Enter = %s): " "$default_name"
+    printf "\033[1;34m=== ARCHIVE & COMPRESSION ===\033[0m\n"
+    printf "Files: \033[1;33m%s\033[0m\n" "$fx"
+    printf "Archive name [Default: %s]: " "$default_name"
     read name
     [ -z "$name" ] && name="$default_name"
-    
-    # Đảm bảo đuôi .7z
+
     case "$name" in
-        *.7z) ;;
+        *.7z|*.tar.gz|*.tar.xz|*.zip) ;;
         *) name="$name.7z" ;;
     esac
 
-    # 2. Tùy chọn Mật khẩu (Quan trọng cho Backup Data nhạy cảm)
-    printf "Mật khẩu (Enter = Không khóa): "
+    printf "Password (Enter for None): "
     read -s pass
-    echo "" # Xuống dòng vì read -s không hiển thị
+    echo ""
 
-    # 3. Tùy chọn Cắt file (Split) - Dùng khi upload lên Cloud hoặc gửi Mail
-    printf "Cắt nhỏ file? (VD: 100m, 2g, 1500m / Enter = Không): "
-    read split
-
-    # 4. Tùy chọn Mức độ nén
-    printf "Mức độ nén? (1=Nhanh, 9=Siêu nén/Backup, Enter=Bình thường): "
+    printf "Compression Level (1=Fast, 5=Normal, 9=Ultra) [Default: 5]: "
     read level
-    [ -z "$level" ] && level="5" # Mặc định là 5
+    [ -z "$level" ] && level="5"
 
-    printf "\033[1;33m⏳ Đang nén dữ liệu... (Tận dụng đa luồng)\033[0m\n"
+    printf "\033[1;33m⏳ Compressing data (multi-threading)...\033[0m\n"
 
-    # Xây dựng câu lệnh 7z tối ưu
-    # -mx$level: Mức độ nén
-    # -mmt=on: Bật đa luồng (Multi-threading) - Nhanh hơn rất nhiều
-    # -ms=on: Solid archive (Nén chặt các file nhỏ lại với nhau)
     args="a \"$name\" $fx -mx$level -mmt=on -ms=on"
-
-    # Nếu có pass -> Bật mã hóa Header (-mhe=on) để ẩn luôn tên file bên trong
     if [ -n "$pass" ]; then
         args="$args -p\"$pass\" -mhe=on"
     fi
 
-    if [ -n "$split" ]; then
-        args="$args -v$split"
-    fi
-
-    # Thực thi
-    eval "7z $args" >/dev/null
-
-    if [ $? -eq 0 ]; then
-        printf "\033[1;32m✔ Backup thành công: %s\033[0m\n" "$name"
-        # Reload để thấy file mới
+    if eval "7z $args" >/dev/null; then
+        printf "\033[1;32m✔ Archive created: %s\033[0m\n" "$name"
         lf -remote "send $id select \"$name\""
     else
-        printf "\033[1;31m❌ Có lỗi xảy ra!\033[0m\n"
+        printf "\033[1;31m❌ Compression failed!\033[0m\n"
         read
     fi
 }}
 
+# Smart archive extraction
+cmd extract ${{
+    clear
+    [ -z "$fx" ] && echo "No selection!" && read && exit 1
 
-# =========================================================
-# ARCHIVE COMMANDS (PRO)
-# =========================================================
-
-# ---------- 1. MOUNT ARCHIVE (Giải pháp cho file bị chia part) ----------
-# Biến file nén thành thư mục để xem/copy thoải mái
-cmd mount_archive ${{
-    # Tự động tìm file .001 nếu đang chọn file .002, .003...
-    target="$f"
-    if echo "$f" | grep -qE "\.[0-9]{3}$"; then
-        base="${f%.*}"
-        if [ -f "${base}.001" ]; then
-            target="${base}.001"
+    for f in $fx; do
+        target="$f"
+        if echo "$f" | grep -qE "\.[0-9]{3}$"; then
+            base="${f%.*}"
+            [ -f "${base}.001" ] && target="${base}.001"
         fi
-    fi
 
-    # Tạo điểm mount
-    mntpoint="${f}_mounted"
-    mkdir -p "$mntpoint"
+        out="${f%.7z*}"
+        out="${out%.tar*}"
+        out="${out%.zip*}"
+        out="${out%.rar*}"
 
-    # Mount (sử dụng archivemount)
-    archivemount "$target" "$mntpoint" >/dev/null 2>&1
-    
-    if [ $? -eq 0 ]; then
-        # Nếu thành công, tự động cd vào thư mục đó
-        lf -remote "send $id cd \"$mntpoint\""
-    else
-        rmdir "$mntpoint"
-        echo "Không thể mount. File có thể bị lỗi hoặc không hỗ trợ."
-        read
-    fi
+        case "$target" in
+            *.7z|*.7z.001) 7z x "$target" -o"$out" -y ;;
+            *.zip) unzip -q "$target" -d "$out" ;;
+            *.tar) tar -xf "$target" ;;
+            *.tar.gz|*.tgz) tar -xzf "$target" ;;
+            *.tar.xz|*.txz) tar -xJf "$target" ;;
+            *.tar.zst) tar --zstd -xf "$target" ;;
+            *.rar) unrar x -y "$target" "$out/" ;;
+            *) echo "Unsupported archive: $target" ;;
+        esac
+    done
+    lf -remote "send $id load"
 }}
 
-# ---------- 2. UNMOUNT (Gỡ file nén) ----------
-cmd unmount_archive ${{
-    # Nếu đang ở trong thư mục mount, lùi ra ngoài trước
-    if echo "$PWD" | grep -q "_mounted$"; then
-        cd ..
-    fi
-    
-    # Tìm thư mục mount (là file đang chọn hoặc thư mục hiện tại)
+# Interactive FZF Archive extraction
+cmd extract_fzf ${{
+    clear
+    [ -z "$f" ] && exit 1
+
     target="$f"
-    [ -d "$target" ] || target="$PWD"
-    
-    fusermount -u "$target" >/dev/null 2>&1
-    if [ $? -eq 0 ]; then
-        rmdir "$target"
-        echo "Đã gỡ mount thành công."
-    else
-        echo "Lỗi: Không thể gỡ mount (có thể file đang được sử dụng)."
-        read
+    case "$f" in
+        *.0[0-9][0-9])
+            base="${f%.*}"
+            [ -f "${base}.001" ] && target="${base}.001"
+            ;;
+    esac
+
+    tmp_dir=$(mktemp -d "${TMPDIR:-/tmp}/lf_ext.XXXXXX")
+    trap 'rm -rf "$tmp_dir"' EXIT
+
+    if ! 7z l -slt "$target" > "$tmp_dir/raw_slt" 2>/dev/null; then
+        printf "\033[1;31m❌ Cannot read archive format.\033[0m\n"
+        read temp
+        exit 1
     fi
+
+    awk '
+    BEGIN { RS=""; FS="\n" }
+    {
+        path=""; attr="";
+        for(i=1; i<=NF; i++) {
+            if ($i ~ /^Path = /)       path = substr($i, 8)
+            if ($i ~ /^Attributes = /) attr = substr($i, 14)
+        }
+        if (path == "" || attr == "") next
+        if (attr ~ /D/) type="DIR"
+        else            type="FILE"
+        print type "\t" path
+    }' "$tmp_dir/raw_slt" > "$tmp_dir/parsed_list"
+
+    sort "$tmp_dir/parsed_list" | awk -F'\t' '
+    {
+        if ($1 == "DIR") printf "\033[1;34m📁 %s\033[0m\t%s/\n", $2, $2
+        else             printf "📄 %s\t%s\n", $2, $2
+    }' > "$tmp_dir/view_list"
+
+    sel=$(cat "$tmp_dir/view_list" | fzf \
+        --ansi \
+        --delimiter="\t" --with-nth=1 \
+        --prompt="Extract items > " \
+        --preview "echo {2}" \
+        --preview-window=up:1 \
+        --height=80% --reverse -m)
+
+    [ -z "$sel" ] && exit 0
+
+    mkdir -p extract
+    echo "$sel" | awk -F'\t' '{print $2}' | while IFS= read -r p; do
+        case "$p" in
+            */) 7z x "$target" "${p}*" -oextract -y >/dev/null 2>&1 ;;
+            *)  7z x "$target" "$p" -oextract -y >/dev/null 2>&1 ;;
+        esac
+    done
+
+    printf "\033[1;32m✔ Extraction complete into ./extract/\033[0m\n"
+    lf -remote "send $id select extract"
 }}
 
-# Thêm lệnh chuyển file vào thùng rác hệ thống
-cmd trash ${{
-    trash-put -- $fx
-    lf -remote "send $id echo 'Đã chuyển vào Thùng rác hệ thống!'"
-}}
-# Đổi map phím D sang dùng thùng rác
-map D trash
+# ------------------------------------------------------------------------------
+# 3. KEYBINDINGS
+# ------------------------------------------------------------------------------
 
+# Opening
+map <enter> open
+map e open
 
-# Kéo thả file đang chọn ra các ứng dụng đồ họa (trình duyệt, discord...)
-cmd drag ${{
-    ripdrag -a -x "$fx" &
-}}
-# Map phím Ctrl + d để gọi tính năng kéo thả
-map <c-d> drag
+# Navigation
+map g top
+map G bottom
+map H cd ~
+map <c-e> down
+map <c-y> up
+map <c-r> reload
 
-# =========================================================
-# KEYMAPS (KHÔNG ĐÈ PHÍM)
-# =========================================================
+# File Operations
+map a push :touch<space>
+map A push :mkdir<space>
+map r :rename
+map rb bulkrename
+map x cut
+map y copy
+map p paste
+map d trash
+map D delete
 
-# Open
-map <enter> shell
+# Search & Jump
+map f fzf_jump
+map / fzf_search
 
-# Compress / Extract
+# Wayland Clipboard
+map yp copy_path
+map yn copy_name
+map yd copy_dir
+map yc copy_content
+
+# Archive Operations
 map zz compress
 map zx extract
 map zf extract_fzf
 
-# Mount / Unmount (Tính năng mới)
-map zm mount_archive
-map zu unmount_archive
+# Sorting
+map sn :set sortby natural; set reverse false
+map ss :set sortby size; set reverse true
+map st :set sortby time; set reverse true
+map se :set sortby ext; set reverse false
+map sr :set reverse!
 
-# Rename
-map rr :rename
-map rb bulkrename
-
-# Delete
-map D delete
-
-# Navigation
-map g top
-map H cd ~
-map <c-e> down
-map <c-y> up
-
-# Reload
-map <c-r> reload
-
-# Hidden
+# Display toggles
 map . :set hidden!
 
-# Clipboard
-map U $printf "%s" "$fx" | xclip -selection clipboard
-map u $printf "%s" "$fx" | sed 's!.*/!!' | xclip -selection clipboard
-
-# =========================================================
-# SORTING
-# =========================================================
-map on :set sortby natural; set reverse false
-map os :set sortby size; set reverse true
-map ot :set sortby time; set reverse true
-map oe :set sortby ext
-map r :set reverse!
-
-# =========================================================
-# SHORTCUTS
-# =========================================================
-source ~/.config/lf/shortcutrc
+# Bookmarks (Standard XDG)
+map gh cd ~
+map gc cd ~/.config
+map gd cd ~/Documents
+map gD cd ~/Downloads
+map gm cd ~/Music
+map gp cd ~/Pictures
+map gv cd ~/Videos
+map gr cd ~/Repos
+map gt cd /tmp

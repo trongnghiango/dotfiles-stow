@@ -1,5 +1,7 @@
 #!/bin/sh
-# Script dọn dẹp ảnh preview khi di chuyển sang file khác
-if [ -n "$FIFO_UEBERZUG" ]; then
-	printf '{"action": "remove", "identifier": "PREVIEW"}\n' > "$FIFO_UEBERZUG"
-fi
+# ==============================================================================
+# LF CLEANER — Omarchy Wayland
+# ==============================================================================
+# Native Wayland terminal previewers (chafa / bat / eza) do not require
+# background FIFO locks. This script provides clean exit handling.
+exit 0
