@@ -1,6 +1,8 @@
 [Hotkey]
 # Trigger keys to switch between English and Vietnamese
-# Note: Do not use Ctrl+Space to prevent conflict with Tmux prefix
+# Note:
+# - Ctrl+Space is reserved for Tmux prefix
+# - Super+Space is reserved for Omarchy Menu
 TriggerKeys=
 EnumerateForwardKeys=
 EnumerateBackwardKeys=
@@ -8,8 +10,9 @@ EnumerateGroupForwardKeys=
 EnumerateGroupBackwardKeys=
 
 [Hotkey/TriggerKeys]
-0=Super+space
-1=Shift+Shift_L
+0=Control+Shift_L
+1=Alt+Shift_L
+2=Shift+Shift_L
 
 [Behavior]
 # Independent input state for each window/application
