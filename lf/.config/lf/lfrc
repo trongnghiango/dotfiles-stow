@@ -24,6 +24,7 @@ set hiddenfiles ".*:*.aux:*.log:*.bbl:*.bcf:*.blg:*.run.xml"
 set preview true
 set previewer ~/.config/lf/scope
 set cleaner ~/.config/lf/cleaner
+set sixel true
 set mouse true
 
 # ------------------------------------------------------------------------------
