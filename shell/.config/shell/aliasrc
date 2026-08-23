@@ -65,7 +65,5 @@ alias \
   ka="killall" \
   sdn="shutdown -h now" \
   z="zathura" \
-  lf="lfub"
+  lf="lfcd"
 
-# Refresh shell bookmarks & shortcuts
-alias ref='shortcuts >/dev/null 2>&1; [ -f "${XDG_CONFIG_HOME:-$HOME/.config}/shell/shortcutrc" ] && . "${XDG_CONFIG_HOME:-$HOME/.config}/shell/shortcutrc"; [ -f "${XDG_CONFIG_HOME:-$HOME/.config}/shell/shortcutenvrc" ] && . "${XDG_CONFIG_HOME:-$HOME/.config}/shell/shortcutenvrc"'
