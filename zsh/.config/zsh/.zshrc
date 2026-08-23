@@ -12,8 +12,8 @@ unsetopt PROMPT_SP
 # Load environment modules (includes PATH, history sizes, and variables)
 [ -f "$ZDOTDIR/env.zsh" ] && source "$ZDOTDIR/env.zsh"
 
-# Ensure directory exists
-mkdir -p "${HISTFILE:h}"
+# Đảm bảo thư mục history tồn tại (HISTFILE = $XDG_DATA_HOME/zsh/history)
+mkdir -p "${XDG_DATA_HOME:-$HOME/.local/share}/zsh"
 
 # History behavior
 setopt APPEND_HISTORY        # append, không overwrite
@@ -64,8 +64,6 @@ bindkey -M vicmd '^e' edit-command-line
 bindkey -M visual '^[[P' vi-delete
 
 # Load syntax highlighting; should be last.
+# Profile/env is loaded by .zprofile (login shell) via ~/.zshenv → ZDOTDIR chain.
+# Non-login shells inherit env from parent Hyprland session. No double-source needed.
 source /usr/share/zsh/plugins/fast-syntax-highlighting/fast-syntax-highlighting.plugin.zsh 2>/dev/null
-
-# Load shared profile configuration if it exists.
-# Zsh's typeset -U at the top guarantees PATH remains clean and duplicate-free.
-[ -f "$HOME/.config/shell/profile" ] && source "$HOME/.config/shell/profile"

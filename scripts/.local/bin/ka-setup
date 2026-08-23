@@ -109,7 +109,7 @@ setup_docker() {
 
   local REAL_USER="${SUDO_USER:-$USER}"
   if [ "$REAL_USER" = "root" ]; then
-    REAL_USER=$(logname 2>/dev/null || echo "ka")
+    REAL_USER=$(logname 2>/dev/null || whoami)
   fi
 
   # 2.2. Tạo nhóm docker và thêm user

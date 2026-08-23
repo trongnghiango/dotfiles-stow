@@ -4,7 +4,7 @@ Name=Default
 # Layout
 Default Layout=us
 # Default Input Method
-DefaultIM=keyboard-us
+DefaultIM=bamboo
 
 [Groups/0/Items/0]
 # Name
@@ -20,3 +20,4 @@ Layout=
 
 [GroupOrder]
 0=Default
+

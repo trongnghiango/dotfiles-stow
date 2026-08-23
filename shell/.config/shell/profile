@@ -1,69 +1,66 @@
 #!/bin/sh
 # shellcheck disable=SC2155
+# ==============================================================================
+# ~/.config/shell/profile — POSIX login shell environment
+# Được source bởi ~/.config/zsh/.zprofile (zsh login) và ~/.zprofile (bash).
+# ZDOTDIR được quản lý bởi ~/.zshenv — không set ở đây để tránh race condition.
+# ==============================================================================
 
-# Profile file, runs on login. Environmental variables are set here.
-
-# Add all directories in `~/.local/bin` to $PATH
-if [ -d "$HOME/.local/bin" ]; then
-  export PATH="$HOME/.local/bin:$PATH"
-fi
-
+# --- PATH ---
+# ~/.local/bin — scripts và tools cá nhân
+[ -d "$HOME/.local/bin" ] && export PATH="$HOME/.local/bin:$PATH"
+# ~/Applications/bin — AppImage và binary thủ công
 [ -d "$HOME/Applications/bin" ] && export PATH="$HOME/Applications/bin:$PATH"
+# opencode CLI
+[ -d "$HOME/.opencode/bin" ] && export PATH="$HOME/.opencode/bin:$PATH"
 
-# Node / Package Manager Environment
+# --- Node / Package Manager ---
 export NPM_CONFIG_PREFIX="$HOME/.npm-global"
 export PNPM_HOME="$HOME/.local/share/pnpm"
-
-# Add package manager bin paths to PATH
 [ -d "$NPM_CONFIG_PREFIX/bin" ] && export PATH="$NPM_CONFIG_PREFIX/bin:$PATH"
 [ -d "$PNPM_HOME" ] && export PATH="$PNPM_HOME:$PATH"
 
-# Default programs:
+# --- Default Programs ---
 export EDITOR="nvim"
 export VISUAL="nvim"
-export NVIM_NOTTYFAST=1
 export TERMINAL="alacritty"
-export TERMINAL_PROG="alacritty"
 export BROWSER="brave"
 
-# ~/ Clean-up / XDG Base Directory Standard:
+# --- XDG Base Directory ---
 export XDG_CONFIG_HOME="$HOME/.config"
 export XDG_DATA_HOME="$HOME/.local/share"
 export XDG_CACHE_HOME="$HOME/.cache"
 export XDG_STATE_HOME="$HOME/.local/state"
 
-export NOTMUCH_CONFIG="$XDG_CONFIG_HOME/notmuch-config"
-export WGETRC="$XDG_CONFIG_HOME/wget/wgetrc"
+# --- XDG Cleanup (redirect dotfiles pollution to XDG dirs) ---
 export INPUTRC="$XDG_CONFIG_HOME/shell/inputrc"
-export ZDOTDIR="$XDG_CONFIG_HOME/zsh"
-export PASSWORD_STORE_DIR="$XDG_DATA_HOME/password-store"
-export TMUX_TMPDIR="$XDG_RUNTIME_DIR"
-export ANDROID_SDK_HOME="$XDG_CONFIG_HOME/android"
+export WGETRC="$XDG_CONFIG_HOME/wget/wgetrc"
 export CARGO_HOME="$XDG_DATA_HOME/cargo"
 export GOMODCACHE="$XDG_CACHE_HOME/go/mod"
+export GOPATH="$HOME/go"
+export ANDROID_SDK_HOME="$XDG_CONFIG_HOME/android"
 export ANSIBLE_CONFIG="$XDG_CONFIG_HOME/ansible/ansible.cfg"
-export UNISON="$XDG_DATA_HOME/unison"
-export HISTFILE="$XDG_DATA_HOME/history"
-export MBSYNCRC="$XDG_CONFIG_HOME/mbsync/config"
 export PYTHONSTARTUP="$XDG_CONFIG_HOME/python/pythonrc"
 export SQLITE_HISTORY="$XDG_DATA_HOME/sqlite_history"
+export PASSWORD_STORE_DIR="$XDG_DATA_HOME/password-store"
+export TMUX_TMPDIR="$XDG_RUNTIME_DIR"
 
-# Pager and Reader settings:
+# --- Shell History (source of truth — không set lại trong env.zsh) ---
+export HISTFILE="$XDG_DATA_HOME/zsh/history"
+
+# --- Pager ---
 export LESS="R"
-export LESS_TERMCAP_mb="$(printf '%b' ' [1;31m')"
-export LESS_TERMCAP_md="$(printf '%b' ' [1;36m')"
-export LESS_TERMCAP_me="$(printf '%b' ' [0m')"
-export LESS_TERMCAP_so="$(printf '%b' ' [01;44;33m')"
-export LESS_TERMCAP_se="$(printf '%b' ' [0m')"
-export LESS_TERMCAP_us="$(printf '%b' ' [1;32m')"
-export LESS_TERMCAP_ue="$(printf '%b' ' [0m')"
+export LESS_TERMCAP_mb="$(printf '%b' '\e[1;31m')"
+export LESS_TERMCAP_md="$(printf '%b' '\e[1;36m')"
+export LESS_TERMCAP_me="$(printf '%b' '\e[0m')"
+export LESS_TERMCAP_so="$(printf '%b' '\e[01;44;33m')"
+export LESS_TERMCAP_se="$(printf '%b' '\e[0m')"
+export LESS_TERMCAP_us="$(printf '%b' '\e[1;32m')"
+export LESS_TERMCAP_ue="$(printf '%b' '\e[0m')"
 export LESSOPEN="| bat --style=plain --color=always %s 2>/dev/null"
 
-# Generate shortcuts if not yet created
+# --- Shell Shortcuts (auto-generate nếu chưa có) ---
 [ ! -f "$XDG_CONFIG_HOME/shell/shortcutrc" ] && setsid -f shortcuts >/dev/null 2>&1
 
-# 9Router API key for opencode provider
-[ -f "${XDG_CONFIG_HOME:-$HOME/.config}/shell/profile.local" ] && . "${XDG_CONFIG_HOME:-$HOME/.config}/shell/profile.local"
-
-# opencode
-export PATH="$HOME/.opencode/bin:$PATH"
+# --- Local overrides (API keys, machine-specific — không vào git) ---
+[ -f "$XDG_CONFIG_HOME/shell/profile.local" ] && . "$XDG_CONFIG_HOME/shell/profile.local"
