@@ -1,5 +1,0 @@
-#!/usr/bin/env sh
-
-# Khởi chạy âm thanh Pipewire qua Systemd User (NixOS)
-systemctl --user reset-failed pipewire wireplumber pipewire-pulse 2>/dev/null
-systemctl --user restart pipewire wireplumber pipewire-pulse
