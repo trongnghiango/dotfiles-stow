@@ -20,7 +20,7 @@ Each top-level directory is a Stow package containing `$HOME`-relative paths:
 | `tmux/` | `~/.config/tmux/`: prefix `C-Space`, vi navigation, escape-time 0 |
 | `git/` | `~/.config/git/`: config, ignore (aliases, delta diff, rebase, branch/tag sort) |
 | `fcitx5/` | `~/.config/fcitx5/`: Fcitx5 IME configs (profile, Bamboo Telex, toggle hotkeys) |
-| `scripts/` | `~/.local/bin`: Wayland CLI utilities (`stow-safe`, `ka-setup`, `battery-threshold`, `gm`, `otp`, `weath`, `rssget`, etc.) |
+| `scripts/` | `~/.local/bin`: Wayland CLI utilities (`stow-safe`, `ka-setup`, `ytdl-cut`, `battery-threshold`, `gm`, `otp`, `weath`, `rssget`, etc.) |
 | `lf/` | `~/.config/lf/`: lf file manager (vi binds, modern Wayland previewer: Chafa, Bat, Eza, PDF/EPUB cover) |
 | `hypr/` | `~/.config/hypr/bindings.lua`: DWM Hybrid keybinding overrides |
 | `media/` | `~/.config/{mpv,ncmpcpp,mpd}`: PipeWire audio optimizations, GPU Wayland mpv, TUI music player |

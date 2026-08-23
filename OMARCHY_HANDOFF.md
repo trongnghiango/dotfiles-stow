@@ -33,7 +33,7 @@ Toàn bộ packages tuân thủ chuẩn **XDG Base Directory** (`~/.config/`, `~
 | `fcitx5/` | `~/.config/fcitx5/` | Cấu hình bộ gõ Bamboo Telex tiếng Việt, toggle hotkey. |
 | `media/` | `~/.config/{mpv,ncmpcpp,mpd}` | `mpv.conf` tối ưu GPU Wayland (`hwdec=auto-safe`, `vo=gpu-next`), Vim binds `input.conf`, MPD PipeWire. |
 | `opencode/` | `~/.config/opencode/` | Cấu hình 9Router AI gateway và 3 combo tiers (KhaBoDo, KhaSimple, KhaThinking). |
-| `scripts/` | `~/.local/bin/` | Bộ CLI utilities (`stow-safe`, `ka-setup`, `gm`, `battery-threshold`, `otp`, `weath`, cron). |
+| `scripts/` | `~/.local/bin/` | Bộ CLI utilities (`stow-safe`, `ka-setup`, `ytdl-cut`, `gm`, `battery-threshold`, `otp`, `weath`, cron). |
 
 ---
 
