@@ -1,32 +1,44 @@
-# Handoff: Chiến lược Tích hợp Omarchy & Dotfiles
+# Handoff: Tích hợp Kiến trúc Omarchy & Dotfiles (Hybrid)
 
-Tài liệu này tổng hợp toàn bộ nội dung thảo luận và các quyết định kiến trúc nhằm nâng cấp hệ thống `.dotfiles` từ nền tảng Arch/X11 cũ sang kiến trúc lai tạo với Omarchy (Wayland/Btrfs).
+Tài liệu này tóm tắt ngữ cảnh, quyết định kiến trúc và trạng thái của hệ thống `.dotfiles`. Mục đích là để làm "điểm neo" (anchor) cung cấp bối cảnh nhanh chóng cho các phiên làm việc mới của AI trợ lý.
 
-## 1. Bối cảnh & Phân tích Hiện trạng
-Hệ thống `.dotfiles` ban đầu được xây dựng cho một môi trường Arch Linux tuỳ biến sâu (Suckless: DWM, st, dmenu, x11) quản lý qua GNU Stow.
-*   **Ưu điểm cũ:** Rất nhẹ, siêu nhanh, thuần bàn phím (keyboard-centric).
-*   **Hạn chế cũ:** Chạy trên nền X11 (lỗi thời, xé hình, quản lý đa màn hình kém), khó bảo trì, và rủi ro cao khi cập nhật (rolling-release break).
+## 1. Triết lý Kiến trúc: Mô hình Lai (Hybrid)
+Hệ thống kết hợp sự ổn định của **Omarchy** (Hệ điều hành cốt lõi) và sự cá nhân hóa của **Dotfiles** cũ (Công cụ Terminal).
+- **Phần Xác (Omarchy đảm nhận):** Quản lý môi trường Desktop (Wayland/Hyprland), quản lý phần cứng (Udiskie cho USB/MTP), giao diện hệ thống (GTK/Fonts), Clipboard (QML module), Bluetooth (Control Panel), và Snapshot hệ thống (Btrfs).
+- **Phần Hồn (Dotfiles đảm nhận):** Trải nghiệm Terminal chuyên sâu (Zsh, Neovim, Tmux, LF, Fcitx5, Media TUI) được quản lý và deploy an toàn qua công cụ `stow-safe`.
 
-## 2. Giải pháp: Lai tạo với Omarchy
-Chúng ta quyết định áp dụng mô hình "Hybrid": Sử dụng **Omarchy** làm lõi hệ điều hành (Phần Xác) và giữ lại **`.dotfiles`** cá nhân (Phần Hồn).
-*   **Omarchy cung cấp:** Wayland (Hyprland mượt mà), Hệ thống Snapshot Btrfs (an toàn tuyệt đối, dễ rollback), và Kênh Cập nhật (Channels) để kiểm soát độ ổn định của Arch.
-*   **Dotfiles cung cấp:** Trải nghiệm CLI quen thuộc (Neovim, Tmux, Zsh, LF...) quản lý chuyên nghiệp bằng `GNU Stow`.
+## 2. Quy tắc Ghi đè (Overrides) & Dọn dẹp
+Chúng ta đã thống nhất chiến lược cái gì nên ghi đè và cái gì nên bỏ để tránh xung đột với Omarchy:
 
-## 3. Các đặc tả Kiến trúc Omarchy (Nghiên cứu từ Tài liệu gốc)
-*   **Thư mục hệ thống vs cá nhân:** Omarchy để config gốc ở `/usr/share/omarchy/`. Mọi tùy biến của người dùng phải nằm ở `~/.config/`.
-*   **Tương thích với Stow:** Tài liệu chính thức của Omarchy khuyên dùng `Stow` để quản lý các tuỳ biến trong thư mục `~/.config/`.
-*   **Kiến trúc cấu hình Hyprland (Lua):** Không dùng file `.conf` thông thường. Omarchy chia Hyprland thành các file `.lua` (`bindings.lua`, `autostart.lua`, `monitors.lua`...).
-*   **Event Hooks:** Hỗ trợ chạy script tự động tại `~/.config/omarchy/hooks/` (ví dụ: `post-update`, `battery-low`).
-*   **Quản lý Alias/Function:** Omarchy ưu tiên đặt bash alias và custom functions vào `~/.bashrc` để không bị ghi đè khi update.
+### ✅ Các Module BẮT BUỘC Ghi Đè (Stow)
+Đây là các cấu hình mang tính cá nhân hóa cực cao của Power-User:
+- **`shell` & `zsh`**: Zsh là shell mặc định (thay thế Bash của Omarchy). Kiến trúc sạch sẽ: nạp biến môi trường từ `~/.config/shell/profile` vào `~/.zprofile`, toàn bộ config zsh bị ép vào `~/.config/zsh` (chuẩn XDG).
+- **`nvim`**: Cấu hình Lua custom (ghi đè LazyVim mặc định của Omarchy).
+- **`tmux`**: Prefix `C-Space` và Vi-mode (ghi đè Tmux mặc định của Omarchy).
+- **`opencode`**: Khai báo 9Router Gateway và custom LLM models.
+- **`fcitx5`**: Bộ gõ tiếng Việt Bamboo Telex.
+- **`media`**: Cấu hình `mpv` tối ưu Pipewire, `mpd` daemon và `ncmpcpp` TUI (đã gỡ bỏ sạch sẽ mã rác gọi tín hiệu cho `dwmblocks` của X11 cũ).
+- **`lf`**: File manager thuần Terminal.
 
-## 4. Kế hoạch Triển khai (Đang thực hiện)
-Nhánh Git hiện tại: `feature/omarchy-hybrid`
+### ❌ Các Module ĐÃ BỊ XÓA (Thuộc về dĩ vãng X11/DWM)
+Để đạt độ sạch sẽ 100%, các script TUI thủ công sau đã bị thanh trừng vì Omarchy đã có Native UI thay thế xịn hơn:
+- Quản lý ổ đĩa: `mounter`, `unmounter`, `mount-crypt-lvm` (Dùng `udiskie` của Omarchy).
+- Quản lý Bluetooth: Thư mục `user/bt*` (Dùng Omarchy Bluetooth Panel).
+- Quản lý Clipboard: `clipboard-tray` (Dùng Omarchy Clipboard).
+- Quản lý Menu/Shortcuts: `dashboard`, `shortcuts`, và các file sinh tự động như `shortcutrc` (Dùng Omarchy Launcher).
+- Giao diện GUI: `gtk` và `fontconfig` đã bị xóa khỏi repo để nhường quyền quản lý cho Omarchy Wayland, tránh xung đột xé hình hoặc lỗi font.
 
-### Các bước tiếp theo cần làm trên nhánh này:
-1.  **Dọn dẹp X11:** Xóa/ẩn các module `dwm`, `st`, `dmenu`, `picom`, `x11`.
-2.  **Tái cấu trúc thư mục:** Chuẩn bị sẵn module `hyprland` trong dotfiles với cấu trúc `hyprland/.config/hypr/` để chuẩn bị chứa các file `.lua` override phím tắt (keybindings).
-3.  **Tối ưu danh sách cài đặt (`progs.csv`):** Bỏ các ứng dụng GUI mà Omarchy đã cài sẵn (như Foot terminal, Chromium) và các gói Suckless tự compile.
-4.  **Kiểm soát Xung đột:** Viết thêm một hàm nhỏ vào script setup (hoặc thực hiện thủ công) để xoá các thư mục cấu hình mặc định (như `~/.config/nvim`, `~/.bashrc`) do Omarchy tự sinh ra, trước khi chạy lệnh `stow`.
+## 3. Tiêu chuẩn Scripting (Quy chuẩn Wayland)
+Bất kỳ script CLI nào viết thêm vào `scripts/.local/bin/` bắt buộc tuân theo:
+- **Picker**: Bắt buộc dùng `fzf` (đã thay thế toàn bộ `dmenu`).
+- **Clipboard**: Bắt buộc dùng `wl-copy` / `wl-paste` (đã thay thế `xclip`).
+- **Hình ảnh**: Dùng `imv` (Wayland native) thay cho `nsxiv`.
+- **Thông báo**: Dùng `notify-send` tiêu chuẩn.
 
-## 5. Lưu ý An toàn
-Tận dụng tối đa Btrfs của Omarchy: Luôn tạo Snapshot hệ thống trước khi chạy lệnh `stow` hàng loạt để tránh vỡ giao diện Hyprland. Nếu lỗi xảy ra, chỉ cần Reboot và chọn Snapshot cũ từ menu Boot.
+## 4. Công cụ Quản lý Cốt lõi
+- **`stow-safe`**: Script bọc `stow` do chúng ta tự viết. Tự động sao lưu cấu hình cũ bằng timestamp, báo lỗi rõ ràng nếu có conflict symlink.
+- **`ka-setup stow`**: Lệnh duy nhất cần nhớ để deploy toàn bộ dotfiles cá nhân đè lên Omarchy một cách an toàn.
+
+---
+> **Hướng dẫn cho AI ở Session Mới:** 
+> Nếu bạn đọc được file này, có nghĩa là hệ thống đã được "dọn dẹp" (purged) cực kỳ sạch sẽ. Nhiệm vụ của bạn là duy trì kiến trúc Hybrid này. Bất cứ khi nào User yêu cầu cài đặt hoặc tạo script mới, hãy kiểm tra xem Omarchy có tính năng Native nào thay thế được không trước khi tự code manual script. Tuyệt đối không sử dụng công cụ của X11.
