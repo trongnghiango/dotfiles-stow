@@ -22,7 +22,7 @@ log_step() { echo -e "${CYAN}➜ $1${NC}"; }
 
 show_help() {
   echo -e "${BOLD}Hệ thống tự động cấu hình (ka-setup)${NC}"
-  echo "========================================================"
+  echo "=========================================================="
   echo "Cấu hình nhanh môi trường sau khi cài đặt Arch Linux / Omarchy & Dotfiles."
   echo ""
   echo -e "${BOLD}SỬ DỤNG:${NC}"
@@ -30,6 +30,8 @@ show_help() {
   echo ""
   echo -e "${BOLD}COMMANDS:${NC}"
   echo -e "  ${GREEN}all${NC}       Chạy toàn bộ các bước cấu hình."
+  echo -e "  ${GREEN}shell${NC}     Đặt Zsh làm login shell mặc định (chsh)."
+  echo -e "  ${GREEN}stow${NC}      Deploy dotfiles an toàn qua stow-safe."
   echo -e "  ${GREEN}pam${NC}       Cấu hình tự động mở khóa gnome-keyring tại TTY."
   echo -e "  ${GREEN}docker${NC}    Cấu hình quyền Docker (non-root) & socket activation."
   echo -e "  ${GREEN}ime${NC}       Cài đặt fcitx5-bamboo cho bộ gõ Tiếng Việt."
@@ -184,6 +186,100 @@ setup_battery() {
 }
 
 # ------------------------------------------------------------------------------
+# 5. Đặt Zsh làm login shell
+# ------------------------------------------------------------------------------
+setup_shell() {
+  log_step "Kiểm tra và cấu hình login shell..."
+
+  local zsh_path
+  zsh_path="$(command -v zsh 2>/dev/null || echo "")"
+
+  if [ -z "$zsh_path" ]; then
+    log_warn "Zsh chưa được cài đặt."
+    read -p "Bạn có muốn cài đặt zsh qua pacman không? [y/N]: " -n 1 -r
+    echo ""
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+      sudo pacman -S --noconfirm zsh
+      zsh_path="$(command -v zsh)"
+    else
+      log_info "Bỏ qua cấu hình shell."
+      return 0
+    fi
+  fi
+
+  local current_shell
+  current_shell="$(getent passwd "$USER" | cut -d: -f7)"
+
+  if [ "$current_shell" = "$zsh_path" ]; then
+    log_success "Login shell đã là Zsh ($zsh_path). Không cần thay đổi."
+    return 0
+  fi
+
+  # Đảm bảo zsh nằm trong /etc/shells
+  if ! grep -qx "$zsh_path" /etc/shells; then
+    log_info "Thêm $zsh_path vào /etc/shells..."
+    echo "$zsh_path" | sudo tee -a /etc/shells >/dev/null
+  fi
+
+  log_info "Đang chuyển login shell sang Zsh ($zsh_path)..."
+  chsh -s "$zsh_path"
+
+  if [ "$(getent passwd "$USER" | cut -d: -f7)" = "$zsh_path" ]; then
+    log_success "Login shell đã được đặt thành Zsh."
+    log_warn "QUAN TRỌNG: Đăng xuất và đăng nhập lại để áp dụng."
+  else
+    log_error "Không thể đổi login shell. Thử: chsh -s $zsh_path"
+    return 1
+  fi
+}
+
+# ------------------------------------------------------------------------------
+# 6. Deploy dotfiles qua stow-safe
+# ------------------------------------------------------------------------------
+setup_stow() {
+  log_step "Deploy dotfiles qua stow-safe..."
+
+  if ! command -v stow-safe &>/dev/null; then
+    log_warn "Lệnh stow-safe chưa có trong PATH."
+    log_info "Hãy chạy 'stow -t ~ scripts' từ thư mục dotfiles trước."
+    return 1
+  fi
+
+  # Danh sách packages cần stow theo thứ tự ưu tiên
+  local packages=(
+    shell     # profile, zshenv, aliasrc (phải stow trước zsh)
+    zsh       # .zshrc, .zprofile, env.zsh (cần ZDOTDIR từ shell)
+    tmux
+    nvim
+    lf
+    fcitx5
+    fontconfig
+    gtk
+    media
+    scripts   # phải stow sau shell để PATH có stow-safe
+  )
+
+  local success=0 failed=0
+
+  for pkg in "${packages[@]}"; do
+    echo ""
+    log_info "→ stow-safe $pkg"
+    if stow-safe "$pkg"; then
+      ((success++))
+    else
+      log_error "Lỗi khi stow package: $pkg"
+      ((failed++))
+    fi
+  done
+
+  echo ""
+  log_success "Kết quả: $success thành công, $failed thất bại."
+  if (( failed > 0 )); then
+    log_info "Khôi phục package lỗi: stow-safe --restore <package>"
+  fi
+}
+
+# ------------------------------------------------------------------------------
 # MAIN
 # ------------------------------------------------------------------------------
 if [ $# -eq 0 ]; then
@@ -194,6 +290,12 @@ fi
 CMD=$1
 
 case "$CMD" in
+  shell)
+    setup_shell
+    ;;
+  stow)
+    setup_stow
+    ;;
   pam)
     setup_pam
     ;;
@@ -207,6 +309,10 @@ case "$CMD" in
     setup_battery
     ;;
   all)
+    setup_shell
+    echo ""
+    setup_stow
+    echo ""
     setup_pam
     echo ""
     setup_docker
