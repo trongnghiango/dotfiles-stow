@@ -15,6 +15,7 @@ hl.unbind("SUPER + SPACE")
 hl.unbind("SUPER + SHIFT + SPACE")
 hl.unbind("SUPER + D")
 hl.unbind("SUPER + E")
+hl.unbind("SUPER + SHIFT + E")
 hl.unbind("SUPER + M")
 hl.unbind("SUPER + Z")
 hl.unbind("SUPER + F")
@@ -25,8 +26,12 @@ hl.unbind("SUPER + F")
 -- Đóng cửa sổ đang chọn (DWM killclient)
 o.bind("SUPER + Q", "Close active window", hl.dsp.window.close())
 
--- Chuyển đổi Floating / Tiling
+-- Chuyển đổi Floating / Tiling (Hỗ trợ cả SUPER + T lẫn SUPER + SHIFT + SPACE)
+o.bind("SUPER + T", "Toggle floating/tiling", hl.dsp.window.float({ action = "toggle" }))
 o.bind("SUPER + SHIFT + SPACE", "Toggle floating/tiling", hl.dsp.window.float({ action = "toggle" }))
+
+-- Đổi hướng chia nhánh Tiling (Ngang ⟷ Dọc)
+o.bind("SUPER + BACKSLASH", "Toggle window split (Horizontal/Vertical)", hl.dsp.layout("togglesplit"))
 
 -- Ẩn / Hiện thanh Top Bar (DWM togglebar)
 o.bind_toggle("SUPER + B", "Toggle top bar", "bar")
@@ -64,17 +69,18 @@ o.bind("SUPER + ALT + L", "Expand master window", hl.dsp.window.resize({ x = 50,
 -- 5. APP LAUNCHERS & MENUS
 -- ------------------------------------------------------------------------------
 -- Terminal & Trình duyệt Web
-o.bind("SUPER + RETURN", "Terminal (Alacritty)", "alacritty")
-o.bind("SUPER + W", "Web Browser (Brave)", "brave")
+o.bind("SUPER + RETURN", "Terminal", { omarchy = "terminal" })
+o.bind("SUPER + W", "Web Browser", { omarchy = "browser" })
 
 -- Trình quản lý File (LF) & Trình chọn Emoji
-o.bind("SUPER + E", "File Manager (LF)", "alacritty -e lf")
+o.bind("SUPER + E", "File Manager (LF)", { tui = "lf" })
 o.bind("SUPER + SHIFT + E", "Omarchy Emojis", "omarchy-shell shell toggle omarchy.emojis")
 
 -- Launcher & Menu (Chuẩn lệnh 'omarchy-menu toggle')
 o.bind("SUPER + SPACE", "Omarchy menu", "omarchy-menu toggle")
 o.bind("SUPER + D", "Omarchy App Launcher", "omarchy-menu toggle apps")
 o.bind("SUPER + F1", "Omarchy Keybindings Help", "omarchy-menu-keybindings")
+o.bind("SUPER + SLASH", "Omarchy Keybindings Help", "omarchy-menu-keybindings")
 
 -- ------------------------------------------------------------------------------
 -- 6. MULTI-MONITORS & SCRATCHPAD
