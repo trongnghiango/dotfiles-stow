@@ -253,8 +253,7 @@ setup_stow() {
     nvim
     lf
     fcitx5
-    fontconfig
-    gtk
+    opencode
     media
     scripts   # phải stow sau shell để PATH có stow-safe
   )
