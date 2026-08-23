@@ -7,12 +7,15 @@
 -- ------------------------------------------------------------------------------
 -- 1. UNBIND ALL OVERRIDDEN OMARCHY DEFAULTS
 -- ------------------------------------------------------------------------------
+hl.unbind("SUPER + RETURN")
 hl.unbind("SUPER + W")
 hl.unbind("SUPER + K")
 hl.unbind("SUPER + J")
 hl.unbind("SUPER + L")
 hl.unbind("SUPER + SPACE")
 hl.unbind("SUPER + SHIFT + SPACE")
+hl.unbind("SUPER + T")
+hl.unbind("SUPER + A")
 hl.unbind("SUPER + D")
 hl.unbind("SUPER + E")
 hl.unbind("SUPER + SHIFT + E")
