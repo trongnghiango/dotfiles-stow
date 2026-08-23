@@ -1,15 +1,16 @@
 #!/bin/sh
 
 # Set as a cron job to check for new RSS entries for newsboat.
-# If newsboat is open, sends it an "R" key to refresh.
+# On Wayland/Omarchy: uses notify-send for feedback; newsboat refresh via pkill -USR1.
 
-/usr/bin/notify-send "📰 Updating RSS feeds..."
+notify-send "📰 Updating RSS feeds..."
 
-pgrep -f newsboat$ && /usr/bin/xdotool key --window "$(/usr/bin/xdotool search --name "^newsboat$")" R && exit
+# If newsboat is running, send USR1 signal to trigger reload
+if pgrep -f "newsboat$" > /dev/null 2>&1; then
+	pkill -USR1 -f "newsboat$"
+	notify-send "📰 RSS feed refresh triggered in running newsboat."
+	exit 0
+fi
 
-echo 🔃 > /tmp/newsupdate
-pkill -RTMIN+6 "${STATUSBAR:-dwmblocks}"
-/usr/bin/newsboat -x reload
-rm -f /tmp/newsupdate
-pkill -RTMIN+6 "${STATUSBAR:-dwmblocks}"
-/usr/bin/notify-send "📰 RSS feed update complete."
+newsboat -x reload
+notify-send "📰 RSS feed update complete."

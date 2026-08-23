@@ -13,7 +13,7 @@ allunmountable="$(echo "$mounteddroids
 $mounteddrives" | sed "/^$/d;s/ *$//")"
 test -n "$allunmountable"
 
-chosen="$(echo "$allunmountable" | dmenu -i -p "Unmount which drive?")"
+chosen="$(echo "$allunmountable" | fzf --prompt="Unmount which drive? " --height=40% --layout=reverse)"
 chosen="${chosen%% *}"
 test -n "$chosen"
 

@@ -13,7 +13,7 @@ ifinstalled pass pass-otp || exit 1
 
 dir="${PASSWORD_STORE_DIR}"
 
-choice="$({ echo "🆕add" ; echo "🕙sync-time" ; ls "$dir"/*-otp.gpg ;} | sed "s/.*\///;s/-otp.gpg//" | dmenu -p "Pick a 2FA:")"
+choice="$({ echo "🆕add" ; echo "🕙sync-time" ; ls "$dir"/*-otp.gpg ;} | sed "s/.*\///;s/-otp.gpg//" | fzf --prompt="Pick a 2FA: " --height=40% --layout=reverse)"
 
 case $choice in
 	🆕add )
@@ -31,7 +31,7 @@ case $choice in
 
 		if echo "$info" | pass otp insert "$otp"; then
 			while true ; do
-				export name="$(echo | dmenu -p "Give this One Time Password a one-word name:")"
+				name="$(fzf --print-query --prompt="Give OTP a name: " --height=10% < /dev/null | head -1)"
 				echo "$name" | grep -q -- "^[A-z0-9-]\+$" && break
 			done
 			pass mv "$otp" "$name-otp"

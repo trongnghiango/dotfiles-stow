@@ -82,7 +82,7 @@ getMediumRss () {
 if [ -n "$1" ] ; then
 	url="$1"
 else
-	url="$(xclip -selection clipboard -o)"
+	url="$(wl-paste)"
 	[ -z "$url" ] && echo "usage: $0 url 'tag1 tag2 tag3'" && exit 1
 fi
 
@@ -109,7 +109,8 @@ else
 	list="$(getlink "$url")"
 fi
 
-[ "$(echo "$list" | wc -l)" -eq 1 ] && chosen_link="$list" || chosen_link=$(printf '%s\n' "${list[@]}" | dmenu -p "Choose a feed:")
+[ "$(echo "$list" | wc -l)" -eq 1 ] && chosen_link="$list" || chosen_link=$(printf '%s
+' "${list[@]}" | fzf --prompt="Choose a feed: " --height=40% --layout=reverse)
 tags="$2"
 ifinstalled rssadd && rssadd "$chosen_link" "$tags"
 echo "$chosen_link" "$tags"

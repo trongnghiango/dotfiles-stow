@@ -7,11 +7,11 @@ report="${XDG_CACHE_HOME:-$HOME/.cache}/weatherreport"
 
 if [ "$1" = 'cp' ]; then
         # shellcheck disable=SC2015
-        [ -z "$2" ] && sed 's/\x1b\[[^m]*m//g' "$report" | xclip -selection clipboard &&
+        [ -z "$2" ] && sed 's/\x1b\[[^m]*m//g' "$report" | wl-copy &&
                 notify-send "Weather forecast for '${LOCATION:-$(head -n 1 "$report" | cut -d' ' -f3-)}' copied to clipboard." ||
                         { data="$(curl -sfm 5 "${WTTRURL:-wttr.in}/$2?T")" &&
                         notify-send "Weather forecast for '$2' copied to clipboard." &&
-                        echo "$data" | xclip -selection clipboard ||
+                        echo "$data" | wl-copy ||
                         notify-send 'Failed to get weather forecast!' 'Check your internet connection and the supplied location.'; }
 else
         [ -n "$2" ] &&
