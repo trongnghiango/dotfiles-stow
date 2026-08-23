@@ -43,10 +43,16 @@ mimetype=$(file --dereference --brief --mime-type -- "$file" 2>/dev/null)
 
 case "$mimetype" in
     # --------------------------------------------------------------------------
-    # Images (High-res sextant/quad symbols, exact fit)
+    # Images (Kitty / Sixel True Pixel Graphics or High-Res Unicode Symbols)
     # --------------------------------------------------------------------------
     image/*)
-        if command -v chafa >/dev/null 2>&1; then
+        if [ "$TERM" = "xterm-kitty" ] || [ -n "${KITTY_WINDOW_ID:-}" ] || [ "${TERM_PROGRAM:-}" = "ghostty" ] || [ -n "${GHOSTTY_RESOURCES_DIR:-}" ]; then
+            chafa --format kitty -s "${calc_width}x${calc_height}" --animate false "$file"
+            exit 0
+        elif [ "$TERM" = "foot" ] || [ "$TERM" = "foot-extra" ]; then
+            chafa --format sixels -s "${calc_width}x${calc_height}" --animate false "$file"
+            exit 0
+        elif command -v chafa >/dev/null 2>&1; then
             chafa --format symbols --symbols sextant+quad+half+block --color-space din99d -s "${calc_width}x${calc_height}" --animate false "$file"
             exit 0
         elif command -v mediainfo >/dev/null 2>&1; then
@@ -68,9 +74,17 @@ case "$mimetype" in
             ffmpegthumbnailer -i "$file" -o "$thumb" -s 0 -q 5 >/dev/null 2>&1
         fi
 
-        if [ -f "$thumb" ] && command -v chafa >/dev/null 2>&1; then
-            chafa --format symbols --symbols sextant+quad+half+block --color-space din99d -s "${calc_width}x${calc_height}" --animate false "$thumb"
-            exit 0
+        if [ -f "$thumb" ]; then
+            if [ "$TERM" = "xterm-kitty" ] || [ -n "${KITTY_WINDOW_ID:-}" ] || [ "${TERM_PROGRAM:-}" = "ghostty" ] || [ -n "${GHOSTTY_RESOURCES_DIR:-}" ]; then
+                chafa --format kitty -s "${calc_width}x${calc_height}" --animate false "$thumb"
+                exit 0
+            elif [ "$TERM" = "foot" ] || [ "$TERM" = "foot-extra" ]; then
+                chafa --format sixels -s "${calc_width}x${calc_height}" --animate false "$thumb"
+                exit 0
+            elif command -v chafa >/dev/null 2>&1; then
+                chafa --format symbols --symbols sextant+quad+half+block --color-space din99d -s "${calc_width}x${calc_height}" --animate false "$thumb"
+                exit 0
+            fi
         elif command -v mediainfo >/dev/null 2>&1; then
             mediainfo "$file"
             exit 0
@@ -87,9 +101,17 @@ case "$mimetype" in
             pdftoppm -jpeg -f 1 -singlefile "$file" "$CACHE_DIR/$hash" >/dev/null 2>&1
         fi
 
-        if [ -f "$thumb" ] && command -v chafa >/dev/null 2>&1; then
-            chafa --format symbols --symbols sextant+quad+half+block --color-space din99d -s "${calc_width}x${calc_height}" --animate false "$thumb"
-            exit 0
+        if [ -f "$thumb" ]; then
+            if [ "$TERM" = "xterm-kitty" ] || [ -n "${KITTY_WINDOW_ID:-}" ] || [ "${TERM_PROGRAM:-}" = "ghostty" ] || [ -n "${GHOSTTY_RESOURCES_DIR:-}" ]; then
+                chafa --format kitty -s "${calc_width}x${calc_height}" --animate false "$thumb"
+                exit 0
+            elif [ "$TERM" = "foot" ] || [ "$TERM" = "foot-extra" ]; then
+                chafa --format sixels -s "${calc_width}x${calc_height}" --animate false "$thumb"
+                exit 0
+            elif command -v chafa >/dev/null 2>&1; then
+                chafa --format symbols --symbols sextant+quad+half+block --color-space din99d -s "${calc_width}x${calc_height}" --animate false "$thumb"
+                exit 0
+            fi
         elif command -v pdftotext >/dev/null 2>&1; then
             pdftotext "$file" - 2>/dev/null | head -n "$calc_height"
             exit 0
