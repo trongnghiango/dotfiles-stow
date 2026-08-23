@@ -1,5 +1,7 @@
+# Zsh runtime cache & history
 .zcompdump*
 zsh/.config/zsh/.zcompdump*
+**/.zsh_history*
 shell/.config/shell/profile.local
 HANDOFF.md
 

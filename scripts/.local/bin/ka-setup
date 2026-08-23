@@ -294,6 +294,7 @@ setup_stow() {
     tmux
     nvim
     lf
+    hypr      # custom keybindings override (~/.config/hypr/bindings.lua)
     fcitx5
     opencode
     media

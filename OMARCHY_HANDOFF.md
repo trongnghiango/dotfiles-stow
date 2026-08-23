@@ -19,6 +19,7 @@ Chúng ta đã thống nhất chiến lược cái gì nên ghi đè và cái g�
 - **`fcitx5`**: Bộ gõ tiếng Việt Bamboo Telex.
 - **`media`**: Cấu hình `mpv` tối ưu Pipewire, `mpd` daemon và `ncmpcpp` TUI (đã gỡ bỏ sạch sẽ mã rác gọi tín hiệu cho `dwmblocks` của X11 cũ).
 - **`lf`**: File manager thuần Terminal.
+- **`hypr`**: Ghi đè phím tắt cá nhân hóa (`~/.config/hypr/bindings.lua`) theo phong cách DWM Hybrid.
 
 ### ❌ Các Module ĐÃ BỊ XÓA (Thuộc về dĩ vãng X11/DWM)
 Để đạt độ sạch sẽ 100%, các script TUI thủ công sau đã bị thanh trừng vì Omarchy đã có Native UI thay thế xịn hơn:
