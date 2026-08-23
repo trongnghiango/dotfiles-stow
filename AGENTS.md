@@ -21,9 +21,9 @@ Each top-level directory is a Stow package containing `$HOME`-relative paths:
 | `git/` | `~/.config/git/`: config, ignore (aliases, delta diff, rebase, branch/tag sort) |
 | `fcitx5/` | `~/.config/fcitx5/`: Fcitx5 IME configs (profile, Bamboo Telex, toggle hotkeys) |
 | `scripts/` | `~/.local/bin`: Wayland CLI utilities (`stow-safe`, `ka-setup`, `battery-threshold`, `gm`, `otp`, `weath`, `rssget`, etc.) |
-| `lf/` | `~/.config/lf/`: lf file manager (vi binds, ueberzug preview, extract/compress) |
+| `lf/` | `~/.config/lf/`: lf file manager (vi binds, modern Wayland previewer: Chafa, Bat, Eza, PDF/EPUB cover) |
 | `hypr/` | `~/.config/hypr/bindings.lua`: DWM Hybrid keybinding overrides |
-| `media/` | `~/.config/{mpv,ncmpcpp,mpd}`: PipeWire audio optimizations, TUI music player |
+| `media/` | `~/.config/{mpv,ncmpcpp,mpd}`: PipeWire audio optimizations, GPU Wayland mpv, TUI music player |
 | `opencode/` | `~/.config/opencode/`: 9Router gateway config, 3 combo tiers (KhaBoDo, KhaSimple, KhaThinking) |
 | `yay/` | `~/.config/yay/`: yay AUR helper config |
 
@@ -39,7 +39,7 @@ Each top-level directory is a Stow package containing `$HOME`-relative paths:
 
 ## Environment & Wayland Standards
 
-- `EDITOR=nvim`, `VISUAL=nvim`, `BROWSER=brave`, `TERMINAL=alacritty`
+- `EDITOR=nvim`, `VISUAL=nvim`, `BROWSER=brave`, `TERMINAL=foot` (or `alacritty`)
 - Full XDG directories set in `shell/.config/shell/profile`
 - `ZDOTDIR=$XDG_CONFIG_HOME/zsh`
 - vi mode in: `zsh`, `tmux`, `lf`, `ncmpcpp`, `mpv`

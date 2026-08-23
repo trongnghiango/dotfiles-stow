@@ -1,46 +1,127 @@
-# Handoff: Tích hợp Kiến trúc Omarchy & Dotfiles (Hybrid)
+# OMARCHY_HANDOFF.md — Dotfiles & Omarchy Hybrid Architecture
 
-Tài liệu này tóm tắt ngữ cảnh, quyết định kiến trúc và trạng thái của hệ thống `.dotfiles`. Mục đích là để làm "điểm neo" (anchor) cung cấp bối cảnh nhanh chóng cho các phiên làm việc mới của AI trợ lý.
-
-## 1. Triết lý Kiến trúc: Mô hình Lai (Hybrid)
-Hệ thống kết hợp sự ổn định của **Omarchy** (Hệ điều hành cốt lõi) và sự cá nhân hóa của **Dotfiles** cũ (Công cụ Terminal).
-- **Phần Xác (Omarchy đảm nhận):** Quản lý môi trường Desktop (Wayland/Hyprland), quản lý phần cứng (Udiskie cho USB/MTP), giao diện hệ thống (GTK/Fonts), Clipboard (QML module), Bluetooth (Control Panel), và Snapshot hệ thống (Btrfs).
-- **Phần Hồn (Dotfiles đảm nhận):** Trải nghiệm Terminal chuyên sâu (Zsh, Neovim, Tmux, LF, Fcitx5, Media TUI) được quản lý và deploy an toàn qua công cụ `stow-safe`.
-
-## 2. Quy tắc Ghi đè (Overrides) & Dọn dẹp
-Chúng ta đã thống nhất chiến lược cái gì nên ghi đè và cái gì nên bỏ để tránh xung đột với Omarchy:
-
-### ✅ Các Module BẮT BUỘC Ghi Đè (Stow)
-Đây là các cấu hình mang tính cá nhân hóa cực cao của Power-User:
-- **`shell` & `zsh`**: Zsh là shell mặc định (thay thế Bash của Omarchy). Kiến trúc sạch sẽ: nạp biến môi trường từ `~/.config/shell/profile` vào `~/.zprofile`, toàn bộ config zsh bị ép vào `~/.config/zsh` (chuẩn XDG).
-- **`nvim`**: Cấu hình Lua custom (ghi đè LazyVim mặc định của Omarchy).
-- **`tmux`**: Prefix `C-Space` và Vi-mode (ghi đè Tmux mặc định của Omarchy).
-- **`git`**: Cấu hình Git alias chuyên nghiệp (`st`, `co`, `lg`, `cm`), tự động rebase khi pull, tích hợp Delta syntax highlighting diff.
-- **`opencode`**: Khai báo 9Router Gateway và custom LLM models.
-- **`fcitx5`**: Bộ gõ tiếng Việt Bamboo Telex.
-- **`media`**: Cấu hình `mpv` tối ưu Pipewire, `mpd` daemon và `ncmpcpp` TUI (đã gỡ bỏ sạch sẽ mã rác gọi tín hiệu cho `dwmblocks` của X11 cũ).
-- **`lf`**: File manager thuần Terminal.
-- **`hypr`**: Ghi đè phím tắt cá nhân hóa (`~/.config/hypr/bindings.lua`) theo phong cách DWM Hybrid.
-
-### ❌ Các Module ĐÃ BỊ XÓA (Thuộc về dĩ vãng X11/DWM)
-Để đạt độ sạch sẽ 100%, các script TUI thủ công sau đã bị thanh trừng vì Omarchy đã có Native UI thay thế xịn hơn:
-- Quản lý ổ đĩa: `mounter`, `unmounter`, `mount-crypt-lvm` (Dùng `udiskie` của Omarchy).
-- Quản lý Bluetooth: Thư mục `user/bt*` (Dùng Omarchy Bluetooth Panel).
-- Quản lý Clipboard: `clipboard-tray` (Dùng Omarchy Clipboard).
-- Quản lý Menu/Shortcuts: `dashboard`, `shortcuts`, và các file sinh tự động như `shortcutrc` (Dùng Omarchy Launcher).
-- Giao diện GUI: `gtk` và `fontconfig` đã bị xóa khỏi repo để nhường quyền quản lý cho Omarchy Wayland, tránh xung đột xé hình hoặc lỗi font.
-
-## 3. Tiêu chuẩn Scripting (Quy chuẩn Wayland)
-Bất kỳ script CLI nào viết thêm vào `scripts/.local/bin/` bắt buộc tuân theo:
-- **Picker**: Bắt buộc dùng `fzf` (đã thay thế toàn bộ `dmenu`).
-- **Clipboard**: Bắt buộc dùng `wl-copy` / `wl-paste` (đã thay thế `xclip`).
-- **Hình ảnh**: Dùng `imv` (Wayland native) thay cho `nsxiv`.
-- **Thông báo**: Dùng `notify-send` tiêu chuẩn.
-
-## 4. Công cụ Quản lý Cốt lõi
-- **`stow-safe`**: Script bọc `stow` do chúng ta tự viết. Tự động sao lưu cấu hình cũ bằng timestamp, báo lỗi rõ ràng nếu có conflict symlink.
-- **`ka-setup stow`**: Lệnh duy nhất cần nhớ để deploy toàn bộ dotfiles cá nhân đè lên Omarchy một cách an toàn.
+> **MỤC ĐÍCH TÀI LIỆU (ANCHOR CHO CÁC PHIÊN LÀM VIỆC MỚI):**
+> Tài liệu này là nguồn sự thật (Source of Truth) ghi lại toàn bộ kiến trúc, quyết định kỹ thuật, quy tắc cấu hình, bộ phím tắt DWM Hybrid và trạng thái của repository `.dotfiles`. 
+> Mọi AI Assistant khi mở phiên làm việc mới **BẮT BUỘC ĐỌC VÀ TUÂN THỦ NGHIÊM NGẶT** tài liệu này.
 
 ---
-> **Hướng dẫn cho AI ở Session Mới:** 
-> Nếu bạn đọc được file này, có nghĩa là hệ thống đã được "dọn dẹp" (purged) cực kỳ sạch sẽ. Nhiệm vụ của bạn là duy trì kiến trúc Hybrid này. Bất cứ khi nào User yêu cầu cài đặt hoặc tạo script mới, hãy kiểm tra xem Omarchy có tính năng Native nào thay thế được không trước khi tự code manual script. Tuyệt đối không sử dụng công cụ của X11.
+
+## 1. Triết lý Kiến trúc: Mô hình Lai (Hybrid Architecture)
+
+Hệ thống phân định ranh giới tuyệt đối giữa **Omarchy Core** (Hệ điều hành nền tảng) và **Dotfiles Cá nhân** (Trải nghiệm Power-User):
+
+| Thành phần | Phân vùng quản lý | Công nghệ / Công cụ đảm nhận |
+|---|---|---|
+| **Omarchy Core (Hạ tầng & Phần cứng)** | Môi trường Wayland/Hyprland, Theme/Wallpapers, Topbar (`omarchy-shell`), Quick-settings, Bluetooth panel, Audio/Brightness helper (`WirePlumber`), Tự động mount ổ đĩa (`udiskie`), Snapshot hệ thống (Btrfs), PAM SDDM Keyring. | Native Omarchy UI & Cgroups (`uwsm`, `omarchy-menu`, `omarchy-shell`). |
+| **Dotfiles (Trải nghiệm Terminal Power-User)** | Zsh, Neovim, Tmux, Git, LF File Manager, Fcitx5 tiếng Việt, Media MPV/NCMPCPP, Bộ phím tắt DWM Hybrid, Script CLI cá nhân. | Quản lý qua Git & Triển khai an toàn qua **`stow-safe`** / **`ka-setup stow`**. |
+
+---
+
+## 2. Cấu trúc Stow Packages (11 Packages Cá nhân hóa)
+
+Toàn bộ packages tuân thủ chuẩn **XDG Base Directory** (`~/.config/`, `~/.local/`):
+
+| Package | Đường dẫn đích (`$HOME`) | Nội dung & Quyết định kỹ thuật |
+|---|---|---|
+| `shell/` | `~/.config/shell/`: `profile`, `aliasrc`, `inputrc` | Nạp biến môi trường XDG, alias tối ưu, cấu hình readline vi-mode. |
+| `zsh/` | `~/.config/zsh/`: `.zshrc`, `functions.zsh`, `env.zsh` | Zsh vi-mode, hàm `lfcd` an toàn chống đệ quy `FUNCNEST`, nạp 9Router keys. |
+| `git/` | `~/.config/git/`: `config`, `ignore` | Git aliases (`st`, `co`, `lg`, `cm`, `undo`), auto-rebase khi pull, Delta diff syntax highlighter. |
+| `hypr/` | `~/.config/hypr/bindings.lua` | Ghi đè bộ phím tắt DWM Hybrid, kiểm soát 5 Modes hiển thị, 0-conflict. |
+| `nvim/` | `~/.config/nvim/` | Modular Lua config (`lua/{core,plugins,utils}/`), Lazy.nvim, Snacks, LSP, auto-sync theme Omarchy. |
+| `tmux/` | `~/.config/tmux/tmux.conf` | Prefix `C-Space`, escape-time 0, Vi-mode navigation, Wayland clipboard (`wl-copy`). |
+| `lf/` | `~/.config/lf/`: `lfrc`, `scope`, `icons`, `cleaner` | File manager Wayland native, previewer đa năng (Chafa, Bat, Eza, cache SHA256, Sixel/Kitty detection). |
+| `fcitx5/` | `~/.config/fcitx5/` | Cấu hình bộ gõ Bamboo Telex tiếng Việt, toggle hotkey. |
+| `media/` | `~/.config/{mpv,ncmpcpp,mpd}` | `mpv.conf` tối ưu GPU Wayland (`hwdec=auto-safe`, `vo=gpu-next`), Vim binds `input.conf`, MPD PipeWire. |
+| `opencode/` | `~/.config/opencode/` | Cấu hình 9Router AI gateway và 3 combo tiers (KhaBoDo, KhaSimple, KhaThinking). |
+| `scripts/` | `~/.local/bin/` | Bộ CLI utilities (`stow-safe`, `ka-setup`, `gm`, `battery-threshold`, `otp`, `weath`, cron). |
+
+---
+
+## 3. Hệ thống Phím tắt DWM Hybrid (`~/.config/hypr/bindings.lua`)
+
+### ⚠️ Quy tắc Vàng: `hl.unbind` trước khi `o.bind`
+Để tránh xung đột (ghost bindings / mở 2 app cùng lúc), khi ghi đè bất kỳ phím mặc định nào của Omarchy, **bắt buộc phải gọi `hl.unbind("<KEY>")` trước**:
+```lua
+hl.unbind("SUPER + RETURN")
+hl.unbind("SUPER + W")
+hl.unbind("SUPER + K")
+hl.unbind("SUPER + J")
+hl.unbind("SUPER + L")
+hl.unbind("SUPER + SPACE")
+hl.unbind("SUPER + SHIFT + SPACE")
+hl.unbind("SUPER + T")
+hl.unbind("SUPER + A")
+hl.unbind("SUPER + D")
+hl.unbind("SUPER + E")
+hl.unbind("SUPER + SHIFT + E")
+hl.unbind("SUPER + M")
+hl.unbind("SUPER + Z")
+hl.unbind("SUPER + F")
+```
+
+### 📋 Bảng Phím tắt Chuẩn DWM Hybrid:
+
+| Nhóm | Phím tắt | Chức năng | Cơ chế kỹ thuật |
+|---|---|---|---|
+| **Window Control** | <kbd>Super</kbd> + <kbd>q</kbd> | Đóng cửa sổ đang chọn | `hl.dsp.window.close()` (DWM killclient) |
+| | <kbd>Super</kbd> + <kbd>t</kbd> *(hoặc <kbd>Shift</kbd>+<kbd>Space</kbd>)* | **Toggle Floating ⟷ Tiling** | `hl.dsp.window.float({ action = "toggle" })` |
+| | <kbd>Super</kbd> + <kbd>\</kbd> | **Đổi hướng chia (Ngang ⟷ Dọc)** | `hl.dsp.layout("togglesplit")` |
+| | <kbd>Super</kbd> + <kbd>b</kbd> | **Ẩn / Hiện thanh Topbar** | `omarchy-toggle bar` (DWM togglebar) |
+| | <kbd>Super</kbd> + <kbd>a</kbd> *(hoặc <kbd>Alt</kbd>+<kbd>0</kbd>)* | **Toggle Gaps (Default ⟷ 0-Gaps)** | `omarchy-hyprland-window-gaps-toggle` |
+| **Display Modes** | <kbd>Super</kbd> + <kbd>m</kbd> *(hoặc <kbd>z</kbd>)* | **Maximized (Monocle `[M]` - Giữ Topbar)** | `hl.dsp.window.fullscreen({ mode = "maximized" })` |
+| | <kbd>Super</kbd> + <kbd>f</kbd> | **True Fullscreen (Tràn 100% che Topbar)** | `hl.dsp.window.fullscreen({ mode = "fullscreen" })` |
+| **Stack Navigation** | <kbd>Super</kbd> + <kbd>j</kbd> | **Focus Next Window in Stack** | `hl.dsp.window.cycle_next()` *(Duyệt mượt mà cả Tiled lẫn Monocle)* |
+| | <kbd>Super</kbd> + <kbd>k</kbd> | **Focus Prev Window in Stack** | `hl.dsp.window.cycle_next({ next = false })` |
+| | <kbd>Super</kbd> + <kbd>h</kbd> / <kbd>l</kbd> | Focus Trái / Phải (2D) | `hl.dsp.focus({ direction = "l" / "r" })` |
+| | <kbd>Super</kbd> + <kbd>Shift</kbd> + <kbd>j</kbd> / <kbd>k</kbd> | Hoán đổi vị trí trong Stack | `hyprctl dispatch swapnext [prev]` (DWM movestack) |
+| | <kbd>Super</kbd> + <kbd>Shift</kbd> + <kbd>h</kbd> / <kbd>l</kbd> | Hoán đổi cửa sổ Trái / Phải | `hl.dsp.window.swap({ direction = "l" / "r" })` |
+| **Resize Master** | <kbd>Super</kbd> + <kbd>Alt</kbd> + <kbd>h</kbd> / <kbd>l</kbd> | Thu hẹp / Mở rộng Master Window | `hl.dsp.window.resize({ x = -50 / 50, relative = true })` |
+| **App Launchers** | <kbd>Super</kbd> + <kbd>Return</kbd> | Mở Terminal (`foot`) | `{ omarchy = "terminal" }` / `foot` |
+| | <kbd>Super</kbd> + <kbd>w</kbd> | Mở Web Browser (`brave`) | `{ omarchy = "browser" }` / `brave` |
+| | <kbd>Super</kbd> + <kbd>e</kbd> | Mở File Manager (`lf`) | `{ tui = "lf" }` (Native Omarchy TUI launcher) |
+| | <kbd>Super</kbd> + <kbd>Shift</kbd> + <kbd>e</kbd> | Mở Menu Emoji | `omarchy-shell shell toggle omarchy.emojis` |
+| | <kbd>Super</kbd> + <kbd>Space</kbd> | Mở Omarchy Root Menu | `omarchy-menu toggle` |
+| | <kbd>Super</kbd> + <kbd>d</kbd> | Mở App Launcher Menu | `omarchy-menu toggle apps` |
+| | <kbd>Super</kbd> + <kbd>?</kbd> *(hoặc <kbd>F1</kbd>)* | Tra cứu Keybindings Help | `omarchy-menu-keybindings` |
+| **Scratchpad** | <kbd>Super</kbd> + <kbd>`</kbd> | Bật / Tắt Scratchpad đa năng | `hl.dsp.workspace.toggle_special("scratchpad")` |
+| | <kbd>Super</kbd> + <kbd>Shift</kbd> + <kbd>`</kbd> | Gửi cửa sổ vào Scratchpad | `hl.dsp.window.move({ workspace = "special:scratchpad" })` |
+| **Multi-Monitor** | <kbd>Super</kbd> + <kbd>,</kbd> / <kbd>.</kbd> | Chuyển Focus Màn hình Trái / Phải | `hl.dsp.focus({ monitor = "-1" / "+1" })` |
+| | <kbd>Super</kbd> + <kbd>Shift</kbd> + <kbd>,</kbd> / <kbd>.</kbd> | Di chuyển Workspace sang Màn hình | `hl.dsp.workspace.move({ monitor = "l" / "r" })` |
+
+---
+
+## 4. Module LF File Manager & Previewer (`scope`)
+
+- **Cấu hình `lfrc`:** Tích hợp bộ gõ vi-mode, Nerd Font v3 icons, gọi Native opener. *(Lưu ý: Không dùng `set sixel true` trong `lfrc` vì lf không có option boolean này, sixel chạy tự động qua stdout của scope).*
+- **Bộ Previewer `scope`:**
+  - **Code/Text:** Highlight cú pháp bằng `bat --color=always`.
+  - **Thư mục:** Hiển thị cây phân cấp bằng `eza --tree --icons`.
+  - **Hình ảnh:** Tự động nhận diện Kitty Graphics (`ghostty`/`kitty`), Sixel Graphics (`foot`), hoặc fallback sang Unicode Sextant blocks (`chafa --symbols sextant+quad+half+block`). Có tính toán biên an toàn (`calc_width`, `calc_height`) chống tràn viền line-wrap.
+  - **Video Thumbnail:** Trích xuất thumbnail qua `ffmpegthumbnailer` kèm cache SHA256 (`~/.cache/lf/thumbnails/`).
+  - **PDF & EPUB Cover:** Tự động trích xuất trang bìa PDF qua `pdftoppm` và bìa sách EPUB qua `unzip -p` rồi render qua `chafa`.
+- **Mở file tức thì:** Nhấn <kbd>Enter</kbd> (hoặc <kbd>l</kbd>): Ảnh $\rightarrow$ `imv`, Video/Audio $\rightarrow$ `mpv`, PDF/EPUB $\rightarrow$ `zathura`.
+
+---
+
+## 5. Quy Chuẩn Scripting & An Toàn Wayland
+
+Bất kỳ script CLI nào viết thêm vào `scripts/.local/bin/` bắt buộc tuân theo:
+- **Picker**: Dùng `fzf` (Tuyệt đối không dùng `dmenu`).
+- **Clipboard**: Dùng `wl-copy` / `wl-paste` (Tuyệt đối không dùng `xclip`).
+- **Hình ảnh**: Dùng `imv` (Wayland native, tuyệt đối không dùng `nsxiv`).
+- **Thông báo**: Dùng `notify-send` tiêu chuẩn.
+- **Quản lý Triển khai:** Luôn sử dụng `stow-safe` (tự động backup snapshot có phiên bản trước khi symlink).
+
+---
+
+## 6. Danh Sách Lệnh Quản Trị Cốt Lõi
+
+- **Triển khai toàn bộ dotfiles:** `ka-setup stow` (hoặc `ka-setup all`).
+- **Triển khai từng package:** `stow-safe -vt ~ <package>` (ví dụ: `stow-safe hypr`).
+- **Hủy triển khai:** `stow -Dvt ~ <package>`.
+- **Quản lý Git nhiều tài khoản:** `gm` (`gm init`, `gm clone <url>`, `gm status`, `gm sync`).
+- **Giới hạn sạc pin ThinkPad:** `battery-threshold` (service systemd oneshot 50-60%).
+
+---
+> **LỜI NHẮC QUAN TRỌNG CHO AI TRỢ LÝ Ở PHIÊN MỚI:**
+> Hệ thống này là một khối thống nhất, tối ưu 0-delay và 100% sạch sẽ. Hãy duy trì kiến trúc Hybrid này, không tạo lại các script X11 cũ, và luôn kiểm tra tính năng Native của Omarchy trước khi can thiệp.
