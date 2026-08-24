@@ -32,7 +32,7 @@ Toàn bộ packages tuân thủ chuẩn **XDG Base Directory** (`~/.config/`, `~
 | `tmux/` | `~/.config/tmux/tmux.conf` | Prefix `C-Space`, escape-time 0, Vi-mode navigation, Wayland clipboard (`wl-copy`). |
 | `lf/` | `~/.config/lf/`: `lfrc`, `scope`, `icons`, `cleaner` | File manager Wayland native, previewer đa năng (Chafa, Bat, Eza, cache SHA256, Sixel/Kitty detection). |
 | `fcitx5/` | `~/.config/fcitx5/` | Cấu hình bộ gõ Bamboo Telex tiếng Việt, toggle hotkey. |
-| `media/` | `~/.config/{mpv,ncmpcpp,mpd}` | `mpv.conf` tối ưu GPU Wayland (`hwdec=auto-safe`, `vo=gpu-next`), Vim binds `input.conf`, MPD PipeWire. |
+| `media/` | `~/.config/{mpv,ncmpcpp,mpd}` | `mpv.conf` tối ưu GPU Wayland, tự động nạp Cover Art & biểu tượng âm nhạc, MPRIS Topbar, MPD PipeWire. |
 | `opencode/` | `~/.config/opencode/` | Cấu hình 9Router AI gateway và 3 combo tiers (KhaBoDo, KhaSimple, KhaThinking). |
 | `scripts/` | `~/.local/bin/` | Bộ CLI utilities (`stow-safe`, `ka-setup`, `ytdl-cut`, `gm`, `battery-threshold`, `otp`, `weath`, cron). |
 

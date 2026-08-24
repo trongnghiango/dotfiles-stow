@@ -89,6 +89,15 @@ _backup_conflicts() {
   log_info "Scanning for conflicts in '$package'..." >&2
 
   while IFS= read -r target; do
+    # Skip if target already points inside our dotfiles package (via directory or direct symlink)
+    if [ -e "$target" ] || [ -L "$target" ]; then
+      local real_target
+      real_target="$(readlink -f "$target" 2>/dev/null || echo "")"
+      if [[ "$real_target" == "$DOTFILES_DIR/$package"* ]]; then
+        continue
+      fi
+    fi
+
     if [ -e "$target" ] && [ ! -L "$target" ]; then
       # Real file or directory exists — backup and remove so stow can link
       local rel="${target#"$TARGET_DIR/"}"

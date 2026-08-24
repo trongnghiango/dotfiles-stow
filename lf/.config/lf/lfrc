@@ -39,10 +39,8 @@ cmd open ${{
             $EDITOR "$f" ;;
         image/*)
             setsid -f imv "$f" >/dev/null 2>&1 ;;
-        video/*)
+        video/*|audio/*)
             setsid -f mpv "$f" >/dev/null 2>&1 ;;
-        audio/*)
-            setsid -f mpv --no-video "$f" >/dev/null 2>&1 ;;
         application/pdf|application/epub+zip|application/postscript)
             if command -v zathura >/dev/null 2>&1; then
                 setsid -f zathura "$f" >/dev/null 2>&1

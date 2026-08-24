@@ -281,10 +281,16 @@ setup_shell() {
 setup_stow() {
   log_step "Deploy dotfiles qua stow-safe..."
 
+  # Auto-resolve stow-safe if not yet in PATH (e.g. on fresh clone)
   if ! command -v stow-safe &>/dev/null; then
-    log_warn "Lệnh stow-safe chưa có trong PATH."
-    log_info "Hãy chạy 'stow -t ~ scripts' từ thư mục dotfiles trước."
-    return 1
+    local script_dir
+    script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    if [ -f "$script_dir/stow-safe" ]; then
+      export PATH="$script_dir:$PATH"
+    else
+      log_warn "Lệnh stow-safe chưa có trong PATH."
+      return 1
+    fi
   fi
 
   # Danh sách packages cần stow theo thứ tự ưu tiên
@@ -299,7 +305,7 @@ setup_stow() {
     brave     # ~/.config/brave-flags.conf (GPU acceleration, Wayland native, zero-copy)
     fcitx5
     opencode
-    media
+    media     # mpv (auto cover art & MPRIS), ncmpcpp, mpd
     scripts   # phải stow sau shell để PATH có stow-safe
   )
 
@@ -315,6 +321,15 @@ setup_stow() {
       ((failed++))
     fi
   done
+
+  # Cấu hình Omarchy Topbar (MPRIS Media Widget) & Reload Hyprland
+  if command -v omarchy &>/dev/null; then
+    omarchy bar put omarchy.media --before omarchy.clock &>/dev/null || true
+  fi
+
+  if command -v hyprctl &>/dev/null; then
+    hyprctl reload &>/dev/null || true
+  fi
 
   echo ""
   log_success "Kết quả: $success thành công, $failed thất bại."
