@@ -17,7 +17,7 @@ Hệ thống phân định ranh giới tuyệt đối giữa **Omarchy Core** (H
 
 ---
 
-## 2. Cấu trúc Stow Packages (11 Packages Cá nhân hóa)
+## 2. Cấu trúc Stow Packages (12 Packages Cá nhân hóa)
 
 Toàn bộ packages tuân thủ chuẩn **XDG Base Directory** (`~/.config/`, `~/.local/`):
 
@@ -26,15 +26,15 @@ Toàn bộ packages tuân thủ chuẩn **XDG Base Directory** (`~/.config/`, `~
 | `shell/` | `~/.config/shell/`: `profile`, `aliasrc`, `inputrc` | Nạp biến môi trường XDG, alias tối ưu, cấu hình readline vi-mode. |
 | `zsh/` | `~/.config/zsh/`: `.zshrc`, `functions.zsh`, `env.zsh` | Zsh vi-mode, hàm `lfcd` an toàn chống đệ quy `FUNCNEST`, nạp 9Router keys. |
 | `git/` | `~/.config/git/`: `config`, `ignore` | Git aliases (`st`, `co`, `lg`, `cm`, `undo`), auto-rebase khi pull, Delta diff syntax highlighter. |
-| `hypr/` | `~/.config/hypr/`: `bindings.lua`, `looknfeel.lua` | Ghi đè bộ phím tắt DWM Hybrid, giữ trạng thái maximize khi đóng cửa sổ, 0-conflict. |
+| `hypr/` | `~/.config/hypr/`: `bindings.lua`, `looknfeel.lua` | Ghi đè bộ phím tắt DWM Hybrid, giữ trạng thái maximize khi đóng cửa sổ, tối ưu 60Hz smooth animations. |
 | `brave/` | `~/.config/brave-flags.conf` | Tối ưu phần cứng GPU, Wayland native, Zero-Copy Rasterization, HTTP/3, IME tiếng Việt. |
 | `nvim/` | `~/.config/nvim/` | Modular Lua config (`lua/{core,plugins,utils}/`), Lazy.nvim, Snacks, LSP, auto-sync theme Omarchy. |
 | `tmux/` | `~/.config/tmux/tmux.conf` | Prefix `C-Space`, escape-time 0, Vi-mode navigation, Wayland clipboard (`wl-copy`). |
 | `lf/` | `~/.config/lf/`: `lfrc`, `scope`, `icons`, `cleaner` | File manager Wayland native, previewer đa năng (Chafa, Bat, Eza, cache SHA256, Sixel/Kitty detection). |
 | `fcitx5/` | `~/.config/fcitx5/` | Cấu hình bộ gõ Bamboo Telex tiếng Việt, toggle hotkey. |
-| `media/` | `~/.config/{mpv,ncmpcpp,mpd}` | `mpv.conf` tối ưu GPU Wayland, tự động nạp Cover Art & biểu tượng âm nhạc, MPRIS Topbar, MPD PipeWire. |
+| `media/` | `~/.config/{mpv,ncmpcpp,mpd}` | `mpv.conf` tối ưu GPU Wayland, tự động nạp Cover Art & biểu tượng âm nhạc (`audio-cover.lua`), MPRIS Topbar, MPD PipeWire. |
 | `opencode/` | `~/.config/opencode/` | Cấu hình 9Router AI gateway và 3 combo tiers (KhaBoDo, KhaSimple, KhaThinking). |
-| `scripts/` | `~/.local/bin/` | Bộ CLI utilities (`stow-safe`, `ka-setup`, `ytdl-cut`, `gm`, `battery-threshold`, `otp`, `weath`, cron). |
+| `scripts/` | `~/.local/bin/` | Bộ CLI utilities (`stow-safe`, `ka-setup`, `ytdl-cut`, `gm`, `battery-threshold`, `omarchy-hyprland-animations-toggle`, `otp`, `weath`, cron). |
 
 ---
 
@@ -123,6 +123,29 @@ Bất kỳ script CLI nào viết thêm vào `scripts/.local/bin/` bắt buộc 
 - **Hủy triển khai:** `stow -Dvt ~ <package>`.
 - **Quản lý Git nhiều tài khoản:** `gm` (`gm init`, `gm clone <url>`, `gm status`, `gm sync`).
 - **Giới hạn sạc pin ThinkPad:** `battery-threshold` (service systemd oneshot 50-60%).
+- **Chuyển đổi Animation (Toggle):** `omarchy-hyprland-animations-toggle` (Phím tắt: `Super + Shift + A`).
+
+---
+
+## 7. Các Quyết Định Kỹ Thuật Gần Đây (Recent Decisions & Context)
+
+1. **Giữ trạng thái Monocle / Fullscreen khi đóng cửa sổ con:**
+   - Cấu hình trong `hypr/.config/hypr/looknfeel.lua`: `exit_window_retains_fullscreen = true`.
+   - Giúp các app mở cửa sổ con (như Settings trong Antigravity IDE, file picker, popup) khi đóng lại thì cửa sổ cha vẫn giữ nguyên chế độ Maximized (`Super + M`) mà không bị rớt về Tiling.
+
+2. **Hệ thống Audio Thumbnail & Topbar MPRIS Sync:**
+   - Package `media/` tích hợp script `audio-cover.lua` và asset `audio-placeholder.png`.
+   - `mpv` luôn mở cửa sổ nổi (`force-window=immediate`). Nếu file audio có cover art thì hiển thị cover art thật; nếu không có sẽ tự động nạp hình ảnh đĩa than Neon Art.
+   - Topbar được tích hợp widget `omarchy.media` để điều khiển trực quan qua D-Bus MPRIS.
+   - Trình duyệt `brave` tự động đồng bộ luồng media với Topbar qua `brave-flags.conf`.
+
+3. **Tối ưu hóa GPU & Animation 60Hz:**
+   - Máy sử dụng Intel UHD Graphics (CometLake iGPU) với Fractional Scaling 1.25.
+   - Đã thay thế curve cũ bằng `smoothOut` bezier `(0.16, 1, 0.3, 1)`, giảm popin và tắt `animate_manual_resizes` để triệt tiêu hoàn toàn hiện tượng micro-stutter/giật khung hình.
+   - Thêm hotkey `Super + Shift + A` để chuyển nhanh giữa **Smooth** và **DWM Instant (0ms)**.
+
+4. **Tự động hóa Cài mới 1 Lệnh (Zero-Bootstrap Issue):**
+   - Lệnh `ka-setup all` tự động nhận diện đường dẫn `stow-safe`, triển khai đủ 12 packages, cấu hình Topbar, reload Hyprland mà không yêu cầu người dùng phải gõ lệnh chuẩn bị thủ công.
 
 ---
 > **LỜI NHẮC QUAN TRỌNG CHO AI TRỢ LÝ Ở PHIÊN MỚI:**
