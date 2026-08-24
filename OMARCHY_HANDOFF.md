@@ -26,7 +26,7 @@ Toàn bộ packages tuân thủ chuẩn **XDG Base Directory** (`~/.config/`, `~
 | `shell/` | `~/.config/shell/`: `profile`, `aliasrc`, `inputrc` | Nạp biến môi trường XDG, alias tối ưu, cấu hình readline vi-mode. |
 | `zsh/` | `~/.config/zsh/`: `.zshrc`, `functions.zsh`, `env.zsh` | Zsh vi-mode, hàm `lfcd` an toàn chống đệ quy `FUNCNEST`, nạp 9Router keys. |
 | `git/` | `~/.config/git/`: `config`, `ignore` | Git aliases (`st`, `co`, `lg`, `cm`, `undo`), auto-rebase khi pull, Delta diff syntax highlighter. |
-| `hypr/` | `~/.config/hypr/bindings.lua` | Ghi đè bộ phím tắt DWM Hybrid, kiểm soát 5 Modes hiển thị, 0-conflict. |
+| `hypr/` | `~/.config/hypr/`: `bindings.lua`, `looknfeel.lua` | Ghi đè bộ phím tắt DWM Hybrid, giữ trạng thái maximize khi đóng cửa sổ, 0-conflict. |
 | `brave/` | `~/.config/brave-flags.conf` | Tối ưu phần cứng GPU, Wayland native, Zero-Copy Rasterization, HTTP/3, IME tiếng Việt. |
 | `nvim/` | `~/.config/nvim/` | Modular Lua config (`lua/{core,plugins,utils}/`), Lazy.nvim, Snacks, LSP, auto-sync theme Omarchy. |
 | `tmux/` | `~/.config/tmux/tmux.conf` | Prefix `C-Space`, escape-time 0, Vi-mode navigation, Wayland clipboard (`wl-copy`). |
@@ -118,7 +118,7 @@ Bất kỳ script CLI nào viết thêm vào `scripts/.local/bin/` bắt buộc 
 ## 6. Danh Sách Lệnh Quản Trị Cốt Lõi
 
 - **Triển khai toàn bộ dotfiles:** `ka-setup stow` (hoặc `ka-setup all`).
-- **Triển khai từng package:** `stow-safe -vt ~ <package>` (ví dụ: `stow-safe hypr`).
+- **Triển khai từng package:** `stow-safe <package>` (ví dụ: `stow-safe hypr`).
 - **Hủy triển khai:** `stow -Dvt ~ <package>`.
 - **Quản lý Git nhiều tài khoản:** `gm` (`gm init`, `gm clone <url>`, `gm status`, `gm sync`).
 - **Giới hạn sạc pin ThinkPad:** `battery-threshold` (service systemd oneshot 50-60%).

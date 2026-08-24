@@ -22,7 +22,7 @@ Each top-level directory is a Stow package containing `$HOME`-relative paths:
 | `fcitx5/` | `~/.config/fcitx5/`: Fcitx5 IME configs (profile, Bamboo Telex, toggle hotkeys) |
 | `scripts/` | `~/.local/bin`: Wayland CLI utilities (`stow-safe`, `ka-setup`, `ytdl-cut`, `battery-threshold`, `gm`, `otp`, `weath`, `rssget`, etc.) |
 | `lf/` | `~/.config/lf/`: lf file manager (vi binds, modern Wayland previewer: Chafa, Bat, Eza, PDF/EPUB cover) |
-| `hypr/` | `~/.config/hypr/bindings.lua`: DWM Hybrid keybinding overrides |
+| `hypr/` | `~/.config/hypr/`: `bindings.lua` (DWM Hybrid keybindings), `looknfeel.lua` (fullscreen retention) |
 | `brave/` | `~/.config/brave-flags.conf`: GPU acceleration, Wayland native, zero-copy, HTTP/3 |
 | `media/` | `~/.config/{mpv,ncmpcpp,mpd}`: PipeWire audio optimizations, GPU Wayland mpv, TUI music player |
 | `opencode/` | `~/.config/opencode/`: 9Router gateway config, 3 combo tiers (KhaBoDo, KhaSimple, KhaThinking) |
@@ -31,7 +31,7 @@ Each top-level directory is a Stow package containing `$HOME`-relative paths:
 ## Key Commands & Workflow
 
 - **Deploy All:** `ka-setup stow` (automates safe deployment with backups via `stow-safe`)
-- **Deploy Individual:** `stow-safe -vt ~ <package>` or `stow -vt ~ <package>`
+- **Deploy Individual:** `stow-safe <package>` or `stow -vt ~ <package>`
 - **Undeploy:** `stow -Dvt ~ <package>`
 - **Git Manager:** `gm` — multi-account git manager under `~/Repos/`, uses git `includeIf`
 - **Battery:** `battery-threshold` — sets ThinkPad charge thresholds (50-60%) via systemd oneshot service

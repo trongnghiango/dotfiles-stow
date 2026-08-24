@@ -295,7 +295,7 @@ setup_stow() {
     tmux
     nvim
     lf
-    hypr      # custom keybindings override (~/.config/hypr/bindings.lua)
+    hypr      # bindings.lua (DWM hybrid), looknfeel.lua (fullscreen retention)
     brave     # ~/.config/brave-flags.conf (GPU acceleration, Wayland native, zero-copy)
     fcitx5
     opencode
