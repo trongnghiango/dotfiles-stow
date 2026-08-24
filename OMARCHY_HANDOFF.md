@@ -69,6 +69,7 @@ hl.unbind("SUPER + F")
 | | <kbd>Super</kbd> + <kbd>\</kbd> | **Đổi hướng chia (Ngang ⟷ Dọc)** | `hl.dsp.layout("togglesplit")` |
 | | <kbd>Super</kbd> + <kbd>b</kbd> | **Ẩn / Hiện thanh Topbar** | `omarchy-toggle bar` (DWM togglebar) |
 | | <kbd>Super</kbd> + <kbd>a</kbd> *(hoặc <kbd>Alt</kbd>+<kbd>0</kbd>)* | **Toggle Gaps (Default ⟷ 0-Gaps)** | `omarchy-hyprland-window-gaps-toggle` |
+| | <kbd>Super</kbd> + <kbd>Shift</kbd> + <kbd>a</kbd> *(hoặc <kbd>Alt</kbd>+<kbd>a</kbd>)* | **Toggle Animations (Smooth ⟷ 0ms DWM)** | `omarchy-hyprland-animations-toggle` |
 | **Display Modes** | <kbd>Super</kbd> + <kbd>m</kbd> *(hoặc <kbd>z</kbd>)* | **Maximized (Monocle `[M]` - Giữ Topbar)** | `hl.dsp.window.fullscreen({ mode = "maximized" })` |
 | | <kbd>Super</kbd> + <kbd>f</kbd> | **True Fullscreen (Tràn 100% che Topbar)** | `hl.dsp.window.fullscreen({ mode = "fullscreen" })` |
 | **Stack Navigation** | <kbd>Super</kbd> + <kbd>j</kbd> | **Focus Next Window in Stack** | `hl.dsp.window.cycle_next()` *(Duyệt mượt mà cả Tiled lẫn Monocle)* |

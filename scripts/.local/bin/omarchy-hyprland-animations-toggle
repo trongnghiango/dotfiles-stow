@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+
+# ==============================================================================
+# OMARCHY HYPRLAND ANIMATIONS TOGGLE
+# ==============================================================================
+# Description: Toggles Hyprland animations on/off dynamically with notification.
+# ==============================================================================
+
+# Get current animation state
+current_state=$(hyprctl -j getoption animations:enabled 2>/dev/null | grep -o '"bool": *[a-z]*' | awk '{print $2}')
+
+if [ "$current_state" = "true" ]; then
+    # Turn OFF animations (Instant 0ms DWM mode)
+    hyprctl eval 'hl.config({ animations = { enabled = false } })' >/dev/null 2>&1
+    notify-send -u low -t 1500 -a "Hyprland" "⚡ Animations: TẮT" "Chế độ DWM Instant (0ms Latency)"
+else
+    # Turn ON animations (Smooth mode)
+    hyprctl eval 'hl.config({ animations = { enabled = true } })' >/dev/null 2>&1
+    notify-send -u low -t 1500 -a "Hyprland" "✨ Animations: BẬT" "Chế độ Smooth (Chuyển cảnh mượt mà)"
+fi
