@@ -49,6 +49,21 @@ log_dim()     { echo -e "${DIM}  $1${NC}"; }
 # HELPERS
 # ==============================================================================
 
+_require_stow() {
+  if ! command -v stow &>/dev/null; then
+    log_warn "GNU Stow ('stow') chưa được cài đặt."
+    if command -v pacman &>/dev/null; then
+      log_info "Đang tự động cài đặt GNU Stow qua pacman..."
+      if sudo pacman -S --needed --noconfirm stow; then
+        log_ok "Đã cài đặt GNU Stow thành công."
+        return 0
+      fi
+    fi
+    log_error "GNU Stow ('stow') is not installed. Please install it with: sudo pacman -S stow"
+    exit 1
+  fi
+}
+
 _require_package() {
   local package="$1"
   if [ ! -d "$DOTFILES_DIR/$package" ]; then
@@ -184,6 +199,7 @@ _restore_from_dir() {
 
 cmd_deploy() {
   local package="$1"
+  _require_stow
   _require_package "$package"
 
   log_step "Deploying: $package"
@@ -230,6 +246,7 @@ cmd_restore() {
   local snapshot="$2"   # optional: specific timestamp
   local pkg_backup="$BACKUP_BASE/$package"
 
+  _require_stow
   _require_package "$package"
 
   if [ ! -d "$pkg_backup" ] || [ -z "$(ls -A "$pkg_backup" 2>/dev/null)" ]; then
@@ -269,6 +286,7 @@ cmd_restore() {
 
 cmd_unstow() {
   local package="$1"
+  _require_stow
   _require_package "$package"
 
   log_step "Unstowing: $package"
@@ -282,6 +300,7 @@ cmd_unstow() {
 
 cmd_diff() {
   local package="$1"
+  _require_stow
   _require_package "$package"
 
   log_step "Dry-run diff for: $package"

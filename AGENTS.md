@@ -36,7 +36,7 @@ Each top-level directory is a Stow package containing `$HOME`-relative paths:
 - **Git Manager:** `gm` — multi-account git manager under `~/Repos/`, uses git `includeIf`
 - **Battery:** `battery-threshold` — sets ThinkPad charge thresholds (50-60%) via systemd oneshot service
 - **Cron Jobs:** `cron/crontog` toggles cron jobs; `cron/checkup` (pacman), `cron/newsup` (RSS)
-- **Setup Helper:** `ka-setup` — post-install helper (`pam`, `docker`, `ime`, `battery`, `gpu-fix`, `shell`, `stow`, `all`)
+- **Setup Helper:** `ka-setup` — post-install helper (`pkgs`, `pam`, `docker`, `ime`, `battery`, `gpu-fix`, `shell`, `stow`, `all`)
 
 ## Environment & Wayland Standards
 

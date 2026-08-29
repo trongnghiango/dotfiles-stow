@@ -29,7 +29,8 @@ show_help() {
   echo "  ka-setup <command>"
   echo ""
   echo -e "${BOLD}COMMANDS:${NC}"
-  echo -e "  ${GREEN}all${NC}       Chạy toàn bộ các bước cấu hình."
+  echo -e "  ${GREEN}all${NC}       Chạy toàn bộ các bước cấu hình (bao gồm cài dependencies)."
+  echo -e "  ${GREEN}pkgs${NC}      Kiểm tra và cài đặt toàn bộ gói phụ thuộc (stow, fuse2, git-delta, lf, etc.)."
   echo -e "  ${GREEN}shell${NC}     Đặt Zsh làm login shell mặc định (chsh)."
   echo -e "  ${GREEN}stow${NC}      Deploy dotfiles an toàn qua stow-safe."
   echo -e "  ${GREEN}pam${NC}       Cấu hình tự động mở khóa gnome-keyring tại TTY."
@@ -38,6 +39,64 @@ show_help() {
   echo -e "  ${GREEN}battery${NC}   Cấu hình ngưỡng sạc pin ThinkPad (50-60%)."
   echo -e "  ${GREEN}gpu-fix${NC}   Sửa lỗi boot kernel của đồ họa lai (i915/nvidia)."
   echo ""
+}
+
+# ------------------------------------------------------------------------------
+# 0. Cài đặt các gói phụ thuộc thiết yếu (Essential Dependencies)
+# ------------------------------------------------------------------------------
+setup_pkgs() {
+  log_step "Kiểm tra và cài đặt các gói phụ thuộc thiết yếu..."
+
+  if ! command -v pacman &>/dev/null; then
+    log_warn "Hệ thống không sử dụng pacman, bỏ qua bước cài đặt tự động."
+    return 0
+  fi
+
+  local core_pkgs=(
+    stow              # Quản lý symlinks dotfiles
+    git               # Quản lý mã nguồn
+    git-delta         # Syntax highlighter cho git diff
+    zsh               # Shell chính
+    fuse2             # Hỗ trợ chạy các ứng dụng AppImage (Zalo, v.v.)
+    wl-clipboard      # wl-copy, wl-paste cho Wayland
+    fzf               # Fuzzy finder
+    bat               # Syntax highlighting cat
+    eza               # Modern ls thay thế
+    chafa             # Image to terminal text/sixel converter cho lf previewer
+    imv               # Image viewer cho Wayland
+    tmux              # Terminal multiplexer
+    neovim            # Text editor chính
+    lf                # Terminal file manager
+    fcitx5            # Bộ gõ framework
+    fcitx5-bamboo     # Bộ gõ tiếng Việt Bamboo
+    fcitx5-gtk        # Fcitx5 GTK module
+    fcitx5-qt         # Fcitx5 Qt module
+    fcitx5-configtool # GUI config cho Fcitx5
+    poppler           # pdftoppm preview PDF trong lf
+    ffmpegthumbnailer # Video previewer trong lf
+    p7zip             # Giải nén 7z preview
+    unzip             # Giải nén zip preview
+  )
+
+  local missing_pkgs=()
+  for pkg in "${core_pkgs[@]}"; do
+    if ! pacman -Qi "$pkg" &>/dev/null; then
+      missing_pkgs+=("$pkg")
+    fi
+  done
+
+  if [ ${#missing_pkgs[@]} -eq 0 ]; then
+    log_success "Toàn bộ các gói phụ thuộc thiết yếu đã được cài đặt đầy đủ."
+    return 0
+  fi
+
+  log_info "Tìm thấy ${#missing_pkgs[@]} gói chưa được cài đặt: ${missing_pkgs[*]}"
+  log_info "Đang tiến hành cài đặt qua pacman..."
+  if sudo pacman -S --needed --noconfirm "${missing_pkgs[@]}"; then
+    log_success "Đã cài đặt thành công tất cả các gói phụ thuộc."
+  else
+    log_warn "Một số gói có thể chưa cài được. Vui lòng kiểm tra lại kết nối mạng hoặc kho lưu trữ."
+  fi
 }
 
 # ------------------------------------------------------------------------------
@@ -173,12 +232,20 @@ setup_docker() {
 # ------------------------------------------------------------------------------
 setup_ime() {
   log_step "Kiểm tra và cài đặt bộ gõ tiếng Việt Fcitx5 Bamboo..."
-  if pacman -Qi fcitx5-bamboo &>/dev/null; then
-    log_success "Package fcitx5-bamboo đã được cài đặt."
+  local ime_pkgs=(fcitx5 fcitx5-bamboo fcitx5-gtk fcitx5-qt fcitx5-configtool)
+  local missing_ime=()
+  for pkg in "${ime_pkgs[@]}"; do
+    if ! pacman -Qi "$pkg" &>/dev/null; then
+      missing_ime+=("$pkg")
+    fi
+  done
+
+  if [ ${#missing_ime[@]} -gt 0 ]; then
+    log_info "Đang cài đặt các gói fcitx5 còn thiếu: ${missing_ime[*]}..."
+    sudo pacman -S --needed --noconfirm "${missing_ime[@]}"
+    log_success "Đã cài đặt hoàn tất các gói fcitx5."
   else
-    log_info "Đang cài đặt fcitx5-bamboo..."
-    sudo pacman -S --needed --noconfirm fcitx5-bamboo
-    log_success "Cài đặt fcitx5-bamboo thành công."
+    log_success "Các gói Fcitx5 và fcitx5-bamboo đã được cài đặt."
   fi
 }
 
@@ -281,6 +348,16 @@ setup_shell() {
 setup_stow() {
   log_step "Deploy dotfiles qua stow-safe..."
 
+  # Kiểm tra và cài đặt GNU Stow nếu chưa có
+  if ! command -v stow &>/dev/null; then
+    log_info "GNU Stow chưa được cài đặt trên hệ thống."
+    if ! sudo pacman -S --needed --noconfirm stow; then
+      log_error "Không thể cài đặt 'stow'. Vui lòng chạy thủ công: sudo pacman -S stow"
+      return 1
+    fi
+    log_success "Đã cài đặt GNU Stow."
+  fi
+
   # Auto-resolve stow-safe if not yet in PATH (e.g. on fresh clone)
   if ! command -v stow-safe &>/dev/null; then
     local script_dir
@@ -331,6 +408,10 @@ setup_stow() {
     hyprctl reload &>/dev/null || true
   fi
 
+  if command -v fcitx5-remote &>/dev/null && fcitx5-remote --check &>/dev/null; then
+    fcitx5-remote -r &>/dev/null || true
+  fi
+
   echo ""
   log_success "Kết quả: $success thành công, $failed thất bại."
   if (( failed > 0 )); then
@@ -349,8 +430,14 @@ fi
 CMD=$1
 
 case "$CMD" in
+  pkgs|deps)
+    setup_pkgs
+    ;;
   shell)
     setup_shell
+    ;;
+  ime)
+    setup_ime
     ;;
   stow)
     setup_stow
@@ -361,9 +448,6 @@ case "$CMD" in
   docker)
     setup_docker
     ;;
-  ime)
-    setup_ime
-    ;;
   battery)
     setup_battery
     ;;
@@ -371,15 +455,17 @@ case "$CMD" in
     setup_gpu_fix
     ;;
   all)
+    setup_pkgs
+    echo ""
     setup_shell
+    echo ""
+    setup_ime
     echo ""
     setup_stow
     echo ""
     setup_pam
     echo ""
     setup_docker
-    echo ""
-    setup_ime
     echo ""
     setup_battery
     echo ""
