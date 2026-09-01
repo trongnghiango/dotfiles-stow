@@ -136,8 +136,17 @@ cmd copy_dir ${{
 
 cmd copy_content ${{
     if [ -f "$f" ]; then
-        wl-copy < "$f"
-        lf -remote "send $id echo 'Copied file contents to clipboard'"
+        mime=$(file --mime-type -Lb "$f")
+        case "$mime" in
+            image/*)
+                wl-copy --type "$mime" < "$f"
+                lf -remote "send $id echo 'Copied image binary to clipboard'"
+                ;;
+            *)
+                wl-copy < "$f"
+                lf -remote "send $id echo 'Copied file contents to clipboard'"
+                ;;
+        esac
     fi
 }}
 
