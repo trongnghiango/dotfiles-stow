@@ -7,8 +7,12 @@
 
 hl.config({
   misc = {
-    -- Retain fullscreen/maximize (monocle) state when closing a window
-    exit_window_retains_fullscreen = true,
+    -- Tắt cờ này để sau khi đóng màn hình khóa (Lockscreen), các app không bị ép giữ Fullscreen
+    exit_window_retains_fullscreen = false,
+
+    -- Không cho phép app tự ý kích hoạt và chiếm quyền Fullscreen khi nhận focus sau khi Unlock
+    focus_on_activate = false,
+
     -- Disable heavy resize animation calculations for instant buttery response
     animate_manual_resizes = false,
     animate_mouse_windowdragging = false,
