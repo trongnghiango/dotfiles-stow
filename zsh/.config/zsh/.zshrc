@@ -30,18 +30,27 @@ stty stop undef             # disable ctrl-s freeze
 # Load tool-specific env (Go, Bun, FZF, direnv) — NOT profile, that's .zprofile
 [ -f "$ZDOTDIR/env.zsh" ] && source "$ZDOTDIR/env.zsh"
 
-# Ensure history directory exists (HISTFILE = $XDG_DATA_HOME/zsh/history)
+# History file location & sizes
+export HISTFILE="${XDG_DATA_HOME:-$HOME/.local/share}/zsh/history"
+export HISTSIZE=10000000
+export SAVEHIST=10000000
+
+# Ensure history directory exists
 mkdir -p "${XDG_DATA_HOME:-$HOME/.local/share}/zsh"
 
 # ==============================================================================
-# HISTORY
+# HISTORY OPTIONS
 # ==============================================================================
 
-setopt APPEND_HISTORY       # Append to history file, don't overwrite
-setopt INC_APPEND_HISTORY   # Write immediately, not on exit
-setopt SHARE_HISTORY        # Share history across all sessions
-setopt HIST_IGNORE_DUPS     # Don't record duplicate consecutive entries
-setopt HIST_REDUCE_BLANKS   # Remove superfluous blanks
+setopt APPEND_HISTORY         # Append to history file, don't overwrite
+setopt INC_APPEND_HISTORY     # Write immediately, not on exit
+setopt SHARE_HISTORY          # Share history across all sessions
+setopt HIST_IGNORE_DUPS       # Don't record duplicate consecutive entries
+setopt HIST_IGNORE_ALL_DUPS   # Delete old recorded entry if new entry is a duplicate
+setopt HIST_IGNORE_SPACE      # Do not record an event starting with a space
+setopt HIST_SAVE_NO_DUPS      # Don't write duplicate entries in the history file
+setopt HIST_FIND_NO_DUPS      # Do not display a line previously found
+setopt HIST_REDUCE_BLANKS     # Remove superfluous blanks
 
 # ==============================================================================
 # ALIASES & SHORTCUTS
@@ -72,6 +81,17 @@ bindkey -M menuselect 'k' vi-up-line-or-history
 bindkey -M menuselect 'l' vi-forward-char
 bindkey -M menuselect 'j' vi-down-line-or-history
 bindkey -v '^?' backward-delete-char
+
+# History navigation in Vi Mode & Insert Mode (Up/Down arrows + Vim j/k + Ctrl+R)
+autoload -U up-line-or-beginning-search down-line-or-beginning-search
+zle -N up-line-or-beginning-search
+zle -N down-line-or-beginning-search
+
+bindkey '^[[A' up-line-or-beginning-search     # Up Arrow
+bindkey '^[[B' down-line-or-beginning-search   # Down Arrow
+bindkey -M vicmd 'k' up-line-or-beginning-search
+bindkey -M vicmd 'j' down-line-or-beginning-search
+bindkey '^r' history-incremental-search-backward
 
 # ==============================================================================
 # FUNCTIONS & KEYBINDS
