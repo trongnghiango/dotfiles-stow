@@ -76,6 +76,7 @@ setup_pkgs() {
     ffmpegthumbnailer # Video previewer trong lf
     p7zip             # Giải nén 7z preview
     unzip             # Giải nén zip preview
+    noise-suppression-for-voice # Bộ lọc khử ồn AI RNNoise LADSPA cho PipeWire
   )
 
   local missing_pkgs=()
@@ -262,10 +263,11 @@ setup_battery() {
 }
 
 # ------------------------------------------------------------------------------
-# 5. Fix lỗi Kernel đồ họa lai (Hybrid Graphics)
+# ------------------------------------------------------------------------------
+# 5. Fix lỗi Kernel đồ họa lai (Hybrid Graphics) & NVIDIA Wayland Modeset
 # ------------------------------------------------------------------------------
 setup_gpu_fix() {
-  log_step "Sửa lỗi Kernel boot (i915 lspcon & nvidia i2c timeout)..."
+  log_step "Sửa lỗi Kernel boot đồ họa lai (i915 dpcd, ucsi_ccg & nvidia_drm modeset/fbdev)..."
   local cmdline_file="/etc/kernel/cmdline"
   
   if [ ! -f "$cmdline_file" ]; then
@@ -275,21 +277,36 @@ setup_gpu_fix() {
   
   # i915.enable_dpcd_backlight=0 fix lỗi lspcon port D probe
   # ucsi_ccg.disable=1 fix lỗi nvidia i2c timeout khi nvidia GPU ngủ
-  local params="i915.enable_dpcd_backlight=0 ucsi_ccg.disable=1"
+  # nvidia_drm.modeset=1 và nvidia_drm.fbdev=1 fix màn hình nháy/loạn khung hình khi login Wayland sau khi update NVIDIA
+  local params_to_add=()
   local current_cmdline=$(cat "$cmdline_file")
+
+  for param in "i915.enable_dpcd_backlight=0" "ucsi_ccg.disable=1" "nvidia_drm.modeset=1" "nvidia_drm.fbdev=1"; do
+    if ! echo "$current_cmdline" | grep -q "$param"; then
+      params_to_add+=("$param")
+    fi
+  done
   
-  if echo "$current_cmdline" | grep -q "ucsi_ccg.disable=1"; then
-    log_success "Tham số fix lỗi kernel đồ họa lai đã được cấu hình từ trước (Bỏ qua)."
+  if [ ${#params_to_add[@]} -eq 0 ]; then
+    log_success "Toàn bộ tham số fix đồ họa lai và NVIDIA DRM đã được cấu hình đầy đủ (Bỏ qua)."
   else
-    log_info "Cập nhật tham số kernel vào $cmdline_file..."
+    log_info "Thêm các tham số kernel còn thiếu: ${params_to_add[*]}..."
     sudo cp "$cmdline_file" "${cmdline_file}.bak"
-    echo "$current_cmdline $params" | sudo tee "$cmdline_file" >/dev/null
+    echo "$current_cmdline ${params_to_add[*]}" | sudo tee "$cmdline_file" >/dev/null
     
-    log_info "Đang build lại Kernel Image (mkinitcpio)... Quá trình này sẽ mất một lúc."
-    if sudo mkinitcpio -P; then
-      log_success "Đã build lại Kernel Image thành công. Vui lòng KHỞI ĐỘNG LẠI (Reboot) để áp dụng."
+    log_info "Đang build lại Kernel Image... Quá trình này sẽ mất một lúc."
+    if command -v limine-mkinitcpio &>/dev/null; then
+      if sudo limine-mkinitcpio; then
+        log_success "Đã build lại Kernel Image (Limine UKI) thành công. Vui lòng KHỞI ĐỘNG LẠI (Reboot) để áp dụng."
+      else
+        log_error "Lỗi khi chạy limine-mkinitcpio. Hãy kiểm tra lại cấu hình hệ thống."
+      fi
     else
-      log_error "Lỗi khi chạy mkinitcpio. Hãy kiểm tra lại cấu hình hệ thống."
+      if sudo mkinitcpio -P; then
+        log_success "Đã build lại Kernel Image thành công. Vui lòng KHỞI ĐỘNG LẠI (Reboot) để áp dụng."
+      else
+        log_error "Lỗi khi chạy mkinitcpio. Hãy kiểm tra lại cấu hình hệ thống."
+      fi
     fi
   fi
 }
@@ -382,6 +399,7 @@ setup_stow() {
     brave     # ~/.config/brave-flags.conf (GPU acceleration, Wayland native, zero-copy)
     fcitx5
     opencode
+    pipewire  # ~/.config/pipewire/pipewire.conf.d/99-input-denoising.conf (RNNoise AI denoiser)
     media     # mpv (auto cover art & MPRIS), ncmpcpp, mpd
     scripts   # phải stow sau shell để PATH có stow-safe
   )
@@ -410,6 +428,11 @@ setup_stow() {
 
   if command -v fcitx5-remote &>/dev/null && fcitx5-remote --check &>/dev/null; then
     fcitx5-remote -r &>/dev/null || true
+  fi
+
+  # Khởi động lại PipeWire nếu có cấu hình mới để nạp RNNoise
+  if command -v systemctl &>/dev/null; then
+    systemctl --user restart pipewire wireplumber &>/dev/null || true
   fi
 
   echo ""
