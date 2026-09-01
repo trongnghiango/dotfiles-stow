@@ -34,6 +34,7 @@ Toàn bộ packages tuân thủ chuẩn **XDG Base Directory** (`~/.config/`, `~
 | `fcitx5/` | `~/.config/fcitx5/` | Cấu hình bộ gõ Bamboo Telex tiếng Việt, toggle hotkey. |
 | `media/` | `~/.config/{mpv,ncmpcpp,mpd}` | `mpv.conf` tối ưu GPU Wayland, tự động nạp Cover Art & biểu tượng âm nhạc (`audio-cover.lua`), MPRIS Topbar, MPD PipeWire. |
 | `opencode/` | `~/.config/opencode/` | Cấu hình 9Router AI gateway và 3 combo tiers (KhaBoDo, KhaSimple, KhaThinking). |
+| `pipewire/` | `~/.config/pipewire/pipewire.conf.d/` | Cấu hình bộ lọc khử ồn AI thời gian thực RNNoise (`99-input-denoising.conf`) cho Micro và Screen Recording. |
 | `scripts/` | `~/.local/bin/` | Bộ CLI utilities (`stow-safe`, `ka-setup`, `ytdl-cut`, `gm`, `battery-threshold`, `omarchy-hyprland-animations-toggle`, `otp`, `weath`, cron). |
 
 ---
@@ -145,7 +146,24 @@ Bất kỳ script CLI nào viết thêm vào `scripts/.local/bin/` bắt buộc 
    - Thêm hotkey `Super + Shift + A` để chuyển nhanh giữa **Smooth** và **DWM Instant (0ms)**.
 
 4. **Tự động hóa Cài mới 1 Lệnh (Zero-Bootstrap Issue):**
-   - Lệnh `ka-setup all` tự động nhận diện đường dẫn `stow-safe`, triển khai đủ 12 packages, cấu hình Topbar, reload Hyprland mà không yêu cầu người dùng phải gõ lệnh chuẩn bị thủ công.
+   - Lệnh `ka-setup all` tự động nhận diện đường dẫn `stow-safe`, triển khai đủ 13 packages, cấu hình Topbar, reload Hyprland mà không yêu cầu người dùng phải gõ lệnh chuẩn bị thủ công.
+
+5. **Cấu hình Zsh Persistent History & Beginning Search:**
+   - Khai báo rõ `HISTFILE`, `HISTSIZE=10000000`, `SAVEHIST=10000000` trong `.zshrc`.
+   - Bổ sung `up-line-or-beginning-search` và `down-line-or-beginning-search` cho phím mũi tên và Vi-mode (`j`/`k`), kích hoạt `Ctrl+R`.
+
+6. **Khử ồn Microphone AI RNNoise Stereo qua PipeWire:**
+   - Package `pipewire/` với module `libpipewire-module-filter-chain` và LADSPA `noise_suppressor_stereo`.
+   - Định tuyến Stereo `[ FL FR ]` cân bằng 2 tai nghe khi ghi hình bằng `omarchy screenrecord`. Tự động ưu tiên (`priority=2500`).
+
+7. **Tránh kẹt Fullscreen sau khi Unlock màn hình:**
+   - Trong `looknfeel.lua`: Đặt `exit_window_retains_fullscreen = false` và `focus_on_activate = false` để sau khi mở khóa màn hình, các cửa sổ giữ nguyên bố cục Tiling trước đó.
+
+8. **Tối ưu hóa Brave GPU trên đồ họa lai:**
+   - Cung cấp wrapper `brave-origin` và cấu hình `--use-gl=desktop` fix lỗi `EGL_BAD_ALLOC` và màn hình đen video trên Intel+NVIDIA.
+
+9. **LF Binary Image Clipboard:**
+   - Lệnh `yc` trong `lfrc` tự nhận diện `image/*` và đẩy binary qua `wl-copy --type <mime>` để dán trực tiếp ảnh vào Web/Chat.
 
 ---
 > **LỜI NHẮC QUAN TRỌNG CHO AI TRỢ LÝ Ở PHIÊN MỚI:**

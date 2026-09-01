@@ -12,21 +12,21 @@
         "ka.base": {
           "name": "Base (Main Combo)",
           "modalities": {
-            "input": ["text"],
+            "input": ["text", "image"],
             "output": ["text"]
           }
         },
         "ka.simple": {
           "name": "Simple (Simple Combo)",
           "modalities": {
-            "input": ["text"],
+            "input": ["text", "image"],
             "output": ["text"]
           }
         },
         "ka.reason": {
           "name": "Thinking (Thinking Combo)",
           "modalities": {
-            "input": ["text"],
+            "input": ["text", "image"],
             "output": ["text"]
           }
         }

@@ -81,3 +81,5 @@
 	side-by-side = false
 	line-numbers = true
 	syntax-theme = Dracula
+[includeIf "gitdir:/home/ka/Repos/github.com/trongnghiango/"]
+	path = /home/ka/Repos/github.com/trongnghiango/.gitconfig_custom

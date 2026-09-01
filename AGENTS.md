@@ -26,6 +26,7 @@ Each top-level directory is a Stow package containing `$HOME`-relative paths:
 | `brave/` | `~/.config/brave-flags.conf`: GPU acceleration, Wayland native, zero-copy, HTTP/3 |
 | `media/` | `~/.config/{mpv,ncmpcpp,mpd}`: PipeWire audio, GPU Wayland mpv (auto cover art & MPRIS topbar), TUI player |
 | `opencode/` | `~/.config/opencode/`: 9Router gateway config, 3 combo tiers (KhaBoDo, KhaSimple, KhaThinking) |
+| `pipewire/` | `~/.config/pipewire/`: PipeWire RNNoise AI real-time noise cancellation filter-chain |
 | `yay/` | `~/.config/yay/`: yay AUR helper config |
 
 ## Key Commands & Workflow
