@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# brave-origin wrapper — fix cross-GPU VA-API on Intel+NVIDIA hybrid (Hyprland/Wayland)
+# Only override VA-API driver; GL backend is fixed via --use-gl=desktop in brave-origin-flags.conf
+export LIBVA_DRIVER_NAME=iHD
+exec /opt/brave-origin-bin/brave "$@"
