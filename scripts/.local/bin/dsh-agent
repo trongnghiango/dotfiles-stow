@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# DSH AGENT WRAPPER CHO OMARCHY & WAYLAND
+# DSH AGENT WRAPPER CHO OMARCHY & WAYLAND (ROBUST & AUTO-AUTHENTICATED)
 # ==============================================================================
 set -e
 
@@ -9,13 +9,21 @@ if [[ ! -x "$DSH_BIN" ]]; then
   DSH_BIN="dsh"
 fi
 
+STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/dsh"
+if ! mkdir -p "$STATE_DIR" 2>/dev/null; then
+  STATE_DIR="/tmp/dsh-state-${UID:-1000}"
+  mkdir -p "$STATE_DIR" 2>/dev/null || true
+fi
+AUTH_URL_FILE="$STATE_DIR/authenticated_url"
+LOG_FILE="$STATE_DIR/dsh-web.log"
+
 find_active_port() {
-  # Ưu tiên port do người dùng chỉ định qua biến môi trường
+  # 1. Ưu tiên biến môi trường DSH_PORT nếu đang lắng nghe
   if [[ -n "${DSH_PORT:-}" ]] && ss -tuln | grep -q ":$DSH_PORT "; then
     echo "$DSH_PORT"
     return 0
   fi
-  # Tự động nhận diện port 3080 hoặc 3081 đang hoạt động
+  # 2. Quét port 3080 hoặc 3081 đang lắng nghe
   if ss -tuln | grep -q ":3080 "; then
     echo "3080"
     return 0
@@ -31,22 +39,85 @@ ensure_server() {
   local target_port="$1"
   if ! ss -tuln | grep -q ":$target_port "; then
     notify-send -a "Omarchy AI" -i "dialog-information" "DeepSeek Harness" "Đang khởi động DSH Daemon (: $target_port)..."
-    nohup "$DSH_BIN" web --port "$target_port" >/dev/null 2>&1 &
-    # Chờ tối đa 3 giây để server lắng nghe trên cổng
-    for _ in {1..15}; do
-      if ss -tuln | grep -q ":$target_port "; then break; fi
+    nohup "$DSH_BIN" web --port "$target_port" >"$LOG_FILE" 2>&1 &
+    # Chờ server khởi động và trích xuất authenticated URL có kèm token
+    for _ in {1..25}; do
+      if ss -tuln | grep -q ":$target_port "; then
+        sleep 0.3
+        local extracted_url
+        extracted_url=$(grep -oE 'http://127\.0\.0\.1:[0-9]+/\?token=[^ ]+' "$LOG_FILE" 2>/dev/null | tail -n 1 || true)
+        if [[ -n "$extracted_url" ]]; then
+          echo "$extracted_url" > "$AUTH_URL_FILE"
+        fi
+        break
+      fi
       sleep 0.2
     done
   fi
 }
 
+get_launch_url() {
+  local port="$1"
+  # Nếu có file lưu URL kèm token xác thực hợp lệ với port hiện tại thì dùng
+  if [[ -f "$AUTH_URL_FILE" ]]; then
+    local saved_url
+    saved_url=$(cat "$AUTH_URL_FILE" 2>/dev/null | tr -d '[:space:]')
+    if [[ "$saved_url" =~ :$port/ ]]; then
+      echo "$saved_url"
+      return 0
+    fi
+  fi
+  echo "http://127.0.0.1:$port"
+}
+
+focus_or_launch_web() {
+  local port="$1"
+  local url
+  url=$(get_launch_url "$port")
+
+  # 1. Kiểm tra xem cửa sổ DSH / Brave có sẵn trong Hyprland không
+  # Match: Brave Origin, Chrome webapp, hoặc title chứa DSH / DeepSeek / port
+  if command -v hyprctl &>/dev/null && command -v jq &>/dev/null; then
+    local window_addr
+    window_addr=$(hyprctl clients -j 2>/dev/null | jq -r '
+      .[] | select(
+        ((.class | test("brave|chrome"; "i")) and (.title | test("DSH|DeepSeek|3080|127\\.0\\.0\\.1"; "i")))
+        or (.class | test("(brave|chrome)-127\\.0\\.0\\.1"; "i"))
+      ) | .address' | head -n 1)
+
+    if [[ -n "$window_addr" && "$window_addr" != "null" ]]; then
+      # Focus vào cửa sổ đã có thay vì mở thêm instance mới
+      hyprctl dispatch "hl.dsp.focus({ window = \"address:$window_addr\" })" >/dev/null 2>&1 || \
+        hyprctl dispatch focuswindow "address:$window_addr" >/dev/null 2>&1
+      return 0
+    fi
+  fi
+
+  # 2. Nếu chưa có cửa sổ nào, mở bằng trình duyệt chuẩn của máy (ưu tiên brave-origin)
+  local browser_cmd=""
+  if [[ -x "$HOME/.local/bin/brave-origin" ]]; then
+    browser_cmd="$HOME/.local/bin/brave-origin"
+  elif command -v brave &>/dev/null; then
+    browser_cmd="brave"
+  elif [[ -n "${BROWSER:-}" ]] && command -v "$BROWSER" &>/dev/null; then
+    browser_cmd="$BROWSER"
+  else
+    browser_cmd="xdg-open"
+  fi
+
+  if [[ "$browser_cmd" =~ brave ]]; then
+    exec setsid uwsm-app -- "$browser_cmd" --app="$url"
+  else
+    exec setsid uwsm-app -- "$browser_cmd" "$url"
+  fi
+}
+
 PORT=$(find_active_port)
-URL="http://127.0.0.1:$PORT"
 
 case "${1:-}" in
   --web)
     ensure_server "$PORT"
-    exec omarchy-launch-or-focus-webapp "DeepSeek" "$URL"
+    focus_or_launch_web "$PORT"
     ;;
   --inline)
     shift || true
@@ -57,8 +128,8 @@ case "${1:-}" in
     exec omarchy-launch-tui --app-id=org.omarchy.dsh "$DSH_BIN" "$@"
     ;;
   --float|*)
-    # Mặc định khi gọi từ phím tắt: Focus hoặc mở Web GUI của DSH
+    # Mặc định khi gọi từ hotkey: Focus hoặc mở Web GUI
     ensure_server "$PORT"
-    exec omarchy-launch-or-focus-webapp "DeepSeek" "$URL"
+    focus_or_launch_web "$PORT"
     ;;
 esac
