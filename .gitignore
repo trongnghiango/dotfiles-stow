@@ -13,4 +13,6 @@ setup_arch/
 theme/.config/theme/colors/current.conf
 x11/.config/x11/xresources.d/
 rofi/.config/rofi/colors.rasi
-
+# Python cache
+**/__pycache__/
+*.pyc

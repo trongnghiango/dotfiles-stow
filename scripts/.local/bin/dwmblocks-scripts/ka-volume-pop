@@ -1,0 +1,410 @@
+#!/usr/bin/env python3
+"""
+ka-volume-pop: Omarchy-style GUI Audio Popover for DWM/dwmblocks.
+Pure Native GTK3 popover card:
+- Master volume slider with smooth dragging & scrolling
+- Quick mute toggle
+- Output device (sink) selector via wpctl
+- Auto-themed from ~/.config/theme/colors/current.conf
+- Auto-updates dwmblocks topbar via RTMIN+11 signal
+"""
+
+import os
+import sys
+import re
+import subprocess
+import gi
+
+gi.require_version("Gtk", "3.0")
+gi.require_version("Gdk", "3.0")
+from gi.repository import Gtk, Gdk, GLib
+
+GLib.set_prgname("dwm-dropdown")
+
+
+def load_theme_colors():
+    conf_path = os.path.expanduser("~/.config/theme/colors/current.conf")
+    colors = {
+        "BG": "1e1e2e",
+        "FG": "cdd6f4",
+        "COLOR0": "181825",
+        "COLOR1": "f38ba8",
+        "COLOR2": "a6e3a1",
+        "COLOR4": "89b4fa",
+        "COLOR8": "585b70",
+        "COLOR14": "89b4fa",
+        "COLOR15": "ffffff",
+        "ACCENT": "89b4fa",
+        "MODE": "dark",
+    }
+    if os.path.exists(conf_path):
+        try:
+            with open(conf_path, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line or line.startswith("#") or "=" not in line:
+                        continue
+                    k, v = line.split("=", 1)
+                    k = k.strip()
+                    v = v.split("#")[0].strip().strip('"').strip("'")
+                    colors[k] = v
+        except Exception:
+            pass
+    return colors
+
+
+def get_wpctl_sinks():
+    sinks = []
+    default_id = None
+    try:
+        out = subprocess.check_output(["wpctl", "status"], text=True, stderr=subprocess.DEVNULL)
+        in_sinks = False
+        for line in out.splitlines():
+            if "Sinks:" in line:
+                in_sinks = True
+                continue
+            if in_sinks:
+                if any(sec in line for sec in ["Sources:", "Filters:", "Streams:"]):
+                    break
+                m = re.search(r"([*]?)\s+(\d+)\.\s+(.*?)\s+\[vol:\s+([0-9.]+)(.*?)\]", line)
+                if m:
+                    is_def = bool(m.group(1))
+                    sink_id = int(m.group(2))
+                    name = m.group(3).strip()
+                    vol = float(m.group(4))
+                    muted = "MUTED" in m.group(5)
+                    sink = {
+                        "id": sink_id,
+                        "name": name,
+                        "vol": vol,
+                        "muted": muted,
+                        "default": is_def,
+                    }
+                    sinks.append(sink)
+                    if is_def:
+                        default_id = sink_id
+    except Exception:
+        pass
+    return sinks, default_id
+
+
+def notify_dwmblocks():
+    try:
+        subprocess.run(["pkill", "-RTMIN+11", "dwmblocks"], stderr=subprocess.DEVNULL)
+    except Exception:
+        pass
+
+
+class AudioPopover(Gtk.Window):
+    def __init__(self):
+        super().__init__(type=Gtk.WindowType.TOPLEVEL)
+        self.set_wmclass("dwm-dropdown", "dwm-dropdown")
+        self.set_title("dwm-dropdown-volume")
+        self.set_decorated(False)
+        self.set_resizable(False)
+        self.set_skip_taskbar_hint(True)
+        self.set_skip_pager_hint(True)
+        self.set_type_hint(Gdk.WindowTypeHint.DIALOG)
+
+        self.colors = load_theme_colors()
+        self.is_updating = False
+
+        # Query audio status
+        self.sinks, self.default_id = get_wpctl_sinks()
+        self.current_vol = 0.5
+        self.is_muted = False
+        for s in self.sinks:
+            if s["default"]:
+                self.current_vol = s["vol"]
+                self.is_muted = s["muted"]
+                break
+
+        self.setup_css()
+        self.build_ui()
+
+        self.connect("key-press-event", self.on_key_press)
+        self.connect("scroll-event", self.on_scroll)
+
+    def setup_css(self):
+        c = self.colors
+        bg = "#" + c.get("BG", "1e1e2e")
+        fg = "#" + c.get("FG", "cdd6f4")
+        card_bg = "#" + c.get("COLOR0", "181825")
+        accent = "#" + c.get("ACCENT", "89b4fa")
+        border = "#" + c.get("COLOR8", "585b70")
+        red = "#" + c.get("COLOR1", "f38ba8")
+        is_light = c.get("MODE", "dark") == "light"
+
+        subtext = "rgba(60, 50, 40, 0.72)" if is_light else "rgba(205, 214, 244, 0.72)"
+        trough_bg = "rgba(60, 50, 40, 0.16)" if is_light else "rgba(255, 255, 255, 0.14)"
+        hover_bg = "rgba(60, 50, 40, 0.08)" if is_light else "rgba(255, 255, 255, 0.08)"
+        card_shadow = "0 8px 24px rgba(0, 0, 0, 0.25)"
+
+        css = f"""
+        * {{
+            font-family: 'JetBrains Mono', 'Symbols Nerd Font', sans-serif;
+        }}
+        window {{
+            background-color: transparent;
+        }}
+        .popover-box {{
+            background-color: {bg};
+            color: {fg};
+            border: 1px solid {accent};
+            border-radius: 12px;
+            padding: 16px 18px;
+            box-shadow: {card_shadow};
+        }}
+        .title-label {{
+            font-size: 13px;
+            font-weight: 700;
+            color: {fg};
+        }}
+        .subtitle-label {{
+            font-size: 11px;
+            font-weight: 500;
+            color: {subtext};
+        }}
+        .vol-icon {{
+            font-size: 15px;
+            color: {accent};
+        }}
+        .vol-percent {{
+            font-size: 13px;
+            font-weight: 700;
+            color: {accent};
+            min-width: 44px;
+        }}
+        .mute-btn {{
+            background-color: {card_bg};
+            color: {fg};
+            border: 1px solid {border};
+            border-radius: 8px;
+            padding: 5px 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }}
+        .mute-btn:hover {{
+            background-color: {accent};
+            color: {bg};
+            border-color: {accent};
+        }}
+        .mute-btn.is-muted {{
+            background-color: {red};
+            color: #ffffff;
+            border-color: {red};
+        }}
+        scale trough {{
+            min-height: 8px;
+            border-radius: 4px;
+            background-color: {trough_bg};
+        }}
+        scale highlight {{
+            border-radius: 4px;
+            background-color: {accent};
+        }}
+        scale slider {{
+            min-width: 18px;
+            min-height: 18px;
+            margin: -5px 0;
+            border-radius: 50%;
+            background-color: {accent};
+            border: 2px solid {bg};
+        }}
+        scale slider:hover {{
+            background-color: {fg};
+        }}
+        combobox button {{
+            background-color: {card_bg};
+            color: {fg};
+            border: 1px solid {border};
+            border-radius: 8px;
+            padding: 5px 10px;
+            font-size: 12px;
+        }}
+        combobox button:hover {{
+            border-color: {accent};
+        }}
+        .section-header {{
+            font-size: 11px;
+            font-weight: 600;
+            color: {subtext};
+            margin-top: 4px;
+        }}
+        .footer-label {{
+            font-size: 10px;
+            color: {subtext};
+        }}
+        """
+
+        provider = Gtk.CssProvider()
+        provider.load_from_data(css.encode("utf-8"))
+        Gtk.StyleContext.add_provider_for_screen(
+            Gdk.Screen.get_default(),
+            provider,
+            Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION,
+        )
+
+    def build_ui(self):
+        main_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=14)
+        main_box.get_style_context().add_class("popover-box")
+        main_box.set_size_request(340, -1)
+        self.add(main_box)
+
+        # 1. Header (Title + Active Sink Subtitle + Mute Toggle)
+        header_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+        main_box.pack_start(header_box, False, False, 0)
+
+        title_vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+        title_lbl = Gtk.Label(label="Audio Output", xalign=0)
+        title_lbl.get_style_context().add_class("title-label")
+        title_vbox.pack_start(title_lbl, False, False, 0)
+
+        sink_sub = "Built-in Audio"
+        for s in self.sinks:
+            if s["default"]:
+                sink_sub = s["name"]
+                break
+        self.sink_sub_lbl = Gtk.Label(label=sink_sub, xalign=0)
+        self.sink_sub_lbl.get_style_context().add_class("subtitle-label")
+        title_vbox.pack_start(self.sink_sub_lbl, False, False, 0)
+        header_box.pack_start(title_vbox, True, True, 0)
+
+        self.mute_btn = Gtk.Button()
+        self.mute_btn.get_style_context().add_class("mute-btn")
+        self.update_mute_btn()
+        self.mute_btn.connect("clicked", self.on_mute_toggle)
+        header_box.pack_end(self.mute_btn, False, False, 0)
+
+        # 2. Master Volume Slider Row
+        slider_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+        main_box.pack_start(slider_box, False, False, 0)
+
+        self.vol_icon_lbl = Gtk.Label(label=self.get_vol_icon())
+        self.vol_icon_lbl.get_style_context().add_class("vol-icon")
+        slider_box.pack_start(self.vol_icon_lbl, False, False, 0)
+
+        self.vol_scale = Gtk.Scale.new_with_range(Gtk.Orientation.HORIZONTAL, 0, 100, 1)
+        self.vol_scale.set_draw_value(False)
+        self.vol_scale.set_value(round(self.current_vol * 100))
+        self.vol_scale.connect("value-changed", self.on_slider_changed)
+        slider_box.pack_start(self.vol_scale, True, True, 0)
+
+        self.percent_lbl = Gtk.Label(label=f"{round(self.current_vol * 100)}%", xalign=1)
+        self.percent_lbl.get_style_context().add_class("vol-percent")
+        slider_box.pack_end(self.percent_lbl, False, False, 0)
+
+        # 3. Output Device Selector
+        device_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+        main_box.pack_start(device_box, False, False, 0)
+
+        dev_title = Gtk.Label(label="Output Device", xalign=0)
+        dev_title.get_style_context().add_class("section-header")
+        device_box.pack_start(dev_title, False, False, 0)
+
+        self.device_combo = Gtk.ComboBoxText()
+        active_idx = 0
+        for idx, s in enumerate(self.sinks):
+            short_name = s["name"]
+            if len(short_name) > 34:
+                short_name = short_name[:32] + "..."
+            self.device_combo.append(str(s["id"]), short_name)
+            if s["default"]:
+                active_idx = idx
+
+        if self.sinks:
+            self.device_combo.set_active(active_idx)
+        self.device_combo.connect("changed", self.on_device_changed)
+        device_box.pack_start(self.device_combo, False, False, 0)
+
+        # 4. Footer hints
+        footer_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        main_box.pack_start(footer_box, False, False, 0)
+
+        hint_lbl = Gtk.Label(label="Scroll to adjust • Esc to close", xalign=0)
+        hint_lbl.get_style_context().add_class("footer-label")
+        footer_box.pack_start(hint_lbl, True, True, 0)
+
+    def get_vol_icon(self):
+        if self.is_muted or self.current_vol == 0:
+            return ""
+        v = self.current_vol * 100
+        if v >= 70:
+            return ""
+        elif v >= 30:
+            return ""
+        else:
+            return ""
+
+    def update_mute_btn(self):
+        ctx = self.mute_btn.get_style_context()
+        if self.is_muted:
+            self.mute_btn.set_label(" Muted")
+            if not ctx.has_class("is-muted"):
+                ctx.add_class("is-muted")
+        else:
+            self.mute_btn.set_label(" Sound")
+            if ctx.has_class("is-muted"):
+                ctx.remove_class("is-muted")
+
+    def on_mute_toggle(self, widget):
+        subprocess.run(["wpctl", "set-mute", "@DEFAULT_AUDIO_SINK@", "toggle"])
+        self.is_muted = not self.is_muted
+        self.update_mute_btn()
+        self.vol_icon_lbl.set_text(self.get_vol_icon())
+        notify_dwmblocks()
+
+    def on_slider_changed(self, scale):
+        if self.is_updating:
+            return
+        val = int(scale.get_value())
+        self.current_vol = val / 100.0
+        self.percent_lbl.set_text(f"{val}%")
+        self.vol_icon_lbl.set_text(self.get_vol_icon())
+        subprocess.run(["wpctl", "set-volume", "@DEFAULT_AUDIO_SINK@", f"{self.current_vol:.2f}"])
+        notify_dwmblocks()
+
+    def on_scroll(self, widget, event):
+        delta = 0
+        if event.direction == Gdk.ScrollDirection.UP:
+            delta = 2
+        elif event.direction == Gdk.ScrollDirection.DOWN:
+            delta = -2
+        elif event.direction == Gdk.ScrollDirection.SMOOTH:
+            _, _, dy = event.get_scroll_deltas()
+            if dy < 0:
+                delta = 2
+            elif dy > 0:
+                delta = -2
+        if delta != 0:
+            cur = self.vol_scale.get_value()
+            new_val = max(0, min(100, cur + delta))
+            self.vol_scale.set_value(new_val)
+        return True
+
+    def on_device_changed(self, combo):
+        sink_id = combo.get_active_id()
+        if sink_id:
+            subprocess.run(["wpctl", "set-default", sink_id])
+            for s in self.sinks:
+                if str(s["id"]) == sink_id:
+                    self.sink_sub_lbl.set_text(s["name"])
+                    break
+            notify_dwmblocks()
+
+    def on_key_press(self, widget, event):
+        if event.keyval in (Gdk.KEY_Escape, Gdk.KEY_q):
+            self.close()
+            return True
+        return False
+
+
+def main():
+    win = AudioPopover()
+    win.connect("destroy", Gtk.main_quit)
+    win.show_all()
+    Gtk.main()
+
+
+if __name__ == "__main__":
+    main()

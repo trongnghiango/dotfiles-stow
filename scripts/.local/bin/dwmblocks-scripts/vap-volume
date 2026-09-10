@@ -2,10 +2,10 @@
 
 # Prints the current volume or 🔇 if muted.
 
+BUTTON="${BLOCK_BUTTON:-${BUTTON:-0}}"
 case $BUTTON in
 1)
-  setsid -w -f "$TERMINAL" -e pulsemixer
-  pkill -RTMIN+10 "${STATUSBAR:-dwmblocks}"
+  setsid -f ka-volume-pop
   ;;
   #	1) pavucontrol ;;
 2) wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle ;;
