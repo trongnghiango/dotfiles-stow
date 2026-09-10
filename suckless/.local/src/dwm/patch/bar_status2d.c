@@ -145,6 +145,12 @@ drawstatusbar(BarArg *a, char* stext)
 	}
 	free(p);
 
+	if (active_block.sig > 0 && active_block.w > 0) {
+		drw_setscheme(drw, scheme[SchemeTagsSel]);
+		drw_rect(drw, active_block.bar_x + ulinepad, bh - ulinestroke - ulinevoffset,
+		         active_block.w - (ulinepad * 2), ulinestroke, 1, 1);
+	}
+
 	drw_setscheme(drw, scheme[SchemeNorm]);
 	return 1;
 }

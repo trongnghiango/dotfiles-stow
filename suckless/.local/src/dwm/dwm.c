@@ -173,6 +173,7 @@ typedef struct {
 	int y;
 	int h;
 	int w;
+	int bar_x;
 } BarArg;
 
 typedef struct {
@@ -207,7 +208,7 @@ struct Client {
 	int bw, oldbw;
 	unsigned int tags;
 	int isfixed, isfloating, isurgent, neverfocus, oldstate, isfullscreen;
-	int isterminal, noswallow, isbottomright;
+	int isterminal, noswallow, isbottomright, isdropdown;
 	pid_t pid;
 	Client *next;
 	Client *snext;
@@ -267,6 +268,7 @@ typedef struct {
 	int noswallow;
 	int monitor;
 	int isbottomright;
+	int isdropdown;
 } Rule;
 
 #define RULE(...) { .monitor = -1, __VA_ARGS__ },
@@ -420,6 +422,30 @@ static Drw *drw;
 static Monitor *mons, *selmon;
 static Window root, wmcheckwin;
 
+struct ActiveBlock {
+	int sig;
+	int screen_x;
+	int bar_x;
+	int w;
+	Window win;
+} active_block = {0, 0, 0, 0, 0};
+
+static void
+closewindow(Window win)
+{
+	if (!win)
+		return;
+	if (!sendevent(win, wmatom[WMDelete], NoEventMask, wmatom[WMDelete], CurrentTime, 0, 0, 0)) {
+		XGrabServer(dpy);
+		XSetErrorHandler(xerrordummy);
+		XSetCloseDownMode(dpy, DestroyAll);
+		XKillClient(dpy, win);
+		XSync(dpy, False);
+		XSetErrorHandler(xerror);
+		XUngrabServer(dpy);
+	}
+}
+
 /* configuration, allows nested code to access above variables */
 #include "config.h"
 
@@ -462,6 +488,7 @@ applyrules(Client *c)
 			c->noswallow = r->noswallow;
 			c->isfloating = r->isfloating;
 			c->isbottomright = r->isbottomright;
+			c->isdropdown = r->isdropdown;
 			c->tags |= r->tags;
 			if ((r->tags & SPTAGMASK) && r->isfloating) {
 				c->x = c->mon->wx + (c->mon->ww / 2 - WIDTH(c) / 2);
@@ -618,6 +645,7 @@ buttonpress(XEvent *e)
 					carg.y = ev->y - bar->borderpx;
 					carg.w = bar->w[r];
 					carg.h = bar->bh - 2 * bar->borderpx;
+					carg.bar_x = bar->x[r];
 					click = br->clickfunc(bar, &arg, &carg);
 					if (click < 0)
 						return;
@@ -626,6 +654,15 @@ buttonpress(XEvent *e)
 			}
 			break;
 		}
+	}
+
+	if ((active_block.win || active_block.sig) && ev->window != active_block.win && ev->window != (selmon->bar ? selmon->bar->win : None)) {
+		if (active_block.win)
+			closewindow(active_block.win);
+		active_block.win = 0;
+		active_block.sig = 0;
+		active_block.w = 0;
+		drawbar(selmon);
 	}
 
 	if (click == ClkRootWin && (c = wintoclient(ev->window))) {
@@ -864,7 +901,7 @@ configurerequest(XEvent *e)
 
 	if ((c = wintoclient(ev->window))) {
 		if (ev->value_mask & CWBorderWidth)
-			c->bw = ev->border_width;
+			c->bw = c->isdropdown ? 0 : ev->border_width;
 		else if (c->isfloating || !selmon->lt[selmon->sellt]->arrange) {
 			m = c->mon;
 			if (ev->value_mask & CWX) {
@@ -883,10 +920,25 @@ configurerequest(XEvent *e)
 				c->oldh = c->h;
 				c->h = ev->height;
 			}
-			if ((c->x + c->w) > m->mx + m->mw && c->isfloating)
-				c->x = m->mx + (m->mw / 2 - WIDTH(c) / 2);  /* center in x direction */
-			if ((c->y + c->h) > m->my + m->mh && c->isfloating)
-				c->y = m->my + (m->mh / 2 - HEIGHT(c) / 2); /* center in y direction */
+			if (c->isdropdown) {
+				c->bw = 0;
+				c->y = m->wy;
+				if (active_block.w > 0)
+					c->x = active_block.screen_x;
+				else
+					c->x = m->wx + m->ww - WIDTH(c) - 8;
+				int max_x = m->wx + m->ww - WIDTH(c) - 8;
+				if (c->x > max_x)
+					c->x = max_x;
+				int min_x = m->wx + 8;
+				if (c->x < min_x)
+					c->x = min_x;
+			} else {
+				if ((c->x + c->w) > m->mx + m->mw && c->isfloating)
+					c->x = m->mx + (m->mw / 2 - WIDTH(c) / 2);  /* center in x direction */
+				if ((c->y + c->h) > m->my + m->mh && c->isfloating)
+					c->y = m->my + (m->mh / 2 - HEIGHT(c) / 2); /* center in y direction */
+			}
 			if ((ev->value_mask & (CWX|CWY)) && !(ev->value_mask & (CWWidth|CWHeight)))
 				configure(c);
 			if (ISVISIBLE(c))
@@ -1519,7 +1571,23 @@ manage(Window w, XWindowAttributes *wa)
 	updatesizehints(c);
 	updatewmhints(c);
 
-	if (c->isbottomright || strstr(c->name, "webcam-pip")) {
+	if (c->isdropdown || strstr(c->name, "dwm-dropdown")) {
+		c->bw = 0;
+		wc.border_width = 0;
+		XConfigureWindow(dpy, w, CWBorderWidth, &wc);
+		c->y = c->mon->wy;
+		if (active_block.w > 0)
+			c->x = active_block.screen_x;
+		else
+			c->x = c->mon->wx + c->mon->ww - WIDTH(c) - 8;
+		int max_x = c->mon->wx + c->mon->ww - WIDTH(c) - 8;
+		if (c->x > max_x)
+			c->x = max_x;
+		int min_x = c->mon->wx + 8;
+		if (c->x < min_x)
+			c->x = min_x;
+		active_block.win = c->win;
+	} else if (c->isbottomright || strstr(c->name, "webcam-pip")) {
 		c->x = c->mon->wx + c->mon->ww - WIDTH(c) - 15;
 		c->y = c->mon->wy + c->mon->wh - HEIGHT(c) - 15;
 	} else {
@@ -1553,7 +1621,10 @@ manage(Window w, XWindowAttributes *wa)
 		arrange(c->mon);
 		XMapWindow(dpy, c->win);
 	}
-	focus(NULL);
+	if (c->isdropdown)
+		focus(c);
+	else
+		focus(NULL);
 
 }
 
@@ -2413,6 +2484,13 @@ unmanage(Client *c, int destroyed)
 		XSync(dpy, False);
 		XSetErrorHandler(xerror);
 		XUngrabServer(dpy);
+	}
+
+	if (c->isdropdown || (active_block.win && c->win == active_block.win)) {
+		active_block.sig = 0;
+		active_block.win = 0;
+		active_block.w = 0;
+		drawbar(m);
 	}
 
 	free(c);

@@ -162,6 +162,8 @@ static const Rule rules[] = {
 	RULE(.wintype = WTYPE "SPLASH", .isfloating = 1)
 	RULE(.class = "brave-app", .isfloating = 1)
 	RULE(.instance = "webcam-pip", .title = "webcam-pip", .isfloating = 1, .isbottomright = 1)
+	RULE(.class = "dwm-dropdown", .isfloating = 1, .isdropdown = 1)
+	RULE(.instance = "dwm-dropdown", .isfloating = 1, .isdropdown = 1)
 	RULE(.class = "Gimp", .tags = 1 << 4)
 	RULE(.class = "firefox", .tags = 1 << 2)
 	RULE(.class = "pavucontrol", .isfloating = 1)
