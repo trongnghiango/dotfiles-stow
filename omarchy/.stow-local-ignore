@@ -1,0 +1,14 @@
+# ==============================================================================
+# STOW LOCAL IGNORE — Omarchy Core Runtime & State Isolation
+# ==============================================================================
+# Note: GNU Stow expects Perl regex patterns, not shell globs.
+^shell\.json$
+^shell\.toml$
+^defaults$
+^themes$
+^plugins$
+^branding$
+^themed$
+^hooks$
+.*\.bak.*
+.*\.sample$

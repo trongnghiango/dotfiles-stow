@@ -401,6 +401,7 @@ setup_stow() {
     opencode
     pipewire  # ~/.config/pipewire/pipewire.conf.d/99-input-denoising.conf (RNNoise AI denoiser)
     media     # mpv (auto cover art & MPRIS), ncmpcpp, mpd
+    omarchy   # ~/.config/omarchy/extensions/ (Menu extensions, isolated from core)
     scripts   # phải stow sau shell để PATH có stow-safe
   )
 

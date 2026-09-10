@@ -1,0 +1,169 @@
+#!/usr/bin/env bash
+# =============================================================================
+# Omarchy DSH (DeepSeek Harness) Manager
+# =============================================================================
+# Triết lý: Không dùng `npx <pkg>` thả nổi dẫn đến auto-update ngầm.
+# Giải pháp: Pin cứng version, tách biệt update logic, lưu config rõ ràng.
+# =============================================================================
+
+CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/dsh"
+VERSION_FILE="$CONFIG_DIR/version"
+LOCAL_REPO="$HOME/Repos/github.com/trongnghiango/deepseek-harness"
+
+# Version mặc định an toàn đầu tiên
+DEFAULT_VERSION="0.1.2-rc.1" 
+
+# Tạo thư mục config nếu chưa có
+mkdir -p "$CONFIG_DIR"
+
+# Khởi tạo version mặc định nếu chưa set
+if [[ ! -f "$VERSION_FILE" ]]; then
+    echo "$DEFAULT_VERSION" > "$VERSION_FILE"
+fi
+
+# Đọc version hiện tại
+CURRENT_VERSION=$(cat "$VERSION_FILE" | tr -d '[:space:]')
+
+show_help() {
+    echo "Omarchy DSH (DeepSeek Harness) Manager"
+    echo ""
+    echo "Usage (DLX Mode):"
+    echo "  dsh web [args]           - Chạy DSH Web với version đã ghim ($CURRENT_VERSION)"
+    echo "  dsh update [version]     - Cập nhật version (mặc định lấy bản latest mới nhất)"
+    echo "  dsh use <version>        - Chuyển đổi nhanh sang một version cụ thể"
+    echo "  dsh list / versions      - Hiển thị danh sách các version có sẵn trên npm"
+    echo "  dsh status               - Xem phiên bản đang ghim & trạng thái local repo"
+    echo ""
+    echo "Usage (Local Git Repo: $LOCAL_REPO):"
+    echo "  dsh local [args]         - Chạy trực tiếp từ source local repo"
+    echo "  dsh checkout <tag|branch> - Chuyển đổi branch/tag trong local repo"
+    echo "  dsh tags                 - Liệt kê các tags phiên bản của local repo"
+    echo "  dsh build                - Cài đặt dependency và build local repo"
+    echo ""
+    echo "Passthrough:"
+    echo "  dsh <command>            - Passthrough các lệnh khác vào dsh"
+}
+
+case "$1" in
+    local)
+        shift || true
+        CMD="${1:-web}"
+        shift || true
+        if [[ ! -d "$LOCAL_REPO" ]]; then
+            echo "[-] Lỗi: Không tìm thấy local repo tại $LOCAL_REPO"
+            exit 1
+        fi
+        echo "[Omarchy DSH] Chạy trực tiếp từ local repo: $LOCAL_REPO..."
+        cd "$LOCAL_REPO"
+        exec pnpm dsh "$CMD" "$@"
+        ;;
+
+    checkout)
+        TARGET="$2"
+        if [[ -z "$TARGET" ]]; then
+            echo "[-] Lỗi: Cần chỉ định tag hoặc branch (vd: dsh checkout v0.1.2-rc.1)"
+            exit 1
+        fi
+        if [[ ! -d "$LOCAL_REPO" ]]; then
+            echo "[-] Lỗi: Không tìm thấy local repo tại $LOCAL_REPO"
+            exit 1
+        fi
+        echo "[*] Đang chuyển đổi sang $TARGET trong $LOCAL_REPO..."
+        git -C "$LOCAL_REPO" checkout "$TARGET"
+        echo "[+] Đã chuyển sang: $(git -C "$LOCAL_REPO" branch --show-current 2>/dev/null || echo "$TARGET")"
+        echo "[*] Lưu ý: Hãy chạy 'dsh build' nếu bạn muốn build lại source."
+        ;;
+
+    tags)
+        if [[ -d "$LOCAL_REPO" ]]; then
+            echo "[*] Các tags phiên bản trong local repo:"
+            git -C "$LOCAL_REPO" tag -l --sort=-v:refname | head -n 15
+        else
+            echo "[-] Local repo chưa được clone tại $LOCAL_REPO"
+        fi
+        ;;
+
+    build)
+        if [[ ! -d "$LOCAL_REPO" ]]; then
+            echo "[-] Lỗi: Không tìm thấy local repo tại $LOCAL_REPO"
+            exit 1
+        fi
+        echo "[*] Đang build local repo tại $LOCAL_REPO..."
+        cd "$LOCAL_REPO"
+        pnpm install && pnpm run build
+        ;;
+
+    update)
+        NEW_VERSION="$2"
+        if [[ -z "$NEW_VERSION" ]]; then
+            echo "[*] Đang kiểm tra version mới nhất bằng pnpm..."
+            NEW_VERSION=$(pnpm view @deepseek-ai/dsh version 2>/dev/null)
+            if [[ -z "$NEW_VERSION" ]]; then
+                echo "[-] Không thể lấy version qua pnpm. Đang thử dùng curl..."
+                NEW_VERSION=$(curl -s https://registry.npmjs.org/@deepseek-ai/dsh/latest | grep -oP '"version":"\K[^"]+')
+                if [[ -z "$NEW_VERSION" ]]; then
+                    echo "[-] Lỗi: Không thể lấy thông tin version mới nhất."
+                    exit 1
+                fi
+            fi
+        fi
+        
+        echo "$NEW_VERSION" > "$VERSION_FILE"
+        echo "[+] Đã cập nhật (ghim) DSH lên version: $NEW_VERSION"
+        ;;
+    
+    use)
+        USE_VERSION="$2"
+        if [[ -z "$USE_VERSION" ]]; then
+            echo "[-] Lỗi: Bạn phải chỉ định version cụ thể."
+            echo "    Ví dụ: dsh use 0.1.0"
+            exit 1
+        fi
+        echo "$USE_VERSION" > "$VERSION_FILE"
+        echo "[+] Đã chuyển (switch) DSH sang version: $USE_VERSION"
+        ;;
+
+    status)
+        echo "DSH Current Pinned Version (npm): $CURRENT_VERSION"
+        if [[ -d "$LOCAL_REPO" ]]; then
+            local_branch=$(git -C "$LOCAL_REPO" branch --show-current 2>/dev/null)
+            local_tag=$(git -C "$LOCAL_REPO" describe --tags --exact-match 2>/dev/null || echo "none")
+            echo "DSH Local Repo ($LOCAL_REPO):"
+            echo "  Branch: ${local_branch:-detached}"
+            echo "  Tag:    $local_tag"
+            echo "  Commit: $(git -C "$LOCAL_REPO" rev-parse --short HEAD 2>/dev/null)"
+        fi
+        ;;
+
+    list|versions)
+        echo "[*] Fetching available versions from registry..."
+        # Fetching top 15 latest versions to keep it clean
+        curl -s https://registry.npmjs.org/@deepseek-ai/dsh | jq -r '.versions | keys[]' | tail -n 15 | while read -r ver; do
+            if [[ "$ver" == "$CURRENT_VERSION" ]]; then
+                echo "  -> $ver (current)"
+            else
+                echo "     $ver"
+            fi
+        done
+        ;;
+
+    help|--help|-h)
+        show_help
+        ;;
+
+    *)
+        CMD="${1:-web}"
+        shift || true
+        
+        echo "[Omarchy DSH] Starting @deepseek-ai/dsh@$CURRENT_VERSION $CMD via pnpm dlx..."
+        # Dùng pnpm dlx để chạy package mà không cần cài đặt global
+        # --allow-build phải lặp lại từng package (pnpm 12, không dùng comma-separated)
+        exec pnpm dlx \
+            --allow-build @deepseek-ai/dsh-subprocess-local \
+            --allow-build @google/genai \
+            --allow-build koffi \
+            --allow-build node-pty \
+            --allow-build protobufjs \
+            "@deepseek-ai/dsh@$CURRENT_VERSION" "$CMD" "$@"
+        ;;
+esac

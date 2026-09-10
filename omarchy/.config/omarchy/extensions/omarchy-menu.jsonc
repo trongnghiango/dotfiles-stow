@@ -1,0 +1,21 @@
+{
+  // ============================================================================
+  // OMARCHY MENU EXTENSIONS — USER PERSONAL OVERLAYS
+  // ============================================================================
+  "ai": {
+    "icon": "󰚩",
+    "label": "AI Agents"
+  },
+  "ai.dsh_web": {
+    "icon": "󰖟",
+    "label": "DeepSeek Harness (Web Dashboard)",
+    "description": "Open DSH Web GUI on port 3080",
+    "action": "dsh-agent --web"
+  },
+  "ai.dsh_float": {
+    "icon": "",
+    "label": "DeepSeek Harness (Focus/Launch)",
+    "description": "Focus or launch DSH Agent",
+    "action": "dsh-agent --float"
+  }
+}

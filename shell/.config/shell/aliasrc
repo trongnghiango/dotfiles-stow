@@ -61,9 +61,11 @@ alias \
 
 # Common Abbreviations
 alias \
+  ssh="ssh -F ~/.ssh/config" \
   g="git" \
   ka="killall" \
   sdn="shutdown -h now" \
   z="zathura" \
-  lf="lfcd"
+  lf="lfcd" \
+  a="dsh-agent --inline"
 

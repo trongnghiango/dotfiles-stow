@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+# ==============================================================================
+# DSH AGENT WRAPPER CHO OMARCHY & WAYLAND
+# ==============================================================================
+set -e
+
+PORT=3080
+URL="http://127.0.0.1:$PORT"
+
+ensure_server() {
+  if ! ss -tuln | grep -q ":$PORT "; then
+    notify-send -a "Omarchy AI" -i "dialog-information" "DeepSeek Harness" "Đang khởi động DSH Web Daemon..."
+    nohup dsh web >/dev/null 2>&1 &
+    # Đợi tối đa 3 giây cho server sẵn sàng
+    for _ in {1..15}; do
+      if ss -tuln | grep -q ":$PORT "; then break; fi
+      sleep 0.2
+    done
+  fi
+}
+
+case "${1:-}" in
+  --web)
+    ensure_server
+    exec omarchy-launch-or-focus-webapp "DeepSeek" "$URL"
+    ;;
+  --inline)
+    shift || true
+    exec dsh "$@"
+    ;;
+  --tui)
+    shift || true
+    exec omarchy-launch-tui --app-id=org.omarchy.dsh dsh "$@"
+    ;;
+  --float|*)
+    # Mặc định khi gọi từ phím tắt: Focus hoặc mở Web GUI của DSH
+    ensure_server
+    exec omarchy-launch-or-focus-webapp "DeepSeek" "$URL"
+    ;;
+esac
