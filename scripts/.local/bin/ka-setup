@@ -426,6 +426,13 @@ setup_suckless() {
   fi
 
   for tool in dwm st dmenu dwmblocks; do
+    # Dọn dẹp binary rác nếu tồn tại trong ~/.local/bin đè lên /usr/local/bin
+    if [ -f "$HOME/.local/bin/$tool" ] && [ ! -L "$HOME/.local/bin/$tool" ]; then
+      log_warn "Phát hiện binary cũ $HOME/.local/bin/$tool đang đè lên /usr/local/bin/$tool. Đang sao lưu và gỡ bỏ..."
+      mkdir -p "$HOME/.local/share/dotfiles/backups"
+      mv "$HOME/.local/bin/$tool" "$HOME/.local/share/dotfiles/backups/${tool}-$(date +%Y%m%d%H%M%S).bak"
+    fi
+
     if [ -d "$src_dir/$tool" ]; then
       log_info "Đang biên dịch $tool..."
       (
@@ -443,6 +450,13 @@ setup_suckless() {
       log_warn "Không tìm thấy source code cho $tool trong $src_dir"
     fi
   done
+
+  # Tự động nạp lại DWM mới ngay lập tức qua SIGHUP nếu DWM đang chạy
+  if pidof dwm &>/dev/null; then
+    log_info "Đang gửi tín hiệu SIGHUP để nạp lại DWM mới tức thì (seamless restart)..."
+    kill -HUP "$(pidof dwm)" 2>/dev/null || true
+  fi
+
   log_success "Hoàn tất biên dịch Suckless tools."
 }
 

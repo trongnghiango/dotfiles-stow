@@ -145,6 +145,7 @@ cmd_doctor() {
 
   echo -e "${BOLD}1. Window Manager & Suckless Binaries:${RESET}"
   check_item "DWM binary (/usr/local/bin/dwm)" "test -x /usr/local/bin/dwm"
+  check_item "DWM active in PATH ($(which dwm 2>/dev/null))" "test \"$(which dwm 2>/dev/null)\" = \"/usr/local/bin/dwm\""
   check_item "ST terminal (/usr/local/bin/st)" "test -x /usr/local/bin/st"
   check_item "Dmenu (/usr/local/bin/dmenu)" "test -x /usr/local/bin/dmenu"
   check_item "Dwmblocks (/usr/local/bin/dwmblocks)" "test -x /usr/local/bin/dwmblocks"
