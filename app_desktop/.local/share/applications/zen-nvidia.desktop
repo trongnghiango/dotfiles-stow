@@ -1,0 +1,23 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Zen Browser (NVIDIA)
+GenericName=Web Browser (NVIDIA GPU)
+Comment=Trình duyệt Zen chạy trên card rời NVIDIA RTX (Tối ưu 3D & WebGL)
+Icon=zen-browser
+Exec=env MOZ_ENABLE_WAYLAND=1 prime-run zen-browser %u
+Terminal=false
+StartupNotify=true
+StartupWMClass=zen
+Categories=Network;WebBrowser;
+PrefersNonDefaultGPU=true
+X-KDE-RunOnDiscreteGpu=true
+Actions=new-window;new-private-window;
+
+[Desktop Action new-window]
+Name=Cửa sổ mới (NVIDIA)
+Exec=env MOZ_ENABLE_WAYLAND=1 prime-run zen-browser --new-window
+
+[Desktop Action new-private-window]
+Name=Cửa sổ ẩn danh mới (NVIDIA)
+Exec=env MOZ_ENABLE_WAYLAND=1 prime-run zen-browser --private-window
