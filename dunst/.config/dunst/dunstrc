@@ -493,20 +493,20 @@
 # Được chèn vào dunstrc giữa 2 marker BEGIN/END THEME MANAGED BLOCK
 
 [urgency_low]
-    background = "#2e3440"
-    foreground = "#d8dee9"
-    frame_color = "#4c566a"
+    background = "#f5ecd7"
+    foreground = "#3c3228"
+    frame_color = "#c8bfa6"
     timeout = 5
 
 [urgency_normal]
-    background = "#2e3440"
-    foreground = "#d8dee9"
-    frame_color = "#88c0d0"
+    background = "#f5ecd7"
+    foreground = "#3c3228"
+    frame_color = "#b56a28"
     timeout = 5
 
 [urgency_critical]
-    background = "#bf616a"
-    foreground = "#eceff4"
-    frame_color = "#bf616a"
+    background = "#af3029"
+    foreground = "#fbf6ea"
+    frame_color = "#af3029"
     timeout = 0
 # END THEME MANAGED BLOCK
