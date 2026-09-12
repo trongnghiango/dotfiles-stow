@@ -1,0 +1,416 @@
+#!/usr/bin/env bash
+# ==============================================================================
+# stow-safe — Safe GNU Stow wrapper with automatic backup and restore
+# ==============================================================================
+# Detects conflicting real files before stowing, backs them up with timestamp,
+# and restores them automatically if stow fails — or on demand.
+#
+# USAGE:
+#   stow-safe <package>              Deploy package (auto-backup conflicts)
+#   stow-safe --restore <package>    Restore latest backup of package
+#   stow-safe --restore <pkg> <ts>   Restore specific timestamp snapshot
+#   stow-safe --unstow <package>     Remove symlinks for package
+#   stow-safe --list [package]       List all backups (or for specific package)
+#   stow-safe --diff <package>       Show what would change (dry-run)
+#
+# BACKUP LOCATION:
+#   $XDG_DATA_HOME/dotfiles/backups/<package>/<YYYYMMDD_HHMMSS>/
+# ==============================================================================
+
+set -eEo pipefail
+
+# --- Detect dotfiles root from this script's real path ---
+# Script lives at: <dotfiles>/scripts/.local/bin/stow-safe
+# So 3 levels up from script dir = dotfiles root
+_SCRIPT_REAL="$(readlink -f "${BASH_SOURCE[0]}")"
+_SCRIPT_DIR="$(cd "$(dirname "$_SCRIPT_REAL")" && pwd)"
+DOTFILES_DIR="$(cd "$_SCRIPT_DIR/../../.." && pwd)"
+TARGET_DIR="$HOME"
+BACKUP_BASE="${XDG_DATA_HOME:-$HOME/.local/share}/dotfiles/backups"
+
+# --- Colors ---
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+BOLD='\033[1m'
+DIM='\033[2m'
+NC='\033[0m'
+
+log_info()    { echo -e "${BLUE}[INFO]${NC}    $1"; }
+log_ok()      { echo -e "${GREEN}[OK]${NC}      $1"; }
+log_warn()    { echo -e "${YELLOW}[WARN]${NC}    $1"; }
+log_error()   { echo -e "${RED}[ERROR]${NC}   $1" >&2; }
+log_step()    { echo -e "\n${CYAN}${BOLD}▸ $1${NC}"; }
+log_dim()     { echo -e "${DIM}  $1${NC}"; }
+
+# ==============================================================================
+# HELPERS
+# ==============================================================================
+
+_require_stow() {
+  if ! command -v stow &>/dev/null; then
+    log_warn "GNU Stow ('stow') chưa được cài đặt."
+    if command -v pacman &>/dev/null; then
+      log_info "Đang tự động cài đặt GNU Stow qua pacman..."
+      if sudo pacman -S --needed --noconfirm stow; then
+        log_ok "Đã cài đặt GNU Stow thành công."
+        return 0
+      fi
+    fi
+    log_error "GNU Stow ('stow') is not installed. Please install it with: sudo pacman -S stow"
+    exit 1
+  fi
+}
+
+_require_package() {
+  local package="$1"
+  if [ ! -d "$DOTFILES_DIR/$package" ]; then
+    log_error "Package '$package' not found in: $DOTFILES_DIR"
+    log_dim "Available packages:"
+    ls -1 "$DOTFILES_DIR" | grep -v '^\.' | while read -r p; do
+      [ -d "$DOTFILES_DIR/$p" ] && log_dim "  $p"
+    done
+    exit 1
+  fi
+}
+
+# List all files that stow would create symlinks for
+_get_stow_targets() {
+  local package="$1"
+  local pkg_dir="$DOTFILES_DIR/$package"
+
+  find "$pkg_dir" \( -type f -o -type l \) | while IFS= read -r src; do
+    local rel="${src#"$pkg_dir/"}"
+    echo "$TARGET_DIR/$rel"
+  done
+}
+
+# ==============================================================================
+# BACKUP
+# ==============================================================================
+
+# Scan for conflicts and backup real files (non-symlinks) to timestamped dir.
+# Prints the backup dir path if anything was backed up, empty string otherwise.
+_backup_conflicts() {
+  local package="$1"
+  local timestamp
+  timestamp="$(date +%Y%m%d_%H%M%S)"
+  local backup_dir="$BACKUP_BASE/$package/$timestamp"
+  local conflict_count=0
+  local manifest_entries=()
+
+  log_info "Scanning for conflicts in '$package'..." >&2
+
+  while IFS= read -r target; do
+    # Skip if target already points inside our dotfiles package (via directory or direct symlink)
+    if [ -e "$target" ] || [ -L "$target" ]; then
+      local real_target
+      real_target="$(readlink -f "$target" 2>/dev/null || echo "")"
+      if [[ "$real_target" == "$DOTFILES_DIR/$package"* ]]; then
+        continue
+      fi
+    fi
+
+    if [ -e "$target" ] && [ ! -L "$target" ]; then
+      # Real file or directory exists — backup and remove so stow can link
+      local rel="${target#"$TARGET_DIR/"}"
+      local dest="$backup_dir/$rel"
+      mkdir -p "$(dirname "$dest")"
+      cp -a "$target" "$dest"
+      rm -rf "$target"
+      manifest_entries+=("$target")
+      ((conflict_count++))
+      log_warn "Conflict backed up & cleared: ${DIM}$target${NC}" >&2
+
+    elif [ -L "$target" ]; then
+      local link_target
+      link_target="$(readlink "$target")"
+      # Symlink pointing elsewhere — warn but don't block
+      if [[ "$link_target" != "$DOTFILES_DIR/$package"* ]]; then
+        log_warn "Existing foreign symlink: $target ${DIM}→ $link_target${NC}" >&2
+      fi
+    fi
+  done < <(_get_stow_targets "$package")
+
+  if (( conflict_count > 0 )); then
+    # Write manifest (one path per line)
+    printf '%s\n' "${manifest_entries[@]}" > "$backup_dir/MANIFEST"
+    # Write metadata
+    {
+      echo "package=$package"
+      echo "timestamp=$timestamp"
+      echo "dotfiles=$DOTFILES_DIR"
+      echo "target=$TARGET_DIR"
+      echo "count=$conflict_count"
+    } > "$backup_dir/META"
+    log_ok "$conflict_count file(s) backed up → $backup_dir" >&2
+    echo "$backup_dir"  # Caller captures this on stdout
+  else
+    log_info "No conflicts found — no backup needed." >&2
+    echo ""
+  fi
+}
+
+# ==============================================================================
+# RESTORE
+# ==============================================================================
+
+_restore_from_dir() {
+  local package="$1"
+  local backup_dir="$2"
+  local manifest="$backup_dir/MANIFEST"
+
+  if [ ! -f "$manifest" ]; then
+    log_error "No manifest in backup: $backup_dir"
+    return 1
+  fi
+
+  log_step "Restoring '$package' from backup: $(basename "$backup_dir")"
+
+  local restored=0 skipped=0
+
+  while IFS= read -r target; do
+    local rel="${target#"$TARGET_DIR/"}"
+    local src="$backup_dir/$rel"
+
+    if [ -e "$src" ]; then
+      # Remove stow symlink or broken file first
+      [ -L "$target" ] && rm -f "$target"
+      [ -e "$target" ] && rm -rf "$target"
+      mkdir -p "$(dirname "$target")"
+      cp -a "$src" "$target"
+      log_ok "Restored: $target"
+      ((restored++))
+    else
+      log_warn "Backup source missing, skipped: $src"
+      ((skipped++))
+    fi
+  done < "$manifest"
+
+  echo ""
+  log_ok "Restore complete: $restored file(s) restored, $skipped skipped."
+}
+
+# ==============================================================================
+# COMMANDS
+# ==============================================================================
+
+cmd_deploy() {
+  local package="$1"
+  _require_stow
+  _require_package "$package"
+
+  log_step "Deploying: $package"
+  log_dim "Dotfiles → $DOTFILES_DIR"
+  log_dim "Target   → $TARGET_DIR"
+
+  # Step 1: Backup conflicts
+  local backup_dir
+  backup_dir="$(_backup_conflicts "$package")"
+
+  # Step 2: Run stow with error trap
+  log_info "Running stow..."
+
+  local stow_ok=true
+  if ! stow -v --dir="$DOTFILES_DIR" --target="$TARGET_DIR" "$package" 2>&1; then
+    stow_ok=false
+  fi
+
+  if [ "$stow_ok" = true ]; then
+    log_ok "Package '$package' deployed successfully."
+    if [ -n "$backup_dir" ]; then
+      echo ""
+      log_info "Backup snapshot: $backup_dir"
+      log_dim "Restore with:  stow-safe --restore $package"
+    fi
+  else
+    echo ""
+    log_error "Stow failed for package '$package'!"
+
+    if [ -n "$backup_dir" ]; then
+      log_warn "Auto-restoring from backup..."
+      # Unstow any partial links
+      stow -D --dir="$DOTFILES_DIR" --target="$TARGET_DIR" "$package" 2>/dev/null || true
+      _restore_from_dir "$package" "$backup_dir"
+    else
+      log_warn "No backup was made (no conflicts existed before deploy)."
+    fi
+    exit 1
+  fi
+}
+
+cmd_restore() {
+  local package="$1"
+  local snapshot="$2"   # optional: specific timestamp
+  local pkg_backup="$BACKUP_BASE/$package"
+
+  _require_stow
+  _require_package "$package"
+
+  if [ ! -d "$pkg_backup" ] || [ -z "$(ls -A "$pkg_backup" 2>/dev/null)" ]; then
+    log_error "No backups found for package '$package'"
+    log_dim "Backup dir: $pkg_backup"
+    exit 1
+  fi
+
+  local backup_dir
+  if [ -n "$snapshot" ]; then
+    backup_dir="$pkg_backup/$snapshot"
+    if [ ! -d "$backup_dir" ]; then
+      log_error "Snapshot '$snapshot' not found for package '$package'"
+      log_info "Available snapshots:"
+      ls -t "$pkg_backup"
+      exit 1
+    fi
+  else
+    # Use latest
+    local latest
+    latest="$(ls -t "$pkg_backup" | head -1)"
+    backup_dir="$pkg_backup/$latest"
+    log_info "Latest snapshot: $latest"
+  fi
+
+  echo ""
+  echo -e "${YELLOW}This will overwrite current '${package}' config files.${NC}"
+  read -rp "Restore from $(basename "$backup_dir")? [y/N]: " confirm
+  [[ "$confirm" =~ ^[Yy]$ ]] || { log_info "Aborted."; exit 0; }
+
+  # Unstow current
+  log_info "Unstowing current '$package' symlinks..."
+  stow -D --dir="$DOTFILES_DIR" --target="$TARGET_DIR" "$package" 2>/dev/null || true
+
+  _restore_from_dir "$package" "$backup_dir"
+}
+
+cmd_unstow() {
+  local package="$1"
+  _require_stow
+  _require_package "$package"
+
+  log_step "Unstowing: $package"
+  if stow -v -D --dir="$DOTFILES_DIR" --target="$TARGET_DIR" "$package"; then
+    log_ok "Package '$package' symlinks removed."
+  else
+    log_error "Failed to unstow '$package'"
+    exit 1
+  fi
+}
+
+cmd_diff() {
+  local package="$1"
+  _require_stow
+  _require_package "$package"
+
+  log_step "Dry-run diff for: $package"
+  log_dim "No changes will be made."
+  echo ""
+  stow -nv --dir="$DOTFILES_DIR" --target="$TARGET_DIR" "$package" 2>&1 \
+    | sed "s|^|  |"
+}
+
+cmd_list() {
+  local filter="$1"
+
+  if [ ! -d "$BACKUP_BASE" ] || [ -z "$(ls -A "$BACKUP_BASE" 2>/dev/null)" ]; then
+    log_info "No backups found."
+    log_dim "Location: $BACKUP_BASE"
+    return 0
+  fi
+
+  echo -e "${BOLD}Backup snapshots:${NC}"
+  echo -e "${DIM}Location: $BACKUP_BASE${NC}"
+  echo ""
+
+  for pkg_dir in "$BACKUP_BASE"/*/; do
+    [ -d "$pkg_dir" ] || continue
+    local pkg
+    pkg="$(basename "$pkg_dir")"
+    [[ -n "$filter" && "$pkg" != "$filter" ]] && continue
+
+    echo -e "  ${CYAN}${BOLD}$pkg${NC}"
+
+    local snapshots
+    mapfile -t snapshots < <(ls -t "$pkg_dir" 2>/dev/null)
+
+    if (( ${#snapshots[@]} == 0 )); then
+      log_dim "    (no snapshots)"
+      continue
+    fi
+
+    local i=0
+    for snapshot in "${snapshots[@]}"; do
+      local snap_dir="$pkg_dir/$snapshot"
+      local count=0
+      local marker="├─"
+      (( i == ${#snapshots[@]} - 1 )) && marker="└─"
+      [ -f "$snap_dir/MANIFEST" ] && count=$(wc -l < "$snap_dir/MANIFEST")
+      echo -e "  ${DIM}$marker ${NC}$snapshot${DIM} ($count file(s))${NC}"
+      ((i++))
+    done
+    echo ""
+  done
+}
+
+show_help() {
+  echo -e "${BOLD}stow-safe — Safe GNU Stow deploy with backup/restore${NC}"
+  echo ""
+  echo -e "${BOLD}USAGE:${NC}"
+  echo "  stow-safe <package>                 Deploy package (auto-backup conflicts)"
+  echo "  stow-safe --restore <pkg> [snap]    Restore backup (latest or specific)"
+  echo "  stow-safe --unstow <package>        Remove package symlinks"
+  echo "  stow-safe --diff <package>          Dry-run: show what would be linked"
+  echo "  stow-safe --list [package]          List backup snapshots"
+  echo ""
+  echo -e "${BOLD}EXAMPLES:${NC}"
+  echo "  stow-safe zsh                       # Deploy zsh, backup conflicts"
+  echo "  stow-safe --restore zsh             # Restore latest zsh backup"
+  echo "  stow-safe --restore zsh 20240823_120000  # Restore specific snapshot"
+  echo "  stow-safe --diff shell              # Preview shell package changes"
+  echo "  stow-safe --list                    # Show all backups"
+  echo ""
+  echo -e "${BOLD}CONFIG:${NC}"
+  echo -e "  Dotfiles: ${DIM}$DOTFILES_DIR${NC}"
+  echo -e "  Target:   ${DIM}$TARGET_DIR${NC}"
+  echo -e "  Backups:  ${DIM}$BACKUP_BASE${NC}"
+}
+
+# ==============================================================================
+# MAIN
+# ==============================================================================
+
+if [ $# -eq 0 ]; then
+  show_help
+  exit 0
+fi
+
+case "$1" in
+  --restore)
+    [ -z "$2" ] && { log_error "Usage: stow-safe --restore <package> [snapshot]"; exit 1; }
+    cmd_restore "$2" "${3:-}"
+    ;;
+  --unstow)
+    [ -z "$2" ] && { log_error "Usage: stow-safe --unstow <package>"; exit 1; }
+    cmd_unstow "$2"
+    ;;
+  --diff)
+    [ -z "$2" ] && { log_error "Usage: stow-safe --diff <package>"; exit 1; }
+    cmd_diff "$2"
+    ;;
+  --list)
+    cmd_list "${2:-}"
+    ;;
+  --help|-h)
+    show_help
+    ;;
+  -*)
+    log_error "Unknown option: $1"
+    echo ""
+    show_help
+    exit 1
+    ;;
+  *)
+    cmd_deploy "$1"
+    ;;
+esac

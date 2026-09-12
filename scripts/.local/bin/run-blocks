@@ -1,4 +1,4 @@
-#/bin/sh
+#!/bin/sh
 if [ -z "$1" ] ; then
 	sleep 0.5
     	echo "No Argument supplied $1"

@@ -18,11 +18,14 @@ Each top-level directory is a Stow package containing `$HOME`-relative paths:
 | `lf/` | lf file manager (vi binds, ueberzug preview, interactive extract/compress, README guide via Ecfh) |
 | `media/` | mpv, ncmpcpp, mpd configs |
 | `opencode/` | 9Router gateway config, 3 combo tiers (KhaBoDo, KhaSimple, KhaThinking) |
+| `git/` | gitconfig with delta diff, aliases, smart pull/push/fetch, rerere |
+| `pipewire/` | RNNoise AI real-time stereo noise suppression for microphone |
 
 ## Key commands / workflow
 
-- **Deploy:** `stow -vt ~ <package>` (repeat for each package)
-- **Undeploy:** `stow -Dvt ~ <package>`
+- **Deploy (Safe):** `stow-safe <package>` (auto-backs up conflicting files to `~/.local/share/dotfiles/backups/`)
+- **Deploy (Native):** `stow -vt ~ <package>` (repeat for each package)
+- **Undeploy:** `stow -Dvt ~ <package>` or `stow-safe --unstow <package>`
 - **Session start:** auto via `shell/.zprofile` — when on tty1, runs `startx "$XINITRC"` → `xinitrc` → `exec ssh-agent dwm`
 - **X11:** `xinitrc` handles display/autostart apps, and sources `xinitrc.$OS` for OS-specific audio setups (Pipewire, etc.)
 - **Shortcuts:** `shortcuts` regenerates `shortcutrc`/`shortcutenvrc`/`zshnameddirrc` from `bm-dirs`/`bm-files`
