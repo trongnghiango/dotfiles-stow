@@ -20,9 +20,13 @@ preexec() { echo -ne '\e[5 q' ;}
 
 # Use lf to switch directories and bind it to ctrl-o
 lfcd () {
+    if ! command -v lf >/dev/null 2>&1; then
+        echo "lf: command not found. Cài đặt bằng: sudo pacman -S lf"
+        return 1
+    fi
     tmp="$(mktemp -uq)"
     trap 'rm -f $tmp >/dev/null 2>&1 && trap - HUP INT QUIT TERM PWR EXIT' HUP INT QUIT TERM PWR EXIT
-    lf -last-dir-path="$tmp" "$@"
+    command lf -last-dir-path="$tmp" "$@"
     if [ -f "$tmp" ]; then
         dir="$(cat "$tmp")"
         [ -d "$dir" ] && [ "$dir" != "$(pwd)" ] && cd "$dir"

@@ -1,110 +1,141 @@
-# Luke's config for the Zoomer Shell
+# ==============================================================================
+# ~/.config/zsh/.zshrc — Interactive Zsh config (X11/DWM custom stack)
+# ==============================================================================
+# Load order (Zsh startup):
+#   ~/.zshenv            → ZDOTDIR (every instance)
+#   ~/.config/zsh/.zprofile → sources profile (login shells only)
+#   ~/.config/zsh/.zshrc → THIS FILE (interactive shells)
+# ==============================================================================
+
+# Deduplicate PATH on startup
 typeset -U path PATH
 
-# Enable colors and change prompt:
-autoload -U colors && colors	# Load colors
-PS1="%B%{$fg[red]%}[%{$fg[yellow]%}%n%{$fg[green]%}@%{$fg[blue]%}%M %{$fg[magenta]%}%~%{$fg[red]%}]%{$reset_color%}$%b "
-setopt autocd		# Automatically cd into typed directory.
-stty stop undef		# Disable ctrl-s to freeze terminal.
-setopt interactive_comments
-unsetopt PROMPT_SP
+# Enable color support
+autoload -U colors && colors
 
-# Load environment modules (includes PATH, history sizes, and variables)
+# Fallback prompt (used if Starship is not installed)
+# Starship will override this at the bottom of this file.
+PS1="%B%{$fg[red]%}[%{$fg[yellow]%}%n%{$fg[green]%}@%{$fg[blue]%}%M %{$fg[magenta]%}%~%{$fg[red]%}]%{$reset_color%}$%b "
+
+# Shell options
+setopt autocd               # cd into dir by typing its name
+setopt interactive_comments # allow # comments in interactive shell
+unsetopt PROMPT_SP          # don't print partial-line marker
+stty stop undef             # disable ctrl-s freeze
+
+# ==============================================================================
+# ENVIRONMENT
+# ==============================================================================
+
+# Load tool-specific env (Go, Bun, FZF, direnv) — NOT profile, that's .zprofile
 [ -f "$ZDOTDIR/env.zsh" ] && source "$ZDOTDIR/env.zsh"
 
-# Ensure directory exists
-mkdir -p "${HISTFILE:h}"
+# History file location & sizes
+export HISTFILE="${XDG_DATA_HOME:-$HOME/.local/share}/zsh/history"
+export HISTSIZE=10000000
+export SAVEHIST=10000000
 
-# History behavior
-setopt APPEND_HISTORY         # Append to history, không overwrite
-setopt INC_APPEND_HISTORY     # Ghi ngay khi enter, không đợi đến khi thoát
-setopt SHARE_HISTORY          # Share history giữa tất cả terminal sessions
-setopt HIST_IGNORE_DUPS       # Không lưu entry trùng liên tiếp
-setopt HIST_IGNORE_ALL_DUPS   # Xóa entry cũ nếu entry mới trùng
-setopt HIST_IGNORE_SPACE      # Không lưu lệnh bắt đầu bằng dấu cách
-setopt HIST_SAVE_NO_DUPS      # Không ghi entry trùng vào history file
-setopt HIST_FIND_NO_DUPS      # Không hiển thị entry trùng khi search
-setopt HIST_REDUCE_BLANKS     # Bỏ khoảng trắng thừa
+# Ensure history directory exists
+mkdir -p "${XDG_DATA_HOME:-$HOME/.local/share}/zsh"
 
-# Load aliases and shortcuts if existent.
-[ -f "${XDG_CONFIG_HOME:-$HOME/.config}/shell/shortcutrc" ] && source "${XDG_CONFIG_HOME:-$HOME/.config}/shell/shortcutrc"
-[ -f "${XDG_CONFIG_HOME:-$HOME/.config}/shell/shortcutenvrc" ] && source "${XDG_CONFIG_HOME:-$HOME/.config}/shell/shortcutenvrc"
-[ -f "${XDG_CONFIG_HOME:-$HOME/.config}/shell/aliasrc" ] && source "${XDG_CONFIG_HOME:-$HOME/.config}/shell/aliasrc"
+# ==============================================================================
+# HISTORY OPTIONS
+# ==============================================================================
 
-# OS-specific aliases (arch / void / nixos)
-if [ -f /etc/os-release ]; then
-  OS=$(. /etc/os-release && echo "$ID")
-  OS_ALIASRC="${XDG_CONFIG_HOME:-$HOME/.config}/shell/aliasrc.$OS"
-  [ -f "$OS_ALIASRC" ] && source "$OS_ALIASRC"
-fi
+setopt APPEND_HISTORY         # Append to history file, don't overwrite
+setopt INC_APPEND_HISTORY     # Write immediately, not on exit
+setopt SHARE_HISTORY          # Share history across all sessions
+setopt HIST_IGNORE_DUPS       # Don't record duplicate consecutive entries
+setopt HIST_IGNORE_ALL_DUPS   # Delete old recorded entry if new entry is a duplicate
+setopt HIST_IGNORE_SPACE      # Do not record an event starting with a space
+setopt HIST_SAVE_NO_DUPS      # Don't write duplicate entries in the history file
+setopt HIST_FIND_NO_DUPS      # Do not display a line previously found
+setopt HIST_REDUCE_BLANKS     # Remove superfluous blanks
 
-[ -f "${XDG_CONFIG_HOME:-$HOME/.config}/shell/zshnameddirrc" ] && source "${XDG_CONFIG_HOME:-$HOME/.config}/shell/zshnameddirrc"
+# ==============================================================================
+# ALIASES & SHORTCUTS
+# ==============================================================================
 
-# Basic auto/tab complete:
+[ -f "${XDG_CONFIG_HOME:-$HOME/.config}/shell/aliasrc" ]       && source "${XDG_CONFIG_HOME:-$HOME/.config}/shell/aliasrc"
+
+# ==============================================================================
+# COMPLETION
+# ==============================================================================
+
 autoload -U compinit
 zstyle ':completion:*' menu select
 zmodload zsh/complist
 compinit -u
-_comp_options+=(globdots)		# Include hidden files.
+_comp_options+=(globdots)   # Include hidden files in completion
 
-# vi mode
+# ==============================================================================
+# VI MODE
+# ==============================================================================
+
 bindkey -v
-export KEYTIMEOUT=1
+export KEYTIMEOUT=1         # Faster mode switch (10ms)
 
-# Use vim keys in tab complete menu:
+# Vim keys in tab completion menu
 bindkey -M menuselect 'h' vi-backward-char
 bindkey -M menuselect 'k' vi-up-line-or-history
 bindkey -M menuselect 'l' vi-forward-char
 bindkey -M menuselect 'j' vi-down-line-or-history
 bindkey -v '^?' backward-delete-char
 
-# History navigation: Up/Down arrows + Vim j/k (beginning-search — prefix-aware)
+# History navigation in Vi Mode & Insert Mode (Up/Down arrows + Vim j/k + Ctrl+R)
 autoload -U up-line-or-beginning-search down-line-or-beginning-search
 zle -N up-line-or-beginning-search
 zle -N down-line-or-beginning-search
-bindkey '^[[A' up-line-or-beginning-search     # Up arrow
-bindkey '^[[B' down-line-or-beginning-search   # Down arrow
+
+bindkey '^[[A' up-line-or-beginning-search     # Up Arrow
+bindkey '^[[B' down-line-or-beginning-search   # Down Arrow
 bindkey -M vicmd 'k' up-line-or-beginning-search
 bindkey -M vicmd 'j' down-line-or-beginning-search
-bindkey '^r' history-incremental-search-backward  # Ctrl+R
+bindkey '^r' history-incremental-search-backward
 
-# Load functions module
+# ==============================================================================
+# FUNCTIONS & KEYBINDS
+# ==============================================================================
+
+# Load vi cursor shape + lfcd
 [ -f "$ZDOTDIR/functions.zsh" ] && source "$ZDOTDIR/functions.zsh"
 
-echo -ne '\e[5 q' # Use beam shape cursor on startup.
+# Beam cursor on startup
+echo -ne '\e[5 q'
 
+# Ctrl+O → open lf file manager (cd to selected dir on exit)
 bindkey -s '^o' '^ulfcd\n'
+# Ctrl+A → bc calculator
 bindkey -s '^a' '^ubc -lq\n'
+# Ctrl+F → fzf cd to file's parent dir
 bindkey -s '^f' '^ucd "$(dirname "$(fzf)")"\n'
 bindkey '^[[P' delete-char
 
-# Edit line in vim with ctrl-e:
+# Ctrl+E → edit current command line in $EDITOR
 autoload edit-command-line; zle -N edit-command-line
 bindkey '^e' edit-command-line
 bindkey -M vicmd '^[[P' vi-delete-char
 bindkey -M vicmd '^e' edit-command-line
 bindkey -M visual '^[[P' vi-delete
 
-# Load syntax highlighting; should be last.
+# ==============================================================================
+# PLUGINS (order matters — syntax highlight before starship)
+# ==============================================================================
+
+# 1. Syntax highlighting — colorize commands as you type
+#    green = valid command, red = not found, yellow = string, etc.
 source /usr/share/zsh/plugins/fast-syntax-highlighting/fast-syntax-highlighting.plugin.zsh 2>/dev/null
 
-# Load shared profile configuration if it exists.
-# Zsh's typeset -U at the top guarantees PATH remains clean and duplicate-free.
-[ -f "$HOME/.config/shell/profile" ] && source "$HOME/.config/shell/profile"
-
-# --- Zoxide: smart cd với frecency (thay thế cd thông thường) ---
-# Cài: sudo pacman -S zoxide
-# Dùng: cd <partial-name>  hoặc  z <partial-name>
+# 2. Zoxide — smart directory jumper (replaces `cd` with frecency-based z)
+#    Usage: cd <partial-name>  OR  z <partial-name>
+#    Install: sudo pacman -S zoxide
 if command -v zoxide &>/dev/null; then
   eval "$(zoxide init zsh --cmd cd)"
 fi
 
-# --- Starship: cross-shell prompt (git-aware, fast) ---
-# Cài: sudo pacman -S starship
-# Fallback về PS1 ở trên nếu starship chưa cài
+# 3. Starship — cross-shell prompt (shows git, lang versions, exit code...)
+#    Must be LAST — replaces PS1 defined above (PS1 is the fallback if absent)
+#    Install: sudo pacman -S starship
 if command -v starship &>/dev/null; then
   eval "$(starship init zsh)"
 fi
-
-# opencode
-# PATH centralized in profile
