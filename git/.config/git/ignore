@@ -7,3 +7,4 @@ Thumbs.db
 .direnv/
 .env.local
 .cache/
+**/.claude/settings.local.json
