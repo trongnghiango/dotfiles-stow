@@ -59,13 +59,21 @@ setopt HIST_REDUCE_BLANKS     # Remove superfluous blanks
 [ -f "${XDG_CONFIG_HOME:-$HOME/.config}/shell/aliasrc" ]       && source "${XDG_CONFIG_HOME:-$HOME/.config}/shell/aliasrc"
 
 # ==============================================================================
-# COMPLETION
+# COMPLETION (Optimized with caching)
 # ==============================================================================
 
 autoload -U compinit
 zstyle ':completion:*' menu select
 zmodload zsh/complist
-compinit -u
+
+# Cache completion dump: only re-compile once every 24 hours
+_comp_dump="${XDG_CACHE_HOME:-$HOME/.cache}/zsh/zcompdump-${ZSH_VERSION}"
+mkdir -p "${_comp_dump:h}"
+if [[ -s "$_comp_dump" && (! -n "$_comp_dump"(#qN.md-1)) ]]; then
+  compinit -C -d "$_comp_dump"
+else
+  compinit -u -d "$_comp_dump"
+fi
 _comp_options+=(globdots)   # Include hidden files in completion
 
 # ==============================================================================

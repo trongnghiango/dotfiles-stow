@@ -18,9 +18,8 @@ cleanup() {
   # Giết dwmblocks
   killall -9 "$PROG" >/dev/null 2>&1
 
-  # Giết luôn tất cả các script con (ka-*) đang chạy ngầm
-  # Lệnh này tìm tất cả process có tên ka- và giết sạch
-  pkill -9 -f "ka-" >/dev/null 2>&1
+  # Giết luôn tất cả các script dwmblocks đang chạy ngầm
+  pkill -9 -f "ka-cpu|ka-memory|ka-nettraf|ka-forecast|ka-battery|ka-volume|ka-internet|ka-clock" >/dev/null 2>&1
 
   # Giết cả slstatus/conky nếu có
   killall -9 slstatus conky >/dev/null 2>&1
