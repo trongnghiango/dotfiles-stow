@@ -288,6 +288,11 @@ drw_text(Drw *drw, int x, int y, unsigned int w, unsigned int h, unsigned int lp
 		nextfont = NULL;
 		while (*text) {
 			utf8charlen = utf8decode(text, &utf8codepoint, UTF_SIZ);
+			/* Skip Unicode Variation Selectors (U+FE00 - U+FE0F) which have no visual glyph in Xft */
+			if (utf8codepoint >= 0xFE00 && utf8codepoint <= 0xFE0F) {
+				text += utf8charlen;
+				continue;
+			}
 			for (curfont = drw->fonts; curfont; curfont = curfont->next) {
 				charexists = charexists || XftCharExists(drw->dpy, curfont->xfont, utf8codepoint);
 				if (charexists) {
