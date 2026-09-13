@@ -38,10 +38,11 @@ show_help() {
   echo "  ka-setup <command>"
   echo ""
   echo -e "${BOLD}COMMANDS:${NC}"
-  echo -e "  ${GREEN}all${NC}       Chạy toàn bộ: pkgs → shell → stow → pam → brave → battery → docker"
+  echo -e "  ${GREEN}all${NC}       Chạy toàn bộ: pkgs → shell → stow → suckless → pam → brave → battery → docker"
   echo -e "  ${GREEN}pkgs${NC}      Cài đặt các gói phụ thuộc DWM/X11"
   echo -e "  ${GREEN}shell${NC}     Đặt Zsh làm login shell mặc định"
   echo -e "  ${GREEN}stow${NC}      Deploy tất cả dotfiles qua stow-safe"
+  echo -e "  ${GREEN}suckless${NC}  Biên dịch (make install) DWM, ST, Dmenu, Dwmblocks"
   echo -e "  ${GREEN}pam${NC}       Cấu hình gnome-keyring tự động mở khóa tại TTY"
   echo -e "  ${GREEN}brave${NC}     Tạo/kiểm tra brave-flags.conf tối ưu cho X11 + HD4000"
   echo -e "  ${GREEN}battery${NC}   Cấu hình ngưỡng sạc pin ThinkPad (50-60%)"
@@ -61,6 +62,7 @@ setup_pkgs() {
     return 0
   fi
 
+  # --- Danh sách gói đã tối ưu: chỉ gói THỰC SỰ CẦN THIẾT ---
   local pkgs=(
     # Core
     stow git zsh tmux neovim
@@ -68,12 +70,14 @@ setup_pkgs() {
     git-delta
     # DWM ecosystem (X11)
     xorg-server xorg-xinit xorg-xrandr xorg-xrdb xorg-xset xorg-xsetroot
-    # Fonts (Nerd Font cho dwmblocks icons)
-    ttf-jetbrains-mono-nerd ttf-nerd-fonts-symbols
+    # Fonts — tối ưu dung lượng:
+    #   ttf-jetbrains-mono (3MB) = font chính, NHẸ hơn 75x so với bản nerd (228MB)
+    #   ttf-nerd-fonts-symbols (2MB) = chỉ icon symbols cho dwmblocks/lf
+    ttf-jetbrains-mono ttf-nerd-fonts-symbols
     # Clipboard (X11)
     xclip xdotool
     # File manager & preview
-    lf bat eza chafa ffmpegthumbnailer poppler p7zip unzip
+    lf bat eza ffmpegthumbnailer poppler p7zip unzip
     # Image viewer (X11 native)
     nsxiv
     # App launcher
@@ -83,25 +87,22 @@ setup_pkgs() {
     # Compositor
     picom
     # Wallpaper
-    xwallpaper python-pywal
+    xwallpaper
     # Audio/Media
     mpv mpd ncmpcpp mpc
     pipewire pipewire-alsa pipewire-pulse wireplumber
-    noise-suppression-for-voice
     # Input method (Tiếng Việt)
     fcitx5 fcitx5-bamboo fcitx5-gtk fcitx5-qt fcitx5-configtool
-    # Fuzzy finder
-    fzf
+    # Fuzzy finder & search
+    fzf ripgrep
     # System utilities
-    udiskie xfce4-power-manager unclutter
-    gnome-keyring polkit-gnome
-    # Smart cd + prompt
-    zoxide starship
+    unclutter gnome-keyring polkit-gnome
   )
 
   # AUR packages: cần yay/paru — chỉ cài nếu AUR helper có sẵn
   local aur_pkgs=(brave-bin)
 
+  # --- Kiểm tra nhanh: nếu tất cả đã cài → thoát ngay, KHÔNG cần sudo ---
   local missing=()
   for pkg in "${pkgs[@]}"; do
     if ! pacman -Qi "$pkg" &>/dev/null 2>&1; then
@@ -110,15 +111,33 @@ setup_pkgs() {
   done
 
   if [ ${#missing[@]} -eq 0 ]; then
-    log_success "Toàn bộ gói phụ thuộc đã được cài đặt."
-  else
-    log_info "Cần cài ${#missing[@]} gói: ${missing[*]}"
-    log_info "Đang cài qua pacman..."
-    if sudo pacman -S --needed --noconfirm "${missing[@]}" 2>/dev/null; then
-      log_success "Đã cài đặt xong tất cả các gói."
+    log_success "Toàn bộ gói phụ thuộc đã có — bỏ qua."
+    # Kiểm tra AUR nhanh luôn
+    local missing_aur=()
+    for pkg in "${aur_pkgs[@]}"; do
+      pacman -Qi "$pkg" &>/dev/null || missing_aur+=("$pkg")
+    done
+    if [ ${#missing_aur[@]} -eq 0 ]; then
+      log_success "AUR packages đã có — bỏ qua."
     else
-      log_warn "Một số gói không thể cài. Kiểm tra lại kết nối mạng."
+      log_warn "Thiếu AUR: ${missing_aur[*]}. Cài thủ công: yay -S ${missing_aur[*]}"
     fi
+    return 0
+  fi
+
+  # --- Có gói thiếu → hỏi xác nhận trước khi cài ---
+  log_info "Thiếu ${#missing[@]} gói: ${missing[*]}"
+  printf "${YELLOW}Cài đặt? [Y/n]: ${NC}"
+  read -r ans
+  if [[ "$ans" =~ ^[Nn] ]]; then
+    log_warn "Bỏ qua cài đặt gói."
+    return 0
+  fi
+
+  if sudo pacman -S --needed --noconfirm "${missing[@]}" 2>/dev/null; then
+    log_success "Đã cài đặt xong tất cả các gói."
+  else
+    log_warn "Một số gói không thể cài. Kiểm tra lại kết nối mạng."
   fi
 
   # Cài AUR packages nếu có yay hoặc paru
@@ -140,8 +159,11 @@ setup_pkgs() {
       log_success "AUR packages (${aur_pkgs[*]}) đã có."
     fi
   else
-    log_warn "Không tìm thấy AUR helper (yay/paru). Bỏ qua: ${aur_pkgs[*]}"
-    log_dim "Cài thủ công: yay -S ${aur_pkgs[*]}"
+    local missing_aur=()
+    for pkg in "${aur_pkgs[@]}"; do
+      pacman -Qi "$pkg" &>/dev/null || missing_aur+=("$pkg")
+    done
+    [ ${#missing_aur[@]} -gt 0 ] && log_warn "Thiếu AUR: ${missing_aur[*]}. Cài thủ công: yay -S ${missing_aur[*]}"
   fi
 }
 
@@ -227,6 +249,7 @@ setup_stow() {
     gtk           # GTK2/3 theme
     fontconfig    # font rendering
     nsxiv         # image viewer keybinds
+    suckless      # suckless source code
     scripts       # ~/.local/bin/* — phải CUỐI CÙNG (stow-safe cần có trong PATH)
   )
 
@@ -275,6 +298,31 @@ setup_stow() {
   if (( failed > 0 )); then
     log_info "Khôi phục: stow-safe --restore <package>"
   fi
+}
+
+# ==============================================================================
+# 2.5. BIÊN DỊCH SUCKLESS TOOLS (DWM, ST, DMENU, DWMBLOCKS)
+# ==============================================================================
+setup_suckless() {
+  log_step "Biên dịch mã nguồn Suckless (DWM, ST, Dmenu, Dwmblocks)..."
+  local src_dir="$HOME/.local/src"
+  if [ ! -d "$src_dir" ]; then
+    log_warn "Không tìm thấy thư mục $src_dir. Chắc chắn rằng package suckless đã được stow."
+    return 1
+  fi
+
+  for tool in dwm st dmenu dwmblocks; do
+    if [ -d "$src_dir/$tool" ]; then
+      log_info "Đang biên dịch $tool..."
+      (
+        cd "$src_dir/$tool"
+        sudo make clean install >/dev/null 2>&1 && log_dim "Đã biên dịch $tool thành công" || log_error "Lỗi khi biên dịch $tool"
+      )
+    else
+      log_warn "Không tìm thấy source code cho $tool trong $src_dir"
+    fi
+  done
+  log_success "Hoàn tất biên dịch Suckless tools."
 }
 
 # ==============================================================================
@@ -478,6 +526,9 @@ case "$1" in
   stow)
     setup_stow
     ;;
+  suckless)
+    setup_suckless
+    ;;
   pam)
     setup_pam
     ;;
@@ -496,6 +547,8 @@ case "$1" in
     setup_shell
     echo ""
     setup_stow
+    echo ""
+    setup_suckless
     echo ""
     setup_pam
     echo ""
