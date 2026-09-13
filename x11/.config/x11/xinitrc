@@ -100,10 +100,7 @@ for program in $autostart; do
   fi
 done
 
-if command -v trayer >/dev/null 2>&1; then
-  pgrep -x trayer >/dev/null || trayer --edge top --align left --widthtype request --padding 0 \
-    --SetDockType true --tint 0x222222 --height 24 --transparent true --alpha 0 &
-fi
+
 
 # ==============================================================================
 # 7. KHỞI ĐỘNG THANH TRẠNG THÁI (DWMBLOCKS)

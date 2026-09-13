@@ -100,7 +100,7 @@ setup_pkgs() {
   )
 
   # AUR packages: cần yay/paru — chỉ cài nếu AUR helper có sẵn
-  local aur_pkgs=(brave-bin trayer)
+  local aur_pkgs=(brave-bin)
 
   local missing=()
   for pkg in "${pkgs[@]}"; do
