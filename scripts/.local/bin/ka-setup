@@ -97,6 +97,8 @@ setup_pkgs() {
     fcitx5 fcitx5-bamboo fcitx5-gtk fcitx5-qt fcitx5-configtool
     # Fuzzy finder & search
     fzf ripgrep
+    # Shell enhancements & Prompt
+    zsh-syntax-highlighting zsh-autosuggestions zoxide starship
     # System utilities
     unclutter gnome-keyring polkit-gnome
   )
