@@ -1,19 +1,36 @@
 static Systray *systray = NULL;
 static unsigned long systrayorientation = _NET_SYSTEM_TRAY_ORIENTATION_HORZ;
+static int systraycollapsed = 1;
+#ifndef SYSTRAY_MAX_ICONS
+#define SYSTRAY_MAX_ICONS 1
+#endif
 
 int
 width_systray(Bar *bar, BarArg *a)
 {
 	unsigned int w = 0;
 	Client *i;
+	int n = 0, count = 0, tw = 0;
 	if (!systray)
 		return 1;
 	if (showsystray) {
-		for (i = systray->icons; i; w += i->w + systrayspacing, i = i->next);
+		for (i = systray->icons; i; i = i->next) n++;
+		if (n > SYSTRAY_MAX_ICONS) {
+			tw = TEXTW(systraycollapsed ? "<" : ">") - lrpad / 2;
+		}
+		for (i = systray->icons; i; i = i->next) {
+			if (systraycollapsed && count >= SYSTRAY_MAX_ICONS)
+				break;
+			w += i->w + systrayspacing;
+			count++;
+		}
+		if (w > 0)
+			w -= systrayspacing;
+		w += tw;
 		if (!w)
 			XMoveWindow(dpy, systray->win, -systray->h, bar->by);
 	}
-	return w ? w + lrpad - systrayspacing : 0;
+	return w ? w + lrpad : 0;
 }
 
 int
@@ -26,6 +43,8 @@ draw_systray(Bar *bar, BarArg *a)
 	XWindowChanges wc;
 	Client *i;
 	unsigned int w;
+	int n = 0, count = 0, tw = 0;
+	unsigned int visible_w = 0;
 
 	if (!systray) {
 		/* init systray */
@@ -35,7 +54,8 @@ draw_systray(Bar *bar, BarArg *a)
 		wa.override_redirect = True;
 		wa.event_mask = ButtonPressMask|ExposureMask;
 		wa.border_pixel = 0;
-		systray->h = MIN(a->h, drw->fonts->h);
+		systray->h = MAX(drw->fonts->h, 24);
+		systray->h = MIN(a->h, systray->h);
 		wa.background_pixel = scheme[SchemeNorm][ColBg].pixel;
 		systray->win = XCreateSimpleWindow(dpy, root, bar->bx + a->x + lrpad / 2, -systray->h, MIN(a->w, 1), systray->h, 0, 0, scheme[SchemeNorm][ColBg].pixel);
 		XChangeWindowAttributes(dpy, systray->win, CWOverrideRedirect|CWBackPixel|CWBorderPixel|CWEventMask, &wa);
@@ -64,13 +84,20 @@ draw_systray(Bar *bar, BarArg *a)
 	wc.sibling = bar->win;
 	XConfigureWindow(dpy, systray->win, CWSibling|CWStackMode, &wc);
 
+	for (i = systray->icons; i; i = i->next) n++;
+	if (n > SYSTRAY_MAX_ICONS) {
+		tw = TEXTW(systraycollapsed ? "<" : ">") - lrpad / 2;
+		drw_setscheme(drw, scheme[SchemeNorm]);
+		drw_text(drw, bar->bx + a->x, a->y, tw, a->h, lrpad / 4, (systraycollapsed ? "<" : ">"), 0, False);
+	}
+
 	drw_setscheme(drw, scheme[SchemeNorm]);
 	for (w = 0, i = systray->icons; i; i = i->next) {
 		wa.background_pixel = scheme[SchemeNorm][ColBg].pixel;
 		XChangeWindowAttributes(dpy, i->win, CWBackPixel, &wa);
 		XMapRaised(dpy, i->win);
 		i->x = w;
-		XMoveResizeWindow(dpy, i->win, i->x, 0, i->w, i->h);
+		XMoveResizeWindow(dpy, i->win, i->x, (systray->h - i->h) / 2, i->w, i->h);
 		w += i->w;
 		if (i->next)
 			w += systrayspacing;
@@ -78,13 +105,32 @@ draw_systray(Bar *bar, BarArg *a)
 			i->mon = bar->mon;
 	}
 
-	XMoveResizeWindow(dpy, systray->win, bar->bx + a->x + lrpad / 2, (w ? bar->by + a->y + (a->h - systray->h) / 2: -systray->h), MAX(w, 1), systray->h);
-	return w;
+	for (i = systray->icons; i; i = i->next) {
+		if (systraycollapsed && count >= SYSTRAY_MAX_ICONS)
+			break;
+		visible_w += i->w;
+		if (i->next && (!systraycollapsed || count + 1 < SYSTRAY_MAX_ICONS))
+			visible_w += systrayspacing;
+		count++;
+	}
+
+	XMoveResizeWindow(dpy, systray->win, bar->bx + a->x + tw, (w ? bar->by + a->y + (a->h - systray->h) / 2: -systray->h), MAX(visible_w, 1), systray->h);
+	return visible_w + tw;
 }
 
 int
 click_systray(Bar *bar, Arg *arg, BarArg *a)
 {
+	int n = 0;
+	Client *i;
+	for (i = systray->icons; i; i = i->next) n++;
+	if (n > SYSTRAY_MAX_ICONS) {
+		int tw = TEXTW(systraycollapsed ? "<" : ">") - lrpad / 2;
+		if (a->x <= tw) {
+			systraycollapsed = !systraycollapsed;
+			drawbarwin(bar);
+		}
+	}
 	return -1;
 }
 

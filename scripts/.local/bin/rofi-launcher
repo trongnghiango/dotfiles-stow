@@ -1,0 +1,35 @@
+#!/bin/sh
+# ML4W styled Rofi application launcher
+# Dynamically loads colors from Xresources (xrdb)
+
+# Lấy màu từ xrdb
+BG=$(xrdb -query | grep -m 1 '^\*\.background:' | awk '{print $2}')
+FG=$(xrdb -query | grep -m 1 '^\*\.foreground:' | awk '{print $2}')
+COLOR1=$(xrdb -query | grep -m 1 '^\*\.color1:' | awk '{print $2}')
+COLOR2=$(xrdb -query | grep -m 1 '^\*\.color2:' | awk '{print $2}')
+COLOR3=$(xrdb -query | grep -m 1 '^\*\.color3:' | awk '{print $2}')
+COLOR4=$(xrdb -query | grep -m 1 '^\*\.color4:' | awk '{print $2}')
+
+# Fallback nếu xrdb trống
+BG=${BG:-"#282828"}
+FG=${FG:-"#ebdbb2"}
+COLOR1=${COLOR1:-"#cc241d"}
+COLOR2=${COLOR2:-"#98971a"}
+COLOR3=${COLOR3:-"#d79921"}
+COLOR4=${COLOR4:-"#458588"}
+
+# Tạo file colors.rasi tự động với Alpha trong suốt (e.g., cc = 80% mờ)
+cat > ~/.config/rofi/colors.rasi <<EOF
+* {
+    background:     ${BG}cc;
+    background-alt: ${BG}ee;
+    foreground:     ${FG}ff;
+    selected:       ${COLOR3}ff;
+    active:         ${COLOR2}ff;
+    urgent:         ${COLOR1}ff;
+    border:         ${COLOR4}ff;
+}
+EOF
+
+# Khởi chạy Rofi (ẩn các cảnh báo icon/thumbnail vô hại)
+rofi -show drun -theme ~/.config/rofi/launcher.rasi 2>/dev/null

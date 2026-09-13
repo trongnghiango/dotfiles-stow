@@ -250,19 +250,10 @@ static const Layout layouts[] = {
 static char dmenumon[2] = "0"; /* component of dmenucmd, manipulated in spawn() */
 
 /* Dmenu */
-static const char *dmenucmd[] = {
-	"dmenu_run",
-	"-m", dmenumon,
-	"-fn", dmenufont,
-	"-nb", normbgcolor,
-	"-nf", normfgcolor,
-	"-sb", selbgcolor,
-	"-sf", selfgcolor,
-	NULL
-};
+static const char *dmenucmd[] = { "rofi-launcher", NULL };
 
 /* Rofi */
-static char *roficmd[] = { "rofi", "-show", "drun", NULL }; /* normal */
+static char *roficmd[] = { "rofi-launcher", NULL }; /* normal */
 static char *roficalc[] = { "rofi", "-show", "calc", NULL }; /* for emoji */
 static char *rofiemoji[] = { "rofi", "-show", "emoji", NULL }; /* for caclulator */
 
