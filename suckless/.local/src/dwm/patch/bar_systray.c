@@ -30,7 +30,7 @@ width_systray(Bar *bar, BarArg *a)
 		if (!w)
 			XMoveWindow(dpy, systray->win, -systray->h, bar->by);
 	}
-	return w ? w + lrpad : 0;
+	return w ? w + 4 : 0;
 }
 
 int
@@ -57,7 +57,7 @@ draw_systray(Bar *bar, BarArg *a)
 		systray->h = MAX(drw->fonts->h, 24);
 		systray->h = MIN(a->h, systray->h);
 		wa.background_pixel = scheme[SchemeNorm][ColBg].pixel;
-		systray->win = XCreateSimpleWindow(dpy, root, bar->bx + a->x + lrpad / 2, -systray->h, MIN(a->w, 1), systray->h, 0, 0, scheme[SchemeNorm][ColBg].pixel);
+		systray->win = XCreateSimpleWindow(dpy, root, bar->bx + a->x, -systray->h, MIN(a->w, 1), systray->h, 0, 0, scheme[SchemeNorm][ColBg].pixel);
 		XChangeWindowAttributes(dpy, systray->win, CWOverrideRedirect|CWBackPixel|CWBorderPixel|CWEventMask, &wa);
 
 		XSelectInput(dpy, systray->win, SubstructureNotifyMask);

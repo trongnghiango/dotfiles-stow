@@ -1,8 +1,4 @@
 /* See LICENSE file for copyright and license details. */
-/* Constants */
-#define TERMINAL "st"
-#define TERMCLASS "St"
-#define BROWSER "brave"
 
 /* appearance */
 static const unsigned int borderpx       = 2;   /* border pixel of windows */
@@ -20,13 +16,13 @@ static const char localshare[]           = ".local/share";
 static const int showbar                 = 1;   /* 0 means no bar */
 static const int topbar                  = 1;   /* 0 means bottom bar */
 static const int bar_height              = 25;   /* 0 means derive from font, >= 1 explicit height */
-static const int vertpad                 = 0;  /* vertical padding of bar */
-static const int sidepad                 = 0;  /* horizontal padding of bar */
-#define ICONSIZE 15	/* icon size */
+static const int vertpad                 = 0;  /* vertical padding of bar (0 = full width, khong bi ho lech) */
+static const int sidepad                 = 0;  /* horizontal padding of bar (0 = full width, khong bi rong den 2 ben) */
+#define ICONSIZE 15    /* icon size */
 #define ICONSPACING 10  /* space between icon and title */
 /* Status is to be shown on: -1 (all monitors), 0 (a specific monitor by index), 'A' (active monitor) */
 static const int statusmon               = 'A';
-static const unsigned int systrayspacing = 8;   /* systray spacing */
+static const unsigned int systrayspacing = 1;   /* systray spacing */
 static const int showsystray             = 1;   /* 0 means no systray */
 static const unsigned int ulinepad = 5;         /* horizontal padding between the underline and tag */
 static const unsigned int ulinestroke  = 2;     /* thickness / height of the underline */
@@ -37,18 +33,10 @@ static const int ulineall = 0;                  /* 1 to show underline on all ta
 static int tagindicatortype              = INDICATOR_TOP_LEFT_SQUARE;
 static int tiledindicatortype            = INDICATOR_NONE;
 static int floatindicatortype            = INDICATOR_TOP_LEFT_SQUARE;
-// static const char *fonts[]               = { "monospace:size=12:style=SemiBold", "JoyPixels:pixelsize=10:antialias=true:autohindt=true" };
+static const char *fonts[]               = { "JetBrains Mono:pixelsize=14:style=SemiBold", "Symbols Nerd Font:pixelsize=14:style=SemiBold", "Noto Color Emoji:pixelsize=14" };
+static const char dmenufont[]            = "JetBrains Mono:pixelsize=14:style=SemiBold";
 
-static const char *fonts[]               = { 
-	"BlexMono Nerd Font:pixelsize=14:style=SemiBold", // yay -Ss ttf-blex-nerd-font-git
-	"SymbolsNerdFont:pixelsize=14:style=SemiBold",
-	"JetBrainsMonoNerdFont:pixelsize=15:style=SemiBold",
-	"Noto Color Emoji:pixelsize=12:antialias=true:autohint=true"
-};
-
-static const char dmenufont[]            = "BlexMono Nerd Font:size=13";
-
-static char c000000[]                    = "#000000";
+static char c000000[]                    = "#000000"; // placeholder value
 
 static char normfgcolor[]                = "#d7d7d7";
 static char normbgcolor[]                = "#2E3440";
@@ -57,8 +45,7 @@ static char normfloatcolor[]             = "#2E3440";
 
 static char selfgcolor[]                 = "#d7d7d7";
 static char selbgcolor[]                 = "#3b4252";
-//static char selbordercolor[]             = "#212A3B";
-static char selbordercolor[]             = "#BF616A";
+static char selbordercolor[]             = "#212A3B";
 static char selfloatcolor[]              = "#3b4252";
 
 static char titlenormfgcolor[]           = "#EEEEEE";
@@ -140,7 +127,6 @@ static Sp scratchpads[] = {
 static char *tagicons[][NUMTAGS] =
 {
 	[DEFAULT_TAGS]        = { "󰣇", "", "󰈹", "", "󰚌", "", "󰕧", "󰻞", "󰺷" },
-	// [DEFAULT_TAGS] 		  = { "1", "2", "3", "4", "5", "6", "7", "8", "9" },
 	[ALTERNATIVE_TAGS]    = { "A", "B", "C", "D", "E", "F", "G", "H", "I" },
 	[ALT_TAGS_DECORATION] = { "<1>", "<2>", "<3>", "<4>", "<5>", "<6>", "<7>", "<8>", "<9>" },
 };
@@ -170,8 +156,7 @@ static const Rule rules[] = {
 	 *	WM_WINDOW_ROLE(STRING) = role
 	 *	_NET_WM_WINDOW_TYPE(ATOM) = wintype
 	 */
-        RULE(.title = "Clipboard Manager", .isfloating = 1)
-	RULE(.wintype = WTYPE "DIALOG", .isfloating = 0)
+	RULE(.wintype = WTYPE "DIALOG", .isfloating = 1)
 	RULE(.wintype = WTYPE "UTILITY", .isfloating = 1)
 	RULE(.wintype = WTYPE "TOOLBAR", .isfloating = 1)
 	RULE(.wintype = WTYPE "SPLASH", .isfloating = 1)
@@ -179,22 +164,21 @@ static const Rule rules[] = {
 	RULE(.class = "firefox", .tags = 1 << 2)
 	RULE(.class = "pavucontrol", .isfloating = 1)
 	RULE(.instance = "spterm", .tags = SPTAG(0), .isfloating = 1)
-//	RULE(.class = "obs", .tags = 1 << 5)
+	RULE(.class = "obs", .tags = 1 << 5)
 	RULE(.class = "code-oss", .tags = 1 << 3)
 	RULE(.class = "St", .isterminal = 1)
 	RULE(.class = "vesktop", .tags = 1 << 7, .isfloating = 1)
 	RULE(.instance = "spterm", .tags = SPTAG(0), .isfloating = 1)
-	RULE(.class = "Virt-manager", .tags = 1 << 5 /* , .isfloating = 1 */ )
-	RULE(.class = "vlc", .tags = 1 << 6)
-	RULE(.title = "AudioRelay", .tags = 1 << 4)
-	RULE(.class = "TelegramDesktop", .tags = 1 << 7 /*, .isfloating = 1 */)
-	RULE(.class = "min-browser", .tags = 1 << 8)
-	RULE(.class = "Spotify", .tags = 1 << 6)
-	RULE(.class = "Godot", .tags = 1 << 4)
-	RULE(.class = "Jellyfin Media Player", .tags = 1 << 6)
-	RULE(.class = "qBittorrent", .tags = 1 << 4)
-	RULE(.class = "Thorium-browser", .tags = 1 << 2)
-	
+  RULE(.class = "Virt-manager", .tags = 1 << 5, .isfloating = 1)
+  RULE(.class = "vlc", .tags = 1 << 6)
+  RULE(.title = "AudioRelay", .tags = 1 << 4)
+  RULE(.class = "TelegramDesktop", .tags = 1 << 7, .isfloating = 1)
+  RULE(.class = "steam", .tags = 1 << 8)
+  RULE(.class = "Spotify", .tags = 1 << 6)
+  RULE(.class = "Godot", .tags = 1 << 4)
+  RULE(.class = "Jellyfin Media Player", .tags = 1 << 6)
+  RULE(.class = "qBittorrent", .tags = 1 << 4)
+  RULE(.class = "Thorium-browser", .tags = 1 << 2)
 };
 
 /* Bar rules allow you to configure what is shown where on the bar, as well as
@@ -250,39 +234,52 @@ static const Layout layouts[] = {
 static char dmenumon[2] = "0"; /* component of dmenucmd, manipulated in spawn() */
 
 /* Dmenu */
-static const char *dmenucmd[] = { "rofi-launcher", NULL };
+static const char *dmenucmd[] = {
+	"dmenu_run",
+	"-m", dmenumon,
+	"-fn", dmenufont,
+	"-nb", normbgcolor,
+	"-nf", normfgcolor,
+	"-sb", selbgcolor,
+	"-sf", selfgcolor,
+	NULL
+};
 
 /* Rofi */
-static char *roficmd[] = { "rofi-launcher", NULL }; /* normal */
-static char *roficalc[] = { "rofi", "-show", "calc", NULL }; /* for emoji */
-static char *rofiemoji[] = { "rofi", "-show", "emoji", NULL }; /* for caclulator */
+static char *roficmd[] = { "rofi-launcher", NULL }; /* ML4W styled launcher */
+static char *roficalc[] = { "rofi", "-show", "calc", NULL }; /* for calculator */
+static char *rofiemoji[] = { "rofi", "-show", "emoji", NULL }; /* for emoji */
 
 /* Terminals */
 static const char *stcmd[]  = { "st", NULL }; /* st terminal */
+static const char *bravecmd[] = { "brave", NULL }; /* web browser */
 
-/* screenshots */
-static const char *screenshot[] = { "shot", "screen" }; // for static screenshots
-static const char *capturess[] = { "shot", "area" }; // for region capture ss
-static const char *capwin[] = { "shot", "window" }; // for capturing focussed windows
+/* screenshots & tools */
+static const char *screenshot[] = { "shot", "screen", NULL }; // full screen
+static const char *capturess[]  = { "shot", "area", NULL };   // selected area (Ctrl+Print)
+static const char *capwin[]     = { "shot", "window", NULL }; // active window (Shift+Print)
+static const char *maimpickcmd[] = { "maimpick", NULL };      // maimpick menu
 
 /* commands */
-static const char *powermenu[] = { "/home/ka/.local/bin/scripts/wm_power_menu", NULL };
-static const char *lf[] = { "setsid", "-f", "st", "-e", "lfrun", NULL };
-static const char *new_look[] = { "/home/ka/.local/bin/scripts/new_look", NULL };
+static const char *powermenu[] = { "sysact", NULL };
+static const char *lf[] = { "st", "-e", "lfub", NULL };
+static const char *new_look[] = { "/home/vaproh/.local/bin/scripts/new_look", NULL };
 
 /* This defines the name of the executable that handles the bar (used for signalling purposes) */
 #define STATUSBAR "dwmblocks"
 
 #include <X11/XF86keysym.h>
-//#include "shiftview.c"
 
 static const Key keys[] = {
 	/* modifier                     key            function                argument */
 	{ MODKEY,                       XK_space,      spawn,                  {.v = roficmd } },
-	{ MODKEY,			XK_c,	       spawn,		           {.v = roficalc } },
-	{ MODKEY,			XK_e,	       spawn,		           {.v = rofiemoji } },
-	{ MODKEY,	                XK_Return,     spawn,                  {.v = stcmd } },
-	{ MODKEY,	                XK_p,	       spawn,                  {.v = powermenu } },
+	{ MODKEY,                       XK_d,          spawn,                  {.v = dmenucmd } },
+	{ MODKEY,                       XK_w,          spawn,                  {.v = bravecmd } },
+	{ MODKEY,                       XK_e,          spawn,                  {.v = lf } },
+	{ MODKEY|ShiftMask,             XK_e,          spawn,                  {.v = rofiemoji } },
+	{ MODKEY,                       XK_c,          spawn,                  {.v = roficalc } },
+	{ MODKEY,                       XK_Return,     spawn,                  {.v = stcmd } },
+	{ MODKEY,                       XK_p,          spawn,                  {.v = powermenu } },
 	{ MODKEY,			XK_BackSpace,  spawn,                  {.v = (const char*[]){ "sysact", NULL } } },
 	{ MODKEY|ShiftMask,		XK_BackSpace,  spawn,                  {.v = (const char*[]){ "sysact", NULL } } },
 	{ MODKEY,                       XK_b,          togglebar,              {0} },
@@ -324,7 +321,7 @@ static const Key keys[] = {
 	{ MODKEY,                       XK_m,          setlayout,              {.v = &layouts[2]} },
 	{ MODKEY,                       XK_g,          setlayout,              {.v = &layouts[3]} },
 	{ MODKEY,                       XK_y,          setlayout,              {.v = &layouts[4]} },
-//	{ MODKEY,                       XK_w,          setlayout,              {.v = &layouts[5]} },
+	{ MODKEY|ShiftMask,             XK_w,          setlayout,              {.v = &layouts[5]} },
 	{ MODKEY,                       XK_s,          setlayout,              {.v = &layouts[6]} },
 	{ MODKEY,                       XK_r,     	   setlayout,              {0} },
 	{ MODKEY|ShiftMask,             XK_space,      togglefloating,         {0} },
@@ -337,15 +334,12 @@ static const Key keys[] = {
 	{ MODKEY,                       XK_period,     focusmon,               {.i = +1 } },
 	{ MODKEY|ShiftMask,             XK_comma,      tagmon,                 {.i = -1 } },
 	{ MODKEY|ShiftMask,             XK_period,     tagmon,                 {.i = +1 } },
-	{ MODKEY,			XK_Print,      spawn,		       {.v = screenshot } },
+	{ 0,				XK_Print,      spawn,		       {.v = screenshot } },
+	{ MODKEY,			XK_Print,      spawn,		       {.v = maimpickcmd } },
 	{ ControlMask,			XK_Print,      spawn,		       {.v = capturess } },
-	{ ShiftMask,			XK_Print,      spawn,		       {.v = capwin } },
-	{ MODKEY,                       XK_w,          spawn,                  {.v = (const char*[]){ BROWSER, NULL } } },
-//	{ MODKEY,			XK_d,	       spawn,		       {.v = lf } },
-        { ControlMask|ShiftMask,        XK_space,  spawn,                      SHCMD("fcitx-toggle") },
-	{ MODKEY,			XK_d,	       spawn,		       {.v = dmenucmd } },
+	{ ShiftMask,			XK_Print,      spawn,		       {.v = capwin } },      
+	{ ControlMask|ShiftMask,        XK_space,      spawn,                  SHCMD("fcitx-toggle") },
 	{ MODKEY,                       XK_n,	       spawn,                  {.v = new_look } },
-//	{ MODKEY,			XK_space,	       spawn,		       {.v = dmenucmd } },
 	{ MODKEY,			XK_x,	       togglescratch,	       {.ui = 0 } },
 	{ 0, XF86XK_AudioMute,                         spawn,                  SHCMD("wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle; kill -44 $(pidof dwmblocks)") },
 	{ 0, XF86XK_AudioRaiseVolume,                  spawn,                  SHCMD("wpctl set-volume @DEFAULT_AUDIO_SINK@ 0%- && wpctl set-volume @DEFAULT_AUDIO_SINK@ 3%+; kill -44 $(pidof dwmblocks)") },
@@ -357,26 +351,21 @@ static const Key keys[] = {
 	{ 0, XF86XK_AudioStop,                         spawn,                  {.v = (const char*[]){ "mpc", "stop", NULL } } },
 	{ 0, XF86XK_AudioRewind,                       spawn,                  {.v = (const char*[]){ "mpc", "seek", "-10", NULL } } },
 	{ 0, XF86XK_AudioForward,                      spawn,                  {.v = (const char*[]){ "mpc", "seek", "+10", NULL } } },
-	{ 0, XF86XK_AudioMedia,                        spawn,                  {.v = (const char*[]){ TERMINAL, "-e", "ncmpcpp", NULL } } },
+	{ 0, XF86XK_AudioMedia,                        spawn,                  {.v = (const char*[]){ "st", "-e", "ncmpcpp", NULL } } },
 	{ 0, XF86XK_AudioMicMute,                      spawn,                  SHCMD("pactl set-source-mute @DEFAULT_SOURCE@ toggle") },
-	/* { 0, XF86XK_PowerOff,                       spawn,                  {.v = (const char*[]){ "sysact", NULL } } }, */
-	{ 0, XF86XK_Calculator,                        spawn,                  {.v = (const char*[]){ TERMINAL, "-e", "bc", "-l", NULL } } },
+	{ 0, XF86XK_Calculator,                        spawn,                  {.v = (const char*[]){ "st", "-e", "bc", "-l", NULL } } },
 	{ 0, XF86XK_Sleep,                             spawn,                  {.v = (const char*[]){ "sudo", "-A", "zzz", NULL } } },
-	{ 0, XF86XK_WWW,                               spawn,                  {.v = (const char*[]){ BROWSER, NULL } } },
-//	{ 0, XF86XK_DOS,                               spawn,                  {.v = termcmd } },
+	{ 0, XF86XK_WWW,                               spawn,                  {.v = bravecmd } },
 	{ 0, XF86XK_ScreenSaver,                       spawn,                  SHCMD("slock & xset dpms force off; mpc pause; pauseallmpv") },
-	{ 0, XF86XK_TaskPane,                          spawn,                  {.v = (const char*[]){ TERMINAL, "-e", "htop", NULL } } },
-	{ 0, XF86XK_Mail,                              spawn,                  SHCMD(TERMINAL " -e neomutt ; pkill -RTMIN+12 dwmblocks") },
-	{ 0, XF86XK_MyComputer,                        spawn,                  {.v = (const char*[]){ TERMINAL, "-e",  "lfub",  "/", NULL } } },
-	/* { 0, XF86XK_Battery,                        spawn,                  SHCMD("") }, */
+	{ 0, XF86XK_TaskPane,                          spawn,                  {.v = (const char*[]){ "st", "-e", "htop", NULL } } },
+	{ 0, XF86XK_Mail,                              spawn,                  SHCMD("st -e neomutt ; pkill -RTMIN+12 dwmblocks") },
+	{ 0, XF86XK_MyComputer,                        spawn,                  {.v = (const char*[]){ "st", "-e",  "lfub",  "/", NULL } } },
 	{ 0, XF86XK_Launch1,                           spawn,                  {.v = (const char*[]){ "xset", "dpms", "force", "off", NULL } } },
 	{ 0, XF86XK_TouchpadToggle,                    spawn,                  SHCMD("(synclient | grep 'TouchpadOff.*1' && synclient TouchpadOff=0) || synclient TouchpadOff=1") },
 	{ 0, XF86XK_TouchpadOff,                       spawn,                  {.v = (const char*[]){ "synclient", "TouchpadOff=1", NULL } } },
 	{ 0, XF86XK_TouchpadOn,                        spawn,                  {.v = (const char*[]){ "synclient", "TouchpadOff=0", NULL } } },
 	{ 0, XF86XK_MonBrightnessUp,                   spawn,                  {.v = (const char*[]){ "brightnessctl", "set", "+5%", NULL } } },
 	{ 0, XF86XK_MonBrightnessDown,                 spawn,                  {.v = (const char*[]){ "brightnessctl", "set", "5%-", NULL } } },
-//	{ 0, XF86XK_MonBrightnessUp,                   spawn,                  {.v = (const char*[]){ "xbacklight", "-inc", "5", NULL } } },
-//	{ 0, XF86XK_MonBrightnessDown,                 spawn,                  {.v = (const char*[]){ "xbacklight", "-dec", "5", NULL } } },
 	TAGKEYS(                        XK_1,                                  0)
 	TAGKEYS(                        XK_2,                                  1)
 	TAGKEYS(                        XK_3,                                  2)

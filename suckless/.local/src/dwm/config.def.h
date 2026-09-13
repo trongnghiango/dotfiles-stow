@@ -16,8 +16,8 @@ static const char localshare[]           = ".local/share";
 static const int showbar                 = 1;   /* 0 means no bar */
 static const int topbar                  = 1;   /* 0 means bottom bar */
 static const int bar_height              = 25;   /* 0 means derive from font, >= 1 explicit height */
-static const int vertpad                 = 5;  /* vertical padding of bar */
-static const int sidepad                 = 18;  /* horizontal padding of bar */
+static const int vertpad                 = 0;  /* vertical padding of bar (0 = full width, khong bi ho lech) */
+static const int sidepad                 = 0;  /* horizontal padding of bar (0 = full width, khong bi rong den 2 ben) */
 #define ICONSIZE 15    /* icon size */
 #define ICONSPACING 10  /* space between icon and title */
 /* Status is to be shown on: -1 (all monitors), 0 (a specific monitor by index), 'A' (active monitor) */
@@ -33,8 +33,8 @@ static const int ulineall = 0;                  /* 1 to show underline on all ta
 static int tagindicatortype              = INDICATOR_TOP_LEFT_SQUARE;
 static int tiledindicatortype            = INDICATOR_NONE;
 static int floatindicatortype            = INDICATOR_TOP_LEFT_SQUARE;
-static const char *fonts[]               = { "JetBrains Mono Nerd:size=10", "JoyPixels:pixelsize=12:antialias=true:autohindt=true" };
-static const char dmenufont[]            = "JetBrains Mono Nerd:size=10";
+static const char *fonts[]               = { "JetBrains Mono:pixelsize=14:style=SemiBold", "Symbols Nerd Font:pixelsize=14:style=SemiBold", "Noto Color Emoji:pixelsize=14" };
+static const char dmenufont[]            = "JetBrains Mono:pixelsize=14:style=SemiBold";
 
 static char c000000[]                    = "#000000"; // placeholder value
 
@@ -246,33 +246,42 @@ static const char *dmenucmd[] = {
 };
 
 /* Rofi */
-static char *roficmd[] = { "rofi", "-show", "drun", NULL }; /* normal */
-static char *roficalc[] = { "rofi", "-show", "calc", NULL }; /* for emoji */
-static char *rofiemoji[] = { "rofi", "-show", "emoji", NULL }; /* for caclulator */
+static char *roficmd[] = { "rofi-launcher", NULL }; /* ML4W styled launcher */
+static char *roficalc[] = { "rofi", "-show", "calc", NULL }; /* for calculator */
+static char *rofiemoji[] = { "rofi", "-show", "emoji", NULL }; /* for emoji */
 
 /* Terminals */
 static const char *stcmd[]  = { "st", NULL }; /* st terminal */
+static const char *bravecmd[] = { "brave", NULL }; /* web browser */
 
-/* screenshots */
-static const char *screenshot[] = { "/home/vaproh/.local/bin/scripts/vap-ss", NULL }; // for static screenshots
-static const char *capturess[] = { "/home/vaproh/.local/bin/scripts/vap-cap-reg", NULL }; // for region capture ss
-static const char *capwin[] = { "/home/vaproh/.local/bin/scripts/vap-act-ss", NULL }; // for capturing focussed windows
+/* screenshots & tools */
+static const char *screenshot[] = { "shot", "screen", NULL }; // full screen
+static const char *capturess[]  = { "shot", "area", NULL };   // selected area (Ctrl+Print)
+static const char *capwin[]     = { "shot", "window", NULL }; // active window (Shift+Print)
+static const char *maimpickcmd[] = { "maimpick", NULL };      // maimpick menu
 
 /* commands */
-static const char *powermenu[] = { "/home/vaproh/.local/bin/scripts/wm_power_menu", NULL };
-static const char *lf[] = { "setsid", "-f", "st", "-e", "lfrun", NULL };
+static const char *powermenu[] = { "sysact", NULL };
+static const char *lf[] = { "st", "-e", "lfub", NULL };
 static const char *new_look[] = { "/home/vaproh/.local/bin/scripts/new_look", NULL };
 
 /* This defines the name of the executable that handles the bar (used for signalling purposes) */
 #define STATUSBAR "dwmblocks"
 
+#include <X11/XF86keysym.h>
+
 static const Key keys[] = {
 	/* modifier                     key            function                argument */
 	{ MODKEY,                       XK_space,      spawn,                  {.v = roficmd } },
-	{ MODKEY,						XK_c,	       spawn,		           {.v = roficalc } },
-	{ MODKEY,						XK_e,	       spawn,		           {.v = rofiemoji } },
-	{ MODKEY,	                	XK_Return,     spawn,                  {.v = stcmd } },
-	{ MODKEY,	                	XK_p,	       spawn,                  {.v = powermenu } },
+	{ MODKEY,                       XK_d,          spawn,                  {.v = dmenucmd } },
+	{ MODKEY,                       XK_w,          spawn,                  {.v = bravecmd } },
+	{ MODKEY,                       XK_e,          spawn,                  {.v = lf } },
+	{ MODKEY|ShiftMask,             XK_e,          spawn,                  {.v = rofiemoji } },
+	{ MODKEY,                       XK_c,          spawn,                  {.v = roficalc } },
+	{ MODKEY,                       XK_Return,     spawn,                  {.v = stcmd } },
+	{ MODKEY,                       XK_p,          spawn,                  {.v = powermenu } },
+	{ MODKEY,			XK_BackSpace,  spawn,                  {.v = (const char*[]){ "sysact", NULL } } },
+	{ MODKEY|ShiftMask,		XK_BackSpace,  spawn,                  {.v = (const char*[]){ "sysact", NULL } } },
 	{ MODKEY,                       XK_b,          togglebar,              {0} },
 	{ MODKEY,                       XK_j,          focusstack,             {.i = +1 } },
 	{ MODKEY,                       XK_k,          focusstack,             {.i = -1 } },
@@ -312,7 +321,7 @@ static const Key keys[] = {
 	{ MODKEY,                       XK_m,          setlayout,              {.v = &layouts[2]} },
 	{ MODKEY,                       XK_g,          setlayout,              {.v = &layouts[3]} },
 	{ MODKEY,                       XK_y,          setlayout,              {.v = &layouts[4]} },
-	{ MODKEY,                       XK_w,          setlayout,              {.v = &layouts[5]} },
+	{ MODKEY|ShiftMask,             XK_w,          setlayout,              {.v = &layouts[5]} },
 	{ MODKEY,                       XK_s,          setlayout,              {.v = &layouts[6]} },
 	{ MODKEY,                       XK_r,     	   setlayout,              {0} },
 	{ MODKEY|ShiftMask,             XK_space,      togglefloating,         {0} },
@@ -325,12 +334,38 @@ static const Key keys[] = {
 	{ MODKEY,                       XK_period,     focusmon,               {.i = +1 } },
 	{ MODKEY|ShiftMask,             XK_comma,      tagmon,                 {.i = -1 } },
 	{ MODKEY|ShiftMask,             XK_period,     tagmon,                 {.i = +1 } },
-	{ MODKEY,			XK_Print,      spawn,		       {.v = screenshot } },
+	{ 0,				XK_Print,      spawn,		       {.v = screenshot } },
+	{ MODKEY,			XK_Print,      spawn,		       {.v = maimpickcmd } },
 	{ ControlMask,			XK_Print,      spawn,		       {.v = capturess } },
 	{ ShiftMask,			XK_Print,      spawn,		       {.v = capwin } },      
-	{ MODKEY,			XK_d,	       spawn,		       {.v = lf } },      
+	{ ControlMask|ShiftMask,        XK_space,      spawn,                  SHCMD("fcitx-toggle") },
 	{ MODKEY,                       XK_n,	       spawn,                  {.v = new_look } },
 	{ MODKEY,			XK_x,	       togglescratch,	       {.ui = 0 } },
+	{ 0, XF86XK_AudioMute,                         spawn,                  SHCMD("wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle; kill -44 $(pidof dwmblocks)") },
+	{ 0, XF86XK_AudioRaiseVolume,                  spawn,                  SHCMD("wpctl set-volume @DEFAULT_AUDIO_SINK@ 0%- && wpctl set-volume @DEFAULT_AUDIO_SINK@ 3%+; kill -44 $(pidof dwmblocks)") },
+	{ 0, XF86XK_AudioLowerVolume,                  spawn,                  SHCMD("wpctl set-volume @DEFAULT_AUDIO_SINK@ 0%+ && wpctl set-volume @DEFAULT_AUDIO_SINK@ 3%-; kill -44 $(pidof dwmblocks)") },
+	{ 0, XF86XK_AudioPrev,                         spawn,                  {.v = (const char*[]){ "mpc", "prev", NULL } } },
+	{ 0, XF86XK_AudioNext,                         spawn,                  {.v = (const char*[]){ "mpc",  "next", NULL } } },
+	{ 0, XF86XK_AudioPause,                        spawn,                  {.v = (const char*[]){ "mpc", "pause", NULL } } },
+	{ 0, XF86XK_AudioPlay,                         spawn,                  {.v = (const char*[]){ "mpc", "play", NULL } } },
+	{ 0, XF86XK_AudioStop,                         spawn,                  {.v = (const char*[]){ "mpc", "stop", NULL } } },
+	{ 0, XF86XK_AudioRewind,                       spawn,                  {.v = (const char*[]){ "mpc", "seek", "-10", NULL } } },
+	{ 0, XF86XK_AudioForward,                      spawn,                  {.v = (const char*[]){ "mpc", "seek", "+10", NULL } } },
+	{ 0, XF86XK_AudioMedia,                        spawn,                  {.v = (const char*[]){ "st", "-e", "ncmpcpp", NULL } } },
+	{ 0, XF86XK_AudioMicMute,                      spawn,                  SHCMD("pactl set-source-mute @DEFAULT_SOURCE@ toggle") },
+	{ 0, XF86XK_Calculator,                        spawn,                  {.v = (const char*[]){ "st", "-e", "bc", "-l", NULL } } },
+	{ 0, XF86XK_Sleep,                             spawn,                  {.v = (const char*[]){ "sudo", "-A", "zzz", NULL } } },
+	{ 0, XF86XK_WWW,                               spawn,                  {.v = bravecmd } },
+	{ 0, XF86XK_ScreenSaver,                       spawn,                  SHCMD("slock & xset dpms force off; mpc pause; pauseallmpv") },
+	{ 0, XF86XK_TaskPane,                          spawn,                  {.v = (const char*[]){ "st", "-e", "htop", NULL } } },
+	{ 0, XF86XK_Mail,                              spawn,                  SHCMD("st -e neomutt ; pkill -RTMIN+12 dwmblocks") },
+	{ 0, XF86XK_MyComputer,                        spawn,                  {.v = (const char*[]){ "st", "-e",  "lfub",  "/", NULL } } },
+	{ 0, XF86XK_Launch1,                           spawn,                  {.v = (const char*[]){ "xset", "dpms", "force", "off", NULL } } },
+	{ 0, XF86XK_TouchpadToggle,                    spawn,                  SHCMD("(synclient | grep 'TouchpadOff.*1' && synclient TouchpadOff=0) || synclient TouchpadOff=1") },
+	{ 0, XF86XK_TouchpadOff,                       spawn,                  {.v = (const char*[]){ "synclient", "TouchpadOff=1", NULL } } },
+	{ 0, XF86XK_TouchpadOn,                        spawn,                  {.v = (const char*[]){ "synclient", "TouchpadOff=0", NULL } } },
+	{ 0, XF86XK_MonBrightnessUp,                   spawn,                  {.v = (const char*[]){ "brightnessctl", "set", "+5%", NULL } } },
+	{ 0, XF86XK_MonBrightnessDown,                 spawn,                  {.v = (const char*[]){ "brightnessctl", "set", "5%-", NULL } } },
 	TAGKEYS(                        XK_1,                                  0)
 	TAGKEYS(                        XK_2,                                  1)
 	TAGKEYS(                        XK_3,                                  2)
