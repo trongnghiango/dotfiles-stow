@@ -234,6 +234,18 @@ cmd extract_fzf ${{
     lf -remote "send $id select extract"
 }}
 
+# ---------- FZF SEARCH (RIPGREP) ----------
+cmd fzf_search ${{
+    if ! command -v rg >/dev/null 2>&1 || ! command -v fzf >/dev/null 2>&1; then
+        lf -remote "send $id echo 'rg or fzf not installed!'"
+        exit 1
+    fi
+    res=$(rg --column --line-number --no-heading --color=always --smart-case "" 2>/dev/null | \
+          fzf --ansi --delimiter=: --nth=4.. --prompt="Search content > " --height=50% --reverse | \
+          cut -d: -f1)
+    [ -n "$res" ] && lf -remote "send $id select \"$res\""
+}}
+
 cmd fzf_jump ${{
     # Tìm kiếm nhanh thư mục hoặc file trong bán kính 3 cấp thư mục con
     res=$(find . -maxdepth 3 -not -path '*/.*' | fzf --prompt="Jump to > ")
@@ -247,6 +259,7 @@ cmd fzf_jump ${{
 }}
 # Map phím f để tìm kiếm nhảy nhanh
 map f fzf_jump
+map / fzf_search
 
 # ---------- COMPRESS PRO (BACKUP) ----------
 cmd compress ${{
