@@ -66,7 +66,7 @@ setup_pkgs() {
     stow git zsh tmux neovim
     # Git tools
     git-delta
-    # DWM ecosystem
+    # DWM ecosystem (X11)
     xorg-server xorg-xinit xorg-xrandr xorg-xrdb xorg-xset xorg-xsetroot
     # Fonts (Nerd Font cho dwmblocks icons)
     ttf-jetbrains-mono-nerd ttf-nerd-fonts-symbols
@@ -76,9 +76,7 @@ setup_pkgs() {
     lf bat eza chafa ffmpegthumbnailer poppler p7zip unzip
     # Image viewer (X11 native)
     nsxiv
-    # Terminal (suckless st từ AUR hoặc đã build sẵn)
-    # st  # Thường build từ source — bỏ qua ở đây
-    # dmenu (launcher)
+    # App launcher
     dmenu
     # Notifications
     dunst libnotify
@@ -90,29 +88,22 @@ setup_pkgs() {
     mpv mpd ncmpcpp mpc
     pipewire pipewire-alsa pipewire-pulse wireplumber
     noise-suppression-for-voice
-    # Browser
-    brave-bin  # AUR
     # Input method (Tiếng Việt)
     fcitx5 fcitx5-bamboo fcitx5-gtk fcitx5-qt fcitx5-configtool
     # Fuzzy finder
     fzf
-    # System tray
-    trayer
-    # Misc utilities
+    # System utilities
     udiskie xfce4-power-manager unclutter
     gnome-keyring polkit-gnome
-    # opencode AI CLI (optional, comment nếu không cần)
-    # opencode  # AUR hoặc install riêng
-    # zoxide (smart cd)
-    zoxide
-    # starship prompt
-    starship
+    # Smart cd + prompt
+    zoxide starship
   )
+
+  # AUR packages: cần yay/paru — chỉ cài nếu AUR helper có sẵn
+  local aur_pkgs=(brave-bin trayer)
 
   local missing=()
   for pkg in "${pkgs[@]}"; do
-    # Bỏ qua comment lines
-    [[ "$pkg" == \#* ]] && continue
     if ! pacman -Qi "$pkg" &>/dev/null 2>&1; then
       missing+=("$pkg")
     fi
@@ -120,16 +111,37 @@ setup_pkgs() {
 
   if [ ${#missing[@]} -eq 0 ]; then
     log_success "Toàn bộ gói phụ thuộc đã được cài đặt."
-    return 0
+  else
+    log_info "Cần cài ${#missing[@]} gói: ${missing[*]}"
+    log_info "Đang cài qua pacman..."
+    if sudo pacman -S --needed --noconfirm "${missing[@]}" 2>/dev/null; then
+      log_success "Đã cài đặt xong tất cả các gói."
+    else
+      log_warn "Một số gói không thể cài. Kiểm tra lại kết nối mạng."
+    fi
   fi
 
-  log_info "Cần cài ${#missing[@]} gói: ${missing[*]}"
-  log_info "Đang cài qua pacman (có thể hỏi sudo)..."
-  # Dùng --needed để skip gói đã có, --noconfirm để không hỏi
-  if sudo pacman -S --needed --noconfirm "${missing[@]}" 2>/dev/null; then
-    log_success "Đã cài đặt xong tất cả các gói."
+  # Cài AUR packages nếu có yay hoặc paru
+  local aur_helper=""
+  command -v yay &>/dev/null && aur_helper="yay"
+  command -v paru &>/dev/null && aur_helper="paru"
+
+  if [ -n "$aur_helper" ]; then
+    local missing_aur=()
+    for pkg in "${aur_pkgs[@]}"; do
+      pacman -Qi "$pkg" &>/dev/null || missing_aur+=("$pkg")
+    done
+    if [ ${#missing_aur[@]} -gt 0 ]; then
+      log_info "Cài AUR packages qua $aur_helper: ${missing_aur[*]}"
+      $aur_helper -S --needed --noconfirm "${missing_aur[@]}" 2>/dev/null && \
+        log_success "Đã cài AUR packages." || \
+        log_warn "Không cài được một số AUR packages."
+    else
+      log_success "AUR packages (${aur_pkgs[*]}) đã có."
+    fi
   else
-    log_warn "Một số gói không thể cài qua pacman (có thể cần AUR). Tiếp tục..."
+    log_warn "Không tìm thấy AUR helper (yay/paru). Bỏ qua: ${aur_pkgs[*]}"
+    log_dim "Cài thủ công: yay -S ${aur_pkgs[*]}"
   fi
 }
 
@@ -283,7 +295,7 @@ setup_pam() {
   fi
 
   if grep -q "pam_gnome_keyring.so" "$pam_file"; then
-    log_success "PAM gnome-keyring đã được cấu hình trước đó."
+    log_success "PAM gnome-keyring đã được cấu hình sẵn — bỏ qua."
     return 0
   fi
 
@@ -382,11 +394,17 @@ EOF
 setup_battery() {
   log_step "Cấu hình ngưỡng sạc pin ThinkPad..."
 
-  if command -v battery-threshold &>/dev/null; then
-    battery-threshold
+  # Tìm battery-threshold trong PATH hoặc trực tiếp trong dotfiles
+  local bt_cmd=""
+  command -v battery-threshold &>/dev/null && bt_cmd="battery-threshold"
+  [ -z "$bt_cmd" ] && [ -f "$_SCRIPT_DIR/battery-threshold" ] && bt_cmd="$_SCRIPT_DIR/battery-threshold"
+  [ -z "$bt_cmd" ] && [ -f "$DOTFILES_DIR/scripts/.local/bin/ka-battery" ] && bt_cmd="$DOTFILES_DIR/scripts/.local/bin/ka-battery"
+
+  if [ -n "$bt_cmd" ]; then
+    "$bt_cmd"
   else
-    log_warn "Lệnh battery-threshold chưa có trong PATH."
-    log_dim "Chạy ka-setup stow trước để deploy scripts/"
+    log_warn "Không tìm thấy battery-threshold. Chạy sau khi stow scripts/."
+    log_dim "Hoặc chạy thủ công: stow-safe scripts && battery-threshold"
   fi
 }
 
