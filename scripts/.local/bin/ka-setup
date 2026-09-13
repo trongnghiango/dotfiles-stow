@@ -70,10 +70,10 @@ setup_pkgs() {
     git-delta
     # DWM ecosystem (X11)
     xorg-server xorg-xinit xorg-xrandr xorg-xrdb xorg-xset xorg-xsetroot
-    # Fonts — tối ưu dung lượng:
+    # Fonts — tối ưu dung lượng theo chuẩn Omarchy X11:
     #   ttf-jetbrains-mono (3MB) = font chính, NHẸ hơn 75x so với bản nerd (228MB)
     #   ttf-nerd-fonts-symbols (2MB) = chỉ icon symbols cho dwmblocks/lf
-    ttf-jetbrains-mono ttf-nerd-fonts-symbols
+    ttf-jetbrains-mono ttf-nerd-fonts-symbols inter-font noto-fonts noto-fonts-cjk noto-fonts-emoji
     # Clipboard (X11)
     xclip xdotool
     # File manager & preview

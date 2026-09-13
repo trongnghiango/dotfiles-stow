@@ -2,7 +2,9 @@
 *.alpha: 0.8
 
 !! Set a default font and font size as below:
-*.font: monospace:size=10
+*.font: JetBrains Mono:pixelsize=14:style=SemiBold:antialias=true:autohint=true
+st.font: JetBrains Mono:pixelsize=14:style=SemiBold:antialias=true:autohint=true
+st.fontalt0: Symbols Nerd Font:pixelsize=14:style=SemiBold:antialias=true:autohint=true
 
 !! Nord Palette (synchronized with dwm/st/dmenu)
 *.foreground: #d8dee9

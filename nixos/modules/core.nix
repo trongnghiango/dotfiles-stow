@@ -16,10 +16,9 @@
     curl
   ];
 
-  # Fonts (Giữ nguyên của bạn)
+  # Fonts tối ưu theo chuẩn Omarchy X11
   fonts.packages = with pkgs; [
-    nerd-fonts.blex-mono
-    nerd-fonts.jetbrains-mono
+    jetbrains-mono
     nerd-fonts.symbols-only
     inter
     noto-fonts

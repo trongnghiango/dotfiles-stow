@@ -5,9 +5,8 @@
  *
  * font: see http://freedesktop.org/software/fontconfig/fontconfig-user.html
  */
-static char *font = "BlexMono Nerd Font:pixelsize=13:style=SemiBold:antialias=true:autohint=true"; // yay -Ss ttf-blex-nerd-font-git
-//static char *font = "mono:pixelsize=12:antialias=true:autohint=true";
-static char *font2[] = { "SymbolsNerdFont:pixelsize=13:style=SemiBold:antialias=true:autohint=true" };
+static char *font = "JetBrains Mono:pixelsize=14:style=SemiBold:antialias=true:autohint=true";
+static char *font2[] = { "Symbols Nerd Font:pixelsize=14:style=SemiBold:antialias=true:autohint=true" };
 static int borderpx = 2;
 
 /*
