@@ -206,10 +206,9 @@ HOSTS
 # 3. Kích hoạt dịch vụ mạng
 systemctl enable NetworkManager
 
-# 4. Thêm hook lvm2 vào mkinitcpio
-if ! grep -q "lvm2" /etc/mkinitcpio.conf; then
-    sed -i 's/^HOOKS=(\(.*\)block\(.*\)filesystems\(.*\))/HOOKS=(\1block lvm2\2filesystems\3)/' /etc/mkinitcpio.conf
-fi
+# 4. Cấu hình mkinitcpio (Bắt buộc hook lvm2)
+# Thay thế hoàn toàn dòng HOOKS hiện tại bằng cấu hình chuẩn hỗ trợ LVM
+sed -i -E 's/^[[:space:]]*HOOKS=\(.*\)/HOOKS=(base udev autodetect microcode modconf kms keyboard keymap consolefont block lvm2 filesystems fsck)/' /etc/mkinitcpio.conf
 mkinitcpio -P
 
 # 5. Cài đặt và cấu hình systemd-boot
