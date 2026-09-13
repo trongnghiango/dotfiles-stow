@@ -46,7 +46,10 @@ shot_screen() {
   ensure_dir
   FILE="$DIR/screen_$(timestamp).png"
   maim "$FILE" || die "Failed to capture screen"
-  notify "Saved full screenshot" "$FILE"
+  if command -v xclip >/dev/null 2>&1; then
+    xclip -selection clipboard -t image/png -i "$FILE"
+  fi
+  notify "Saved & copied full screenshot" "$FILE"
 }
 
 shot_area() {
@@ -54,7 +57,10 @@ shot_area() {
   ensure_dir
   FILE="$DIR/area_$(timestamp).png"
   maim -s "$FILE" || die "Selection cancelled"
-  notify "Saved area selection" "$FILE"
+  if command -v xclip >/dev/null 2>&1; then
+    xclip -selection clipboard -t image/png -i "$FILE"
+  fi
+  notify "Saved & copied area selection" "$FILE"
 }
 
 shot_window() {
@@ -63,7 +69,10 @@ shot_window() {
   WIN="$(xdotool getactivewindow 2>/dev/null)" || die "No active window"
   FILE="$DIR/window_$(timestamp).png"
   maim -i "$WIN" "$FILE" || die "Failed to capture window"
-  notify "Saved active window" "$FILE"
+  if command -v xclip >/dev/null 2>&1; then
+    xclip -selection clipboard -t image/png -i "$FILE"
+  fi
+  notify "Saved & copied active window" "$FILE"
 }
 
 # ---------- ui ----------
