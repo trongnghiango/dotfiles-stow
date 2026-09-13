@@ -2,6 +2,10 @@
 
 Personal dotfiles managed with **GNU Stow** + Git. Primary: **Arch Linux** + **DWM** (startx, no DM). Also runs on NixOS (`thinkbox`) and Void.
 
+> [!IMPORTANT]
+> **X11 Omarchy Philosophy**: Nhánh `main` này đã được thiết kế lại dựa trên triết lý sạch sẽ, tối ưu của Omarchy OS, nhưng giữ nguyên công nghệ X11/DWM.
+> Mọi AI Assistant khi làm việc với nhánh này **BẮT BUỘC ĐỌC** file `OMARCHY_X11_HANDOFF.md` để hiểu kiến trúc.
+
 ## Structure
 
 Each top-level directory is a Stow package containing `$HOME`-relative paths:
@@ -13,7 +17,8 @@ Each top-level directory is a Stow package containing `$HOME`-relative paths:
 | `nvim/` | init.lua (modularized with neovide.lua), lua/{core,plugins,utils}/ — fully tracked |
 | `tmux/` | prefix Ctrl+Space, vi nav, escape-time 0 |
 | `x11/` | xinitrc (D-Bus → DWM), xprofile, xresources |
-| `scripts/` | `~/.local/bin` — compiled suckless tools (dwm, st, dmenu, dwmblocks) + all scripts |
+| `suckless/`| Source code của DWM, ST, Dmenu, Dwmblocks (tự động compile qua `ka-setup`) |
+| `scripts/` | `~/.local/bin` — Các công cụ hệ thống đã được chia gọn vào `dwmblocks-scripts` và `dmenu-scripts` |
 | `nixos/` | flake.nix, hosts/thinkbox/, home/home.nix |
 | `lf/` | lf file manager (vi binds, ueberzug preview, interactive extract/compress, README guide via Ecfh) |
 | `media/` | mpv, ncmpcpp, mpd configs |
