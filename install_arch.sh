@@ -127,8 +127,10 @@ swapoff -a 2>/dev/null || true
 # 2. Unmount tất cả các điểm mount đang gắn với ổ đĩa này và /mnt
 log_info "Unmount các phân vùng đang hoạt động..."
 if [ -b "$DISK" ]; then
-    lsblk -nrpo MOUNTPOINT "$DISK" 2>/dev/null | grep -v '^$' | sort -r | while read -r mp; do
-        umount -R "$mp" 2>/dev/null || true
+    for mp in $(lsblk -nrpo MOUNTPOINT "$DISK" 2>/dev/null | sort -ru || true); do
+        if [ -n "$mp" ]; then
+            umount -R "$mp" 2>/dev/null || true
+        fi
     done
 fi
 umount -R /mnt 2>/dev/null || true
@@ -139,7 +141,7 @@ vgchange -an 2>/dev/null || true
 
 # 4. Đóng toàn bộ Device-Mapper con đang bám vào các partition của DISK
 if [ -b "$DISK" ]; then
-    for part in $(lsblk -nrpo NAME "$DISK" 2>/dev/null | tail -n +2); do
+    for part in $(lsblk -nrpo NAME "$DISK" 2>/dev/null | tail -n +2 || true); do
         part_name=$(basename "$part")
         if [ -d "/sys/class/block/$part_name/holders" ]; then
             for holder in /sys/class/block/"$part_name"/holders/*; do
@@ -260,7 +262,9 @@ PKGS=(
     stow
     neovim
 )
-[ -n "$UCODE_PKG" ] && PKGS+=($UCODE_PKG)
+if [ -n "$UCODE_PKG" ]; then
+    PKGS+=($UCODE_PKG)
+fi
 
 pacstrap -K /mnt "${PKGS[@]}"
 
