@@ -18,6 +18,14 @@ BOLD='\033[1m'
 DIM='\033[2m'
 NC='\033[0m'
 
+# --- Root Check ---
+if [ "$EUID" -eq 0 ]; then
+  echo -e "${RED}[ERROR]${NC}   Vui lòng KHÔNG chạy ka-setup bằng quyền root/sudo." >&2
+  echo "Chạy bình thường dưới user của bạn: ./scripts/.local/bin/ka-setup all" >&2
+  echo "Script sẽ tự động yêu cầu sudo khi thực sự cần thiết." >&2
+  exit 1
+fi
+
 log_info()    { echo -e "${BLUE}[INFO]${NC}    $1"; }
 log_success() { echo -e "${GREEN}[OK]${NC}      $1"; }
 log_warn()    { echo -e "${YELLOW}[WARN]${NC}    $1"; }
@@ -51,6 +59,37 @@ show_help() {
   echo -e "${BOLD}DOTFILES:${NC} ${DIM}$DOTFILES_DIR${NC}"
 }
 
+# --- Helper: Tìm hoặc bootstrap AUR helper (yay-bin) ---
+get_aur_helper() {
+  if command -v yay &>/dev/null; then
+    echo "yay"
+    return 0
+  fi
+  if command -v paru &>/dev/null; then
+    echo "paru"
+    return 0
+  fi
+
+  log_info "Chưa tìm thấy yay/paru. Tự động biên dịch yay-bin từ AUR..."
+  local build_dir
+  build_dir="$(mktemp -d)"
+  if git clone https://aur.archlinux.org/yay-bin.git "$build_dir/yay-bin"; then
+    (
+      cd "$build_dir/yay-bin"
+      makepkg -si --noconfirm
+    )
+    rm -rf "$build_dir"
+    if command -v yay &>/dev/null; then
+      log_success "Đã cài đặt yay-bin thành công."
+      echo "yay"
+      return 0
+    fi
+  fi
+  rm -rf "$build_dir"
+  log_warn "Không thể tự động cài đặt yay-bin. Cần cài thủ công."
+  return 1
+}
+
 # ==============================================================================
 # 0. CÀI ĐẶT GÓI PHỤ THUỘC (DWM/X11-specific)
 # ==============================================================================
@@ -67,7 +106,8 @@ setup_pkgs() {
     # Core & Build essentials (Bắt buộc để compile DWM, ST, Dmenu, Dwmblocks)
     base-devel stow git zsh tmux neovim
     # Build dependencies cho Suckless (Xft, Xinerama, Imlib2, XCB, Harfbuzz...)
-    libx11 libxinerama libxft libxrender libxcb xcb-util-res imlib2 harfbuzz fontconfig
+    # Lưu ý: libxcb đã bao gồm libxcb-res.so (không có gói xcb-util-res)
+    libx11 libxinerama libxft libxrender libxcb imlib2 harfbuzz fontconfig
     # Git tools
     git-delta
     # DWM ecosystem (X11)
@@ -78,8 +118,8 @@ setup_pkgs() {
     ttf-jetbrains-mono ttf-nerd-fonts-symbols inter-font noto-fonts noto-fonts-cjk noto-fonts-emoji
     # Clipboard & Screenshot (X11)
     xclip xdotool maim
-    # File manager & preview
-    lf bat eza ffmpegthumbnailer poppler p7zip unzip
+    # File manager, preview & Document viewer
+    lf bat eza ffmpegthumbnailer poppler 7zip unzip ueberzugpp zathura zathura-pdf-mupdf imagemagick
     # Image viewer (X11 native)
     nsxiv
     # App launcher & Menu
@@ -91,7 +131,7 @@ setup_pkgs() {
     # Wallpaper
     xwallpaper
     # Audio/Media
-    mpv mpd ncmpcpp mpc
+    mpv mpd ncmpcpp mpc 
     pipewire pipewire-alsa pipewire-pulse wireplumber
     # Input method (Tiếng Việt)
     fcitx5 fcitx5-bamboo fcitx5-gtk fcitx5-qt fcitx5-configtool
@@ -99,14 +139,14 @@ setup_pkgs() {
     fzf ripgrep
     # Shell enhancements & Prompt
     zsh-syntax-highlighting zsh-autosuggestions zoxide starship
-    # System utilities
-    unclutter gnome-keyring polkit-gnome
+    # System utilities, hardware keys & daemons
+    unclutter gnome-keyring polkit-gnome udiskie xfce4-power-manager brightnessctl slock bc htop
   )
 
-  # AUR packages: cần yay/paru — chỉ cài nếu AUR helper có sẵn
+  # AUR packages: cần yay/paru
   local aur_pkgs=(brave-bin)
 
-  # --- Kiểm tra nhanh: nếu tất cả đã cài → thoát ngay, KHÔNG cần sudo ---
+  # --- 1. Kiểm tra và cài đặt gói từ kho chính thức Arch (pacman) ---
   local missing=()
   for pkg in "${pkgs[@]}"; do
     if ! pacman -Qi "$pkg" &>/dev/null 2>&1; then
@@ -114,60 +154,45 @@ setup_pkgs() {
     fi
   done
 
-  if [ ${#missing[@]} -eq 0 ]; then
-    log_success "Toàn bộ gói phụ thuộc đã có — bỏ qua."
-    # Kiểm tra AUR nhanh luôn
-    local missing_aur=()
-    for pkg in "${aur_pkgs[@]}"; do
-      pacman -Qi "$pkg" &>/dev/null || missing_aur+=("$pkg")
-    done
-    if [ ${#missing_aur[@]} -eq 0 ]; then
-      log_success "AUR packages đã có — bỏ qua."
+  if [ ${#missing[@]} -gt 0 ]; then
+    log_info "Thiếu ${#missing[@]} gói pacman: ${missing[*]}"
+    printf "${YELLOW}Cài đặt? [Y/n]: ${NC}"
+    read -r ans
+    if [[ ! "$ans" =~ ^[Nn] ]]; then
+      if sudo pacman -S --needed --noconfirm "${missing[@]}"; then
+        log_success "Đã cài đặt xong các gói pacman."
+      else
+        log_warn "Một số gói không thể cài. Kiểm tra lại kết nối mạng hoặc mirrorlist."
+      fi
     else
-      log_warn "Thiếu AUR: ${missing_aur[*]}. Cài thủ công: yay -S ${missing_aur[*]}"
+      log_warn "Bỏ qua cài đặt gói pacman."
     fi
-    return 0
-  fi
-
-  # --- Có gói thiếu → hỏi xác nhận trước khi cài ---
-  log_info "Thiếu ${#missing[@]} gói: ${missing[*]}"
-  printf "${YELLOW}Cài đặt? [Y/n]: ${NC}"
-  read -r ans
-  if [[ "$ans" =~ ^[Nn] ]]; then
-    log_warn "Bỏ qua cài đặt gói."
-    return 0
-  fi
-
-  if sudo pacman -S --needed --noconfirm "${missing[@]}" 2>/dev/null; then
-    log_success "Đã cài đặt xong tất cả các gói."
   else
-    log_warn "Một số gói không thể cài. Kiểm tra lại kết nối mạng."
+    log_success "Toàn bộ gói phụ thuộc pacman đã có — bỏ qua."
   fi
 
-  # Cài AUR packages nếu có yay hoặc paru
-  local aur_helper=""
-  command -v yay &>/dev/null && aur_helper="yay"
-  command -v paru &>/dev/null && aur_helper="paru"
+  # --- 2. Kiểm tra và cài đặt gói AUR ---
+  local missing_aur=()
+  for pkg in "${aur_pkgs[@]}"; do
+    pacman -Qi "$pkg" &>/dev/null || missing_aur+=("$pkg")
+  done
 
-  if [ -n "$aur_helper" ]; then
-    local missing_aur=()
-    for pkg in "${aur_pkgs[@]}"; do
-      pacman -Qi "$pkg" &>/dev/null || missing_aur+=("$pkg")
-    done
-    if [ ${#missing_aur[@]} -gt 0 ]; then
+  if [ ${#missing_aur[@]} -gt 0 ]; then
+    log_info "Thiếu ${#missing_aur[@]} gói AUR: ${missing_aur[*]}"
+    local aur_helper=""
+    aur_helper="$(get_aur_helper || true)"
+    if [ -n "$aur_helper" ]; then
       log_info "Cài AUR packages qua $aur_helper: ${missing_aur[*]}"
-      $aur_helper -S --needed --noconfirm "${missing_aur[@]}" 2>/dev/null && \
-        log_success "Đã cài AUR packages." || \
-        log_warn "Không cài được một số AUR packages."
+      if $aur_helper -S --needed --noconfirm "${missing_aur[@]}"; then
+        log_success "Đã cài AUR packages (${missing_aur[*]})."
+      else
+        log_warn "Không thể cài một số AUR packages."
+      fi
     else
-      log_success "AUR packages (${aur_pkgs[*]}) đã có."
+      log_warn "Thiếu AUR helper. Cài thủ công: yay -S ${missing_aur[*]}"
     fi
   else
-    local missing_aur=()
-    for pkg in "${aur_pkgs[@]}"; do
-      pacman -Qi "$pkg" &>/dev/null || missing_aur+=("$pkg")
-    done
-    [ ${#missing_aur[@]} -gt 0 ] && log_warn "Thiếu AUR: ${missing_aur[*]}. Cài thủ công: yay -S ${missing_aur[*]}"
+    log_success "AUR packages (${aur_pkgs[*]}) đã có."
   fi
 }
 
@@ -320,7 +345,13 @@ setup_suckless() {
       log_info "Đang biên dịch $tool..."
       (
         cd "$src_dir/$tool"
-        sudo make clean install >/dev/null 2>&1 && log_dim "Đã biên dịch $tool thành công" || log_error "Lỗi khi biên dịch $tool"
+        local make_log="/tmp/make-${tool}.log"
+        if sudo make clean install >"$make_log" 2>&1; then
+          log_dim "Đã biên dịch $tool thành công"
+        else
+          log_error "Lỗi khi biên dịch $tool. Xem chi tiết tại $make_log:"
+          cat "$make_log" >&2
+        fi
       )
     else
       log_warn "Không tìm thấy source code cho $tool trong $src_dir"
