@@ -31,15 +31,7 @@ if command -v direnv &>/dev/null; then
   eval "$(direnv hook zsh)"
 fi
 
-# NVM — Node Version Manager (lazy load để tránh chậm shell startup)
-# Uncomment khi cần sử dụng nvm. PNPM đã được config trong profile.
-# export NVM_DIR="${XDG_CONFIG_HOME}/nvm"
-# _nvm_lazy_load() {
-#   unset -f nvm node npm npx
-#   [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
-#   [ -s "$NVM_DIR/bash_completion" ] && source "$NVM_DIR/bash_completion"
-# }
-# nvm() { _nvm_lazy_load; nvm "$@"; }
-# node() { _nvm_lazy_load; node "$@"; }
-# npm() { _nvm_lazy_load; npm "$@"; }
-# npx() { _nvm_lazy_load; npx "$@"; }
+# Mise — polyglot dev runtime manager (Node, Python, Go, Rust, Bun, PNPM)
+if command -v mise &>/dev/null; then
+  eval "$(mise activate zsh)"
+fi
