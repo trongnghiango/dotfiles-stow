@@ -43,20 +43,30 @@ show_help() {
   echo "================================================================="
   echo ""
   echo -e "${BOLD}SỬ DỤNG:${NC}"
-  echo "  ka-setup <command>"
+  echo "  ka-setup <command> [options]"
   echo ""
   echo -e "${BOLD}COMMANDS:${NC}"
-  echo -e "  ${GREEN}all${NC}       Chạy toàn bộ: pkgs → shell → stow → suckless → pam → brave → battery → docker"
-  echo -e "  ${GREEN}pkgs${NC}      Cài đặt các gói phụ thuộc DWM/X11"
-  echo -e "  ${GREEN}shell${NC}     Đặt Zsh làm login shell mặc định"
-  echo -e "  ${GREEN}stow${NC}      Deploy tất cả dotfiles qua stow-safe"
-  echo -e "  ${GREEN}suckless${NC}  Biên dịch (make install) DWM, ST, Dmenu, Dwmblocks"
-  echo -e "  ${GREEN}pam${NC}       Cấu hình gnome-keyring tự động mở khóa tại TTY"
-  echo -e "  ${GREEN}brave${NC}     Tạo/kiểm tra brave-flags.conf tối ưu cho X11 + HD4000"
-  echo -e "  ${GREEN}battery${NC}   Cấu hình ngưỡng sạc pin ThinkPad (50-60%)"
-  echo -e "  ${GREEN}docker${NC}    Cấu hình Docker non-root + socket activation"
+  echo -e "  ${GREEN}all [profile]${NC}   Chạy toàn bộ quy trình cấu hình (mặc định: core)"
+  echo -e "  ${GREEN}pkgs [profile]${NC}  Cài đặt gói từ progs.csv theo profile hoặc tier"
+  echo -e "                    Profiles:"
+  echo -e "                      core    (Nền tảng DWM/X11, Fonts, Shell, Audio, Trình duyệt) [Mặc định]"
+  echo -e "                      dev     (Neovim, VSCode, Rust, Clang, Node, LazyGit...)"
+  echo -e "                      media   (MPD, ncmpcpp, OBS Studio, yt-dlp...)"
+  echo -e "                      tools   (Pandoc, Calibre, Telegram, Anki...)"
+  echo -e "                      virt    (Docker, Libvirt, QEMU, Lazydocker...)"
+  echo -e "                      sys     (Tiện ích hệ thống, Bluetooth, Máy in...)"
+  echo -e "                      all     (Toàn bộ 200+ gói trong progs.csv)"
+  echo -e "                    Hoặc theo số Tier: 1, 2, 1,2,3... hoặc deps: dwm, lf, zsh..."
+  echo -e "  ${GREEN}shell${NC}          Đặt Zsh làm login shell mặc định"
+  echo -e "  ${GREEN}stow${NC}           Deploy tất cả dotfiles qua stow-safe"
+  echo -e "  ${GREEN}suckless${NC}       Biên dịch (make install) DWM, ST, Dmenu, Dwmblocks"
+  echo -e "  ${GREEN}pam${NC}            Cấu hình gnome-keyring tự động mở khóa tại TTY"
+  echo -e "  ${GREEN}brave${NC}          Tạo/kiểm tra brave-flags.conf tối ưu cho X11 + HD4000"
+  echo -e "  ${GREEN}battery${NC}        Cấu hình ngưỡng sạc pin ThinkPad (50-60%)"
+  echo -e "  ${GREEN}docker${NC}         Cấu hình Docker non-root + socket activation"
   echo ""
-  echo -e "${BOLD}DOTFILES:${NC} ${DIM}$DOTFILES_DIR${NC}"
+  echo -e "${BOLD}DOTFILES:${NC}  ${DIM}$DOTFILES_DIR${NC}"
+  echo -e "${BOLD}PROGS CSV:${NC} ${DIM}$DOTFILES_DIR/progs.csv${NC}"
 }
 
 # --- Helper: Tìm hoặc bootstrap AUR helper (yay-bin) ---
@@ -91,84 +101,128 @@ get_aur_helper() {
 }
 
 # ==============================================================================
-# 0. CÀI ĐẶT GÓI PHỤ THUỘC (DWM/X11-specific)
+# 0. CÀI ĐẶT GÓI PHỤ THUỘC (Đọc từ progs.csv)
 # ==============================================================================
 setup_pkgs() {
-  log_step "Kiểm tra và cài đặt các gói phụ thuộc DWM/X11..."
+  local target="${1:-}"
+  local progs_file="$DOTFILES_DIR/progs.csv"
+
+  if [ ! -f "$progs_file" ]; then
+    log_error "Không tìm thấy file danh sách gói: $progs_file"
+    return 1
+  fi
 
   if ! command -v pacman &>/dev/null; then
     log_warn "Hệ thống không dùng pacman — bỏ qua bước cài đặt tự động."
     return 0
   fi
 
-  # --- Danh sách gói đã tối ưu: chỉ gói THỰC SỰ CẦN THIẾT ---
-  local pkgs=(
-    # Core & Build essentials (Bắt buộc để compile DWM, ST, Dmenu, Dwmblocks)
-    base-devel stow git zsh tmux neovim
-    # Build dependencies cho Suckless (Xft, Xinerama, Imlib2, XCB, Harfbuzz...)
-    # Lưu ý: libxcb đã bao gồm libxcb-res.so (không có gói xcb-util-res)
-    libx11 libxinerama libxft libxrender libxcb imlib2 harfbuzz fontconfig
-    # Git tools
-    git-delta
-    # DWM ecosystem (X11)
-    xorg-server xorg-xinit xorg-xrandr xorg-xrdb xorg-xset xorg-xsetroot
-    # Fonts — tối ưu dung lượng theo chuẩn Omarchy X11:
-    #   ttf-jetbrains-mono (3MB) = font chính, NHẸ hơn 75x so với bản nerd (228MB)
-    #   ttf-nerd-fonts-symbols (2MB) = chỉ icon symbols cho dwmblocks/lf
-    ttf-jetbrains-mono ttf-nerd-fonts-symbols inter-font noto-fonts noto-fonts-cjk noto-fonts-emoji
-    # Clipboard & Screenshot (X11)
-    xclip xdotool maim
-    # File manager, preview & Document viewer
-    lf bat eza ffmpegthumbnailer poppler 7zip unzip ueberzugpp zathura zathura-pdf-mupdf imagemagick
-    # Image viewer (X11 native)
-    nsxiv
-    # App launcher & Menu
-    dmenu rofi
-    # Notifications
-    dunst libnotify
-    # Compositor
-    picom
-    # Wallpaper
-    xwallpaper
-    # Audio/Media
-    mpv mpd ncmpcpp mpc 
-    pipewire pipewire-alsa pipewire-pulse wireplumber
-    # Input method (Tiếng Việt)
-    fcitx5 fcitx5-bamboo fcitx5-gtk fcitx5-qt fcitx5-configtool
-    # Fuzzy finder & search
-    fzf ripgrep
-    # Shell enhancements & Prompt
-    zsh-syntax-highlighting zsh-autosuggestions zoxide starship
-    # System utilities, hardware keys & daemons
-    unclutter gnome-keyring polkit-gnome udiskie xfce4-power-manager brightnessctl slock bc htop
-  )
+  # Interactive prompt nếu người dùng chạy "ka-setup pkgs" không tham số tại terminal
+  if [ -z "$target" ]; then
+    if [ -t 0 ]; then
+      echo -e "${BOLD}Chọn profile gói cài đặt từ progs.csv:${NC}"
+      echo -e "  ${GREEN}1) core${NC}   Nền tảng DWM/X11, Fonts, Shell, Audio, Trình duyệt [Mặc định]"
+      echo -e "  ${GREEN}2) dev${NC}    Công cụ lập trình (Neovim, VSCode, Rust, Clang, Node, LazyGit...)"
+      echo -e "  ${GREEN}3) media${NC}  Nghe nhạc, xem phim, quay màn hình (MPD, ncmpcpp, OBS, yt-dlp...)"
+      echo -e "  ${GREEN}4) tools${NC}  Văn phòng, đọc sách, ghi chú (Pandoc, Calibre, Telegram, Anki...)"
+      echo -e "  ${GREEN}5) virt${NC}   Máy ảo & Containers (Docker, QEMU, Libvirt, Lazydocker...)"
+      echo -e "  ${GREEN}6) sys${NC}    Tiện ích hệ thống mở rộng, Bluetooth, Máy in..."
+      echo -e "  ${GREEN}7) all${NC}    Toàn bộ 200+ gói trong progs.csv"
+      printf "${YELLOW}Lựa chọn [1-7] (mặc định 1): ${NC}"
+      read -r choice
+      case "$choice" in
+        2|dev)   target="dev" ;;
+        3|media) target="media" ;;
+        4|tools) target="tools" ;;
+        5|virt)  target="virt" ;;
+        6|sys)   target="sys" ;;
+        7|all)   target="all" ;;
+        *)       target="core" ;;
+      esac
+    else
+      target="core"
+    fi
+  fi
 
-  # AUR packages: cần yay/paru
-  local aur_pkgs=(brave-bin)
+  log_step "Lọc danh sách gói theo profile [$target] từ progs.csv..."
+
+  local pacman_pkgs=()
+  local aur_pkgs=()
+
+  local old_ifs="$IFS"
+  while IFS=, read -r tag name tier deps purpose || [ -n "$name" ]; do
+    [[ -z "$name" || "$tag" =~ ^# ]] && continue
+    tag="${tag// /}"
+    name="${name// /}"
+    tier="${tier// /}"
+    deps="${deps// /}"
+
+    local match=false
+    if [ "$target" = "all" ]; then
+      match=true
+    elif [ "$target" = "core" ]; then
+      case "$deps" in
+        core|dwm|st|dmenu|dwmblocks|lf|zsh|fcitx5|pipewire|zathura|intel|"dwm,st"|"lf,zathura")
+          match=true
+          ;;
+      esac
+    elif [ "$target" = "dev" ]; then
+      [ "$tier" = "4" ] || [ "$deps" = "dev" ] && match=true
+    elif [ "$target" = "media" ]; then
+      [ "$tier" = "6" ] || [ "$deps" = "media" ] || [ "$name" = "yt-dlp" ] && match=true
+    elif [ "$target" = "tools" ]; then
+      [ "$tier" = "8" ] && match=true
+    elif [ "$target" = "virt" ]; then
+      [ "$tier" = "9" ] || [ "$deps" = "virt" ] && match=true
+    elif [ "$target" = "sys" ]; then
+      [ "$tier" = "11" ] || [ "$tier" = "1" ] || [ "$deps" = "sys" ] && match=true
+    elif [[ "$target" =~ ^[0-9,]+$ ]]; then
+      local t_arr=()
+      IFS="," read -ra t_arr <<< "$target"
+      IFS="$old_ifs"
+      for t in "${t_arr[@]}"; do
+        [ "$tier" = "$t" ] && match=true && break
+      done
+    else
+      if [[ "$deps" == *"$target"* ]]; then
+        match=true
+      fi
+    fi
+
+    [ "$match" = false ] && continue
+
+    case "$tag" in
+      ""|"M") pacman_pkgs+=("$name") ;;
+      "A")    aur_pkgs+=("$name") ;;
+      "G")    ;;
+    esac
+  done < "$progs_file"
+  IFS="$old_ifs"
 
   # --- 1. Kiểm tra và cài đặt gói từ kho chính thức Arch (pacman) ---
   local missing=()
-  for pkg in "${pkgs[@]}"; do
+  for pkg in "${pacman_pkgs[@]}"; do
     if ! pacman -Qi "$pkg" &>/dev/null 2>&1; then
       missing+=("$pkg")
     fi
   done
 
   if [ ${#missing[@]} -gt 0 ]; then
-    log_info "Thiếu ${#missing[@]} gói pacman: ${missing[*]}"
+    log_info "Profile '$target': Thiếu ${#missing[@]}/${#pacman_pkgs[@]} gói pacman."
+    log_dim "Gói thiếu: ${missing[*]}"
     printf "${YELLOW}Cài đặt? [Y/n]: ${NC}"
     read -r ans
     if [[ ! "$ans" =~ ^[Nn] ]]; then
       if sudo pacman -S --needed --noconfirm "${missing[@]}"; then
         log_success "Đã cài đặt xong các gói pacman."
       else
-        log_warn "Một số gói không thể cài. Kiểm tra lại kết nối mạng hoặc mirrorlist."
+        log_warn "Một số gói pacman không thể cài. Kiểm tra lại kết nối mạng hoặc mirrorlist."
       fi
     else
       log_warn "Bỏ qua cài đặt gói pacman."
     fi
   else
-    log_success "Toàn bộ gói phụ thuộc pacman đã có — bỏ qua."
+    log_success "Profile '$target': Toàn bộ ${#pacman_pkgs[@]} gói pacman đã có sẵn."
   fi
 
   # --- 2. Kiểm tra và cài đặt gói AUR ---
@@ -178,21 +232,28 @@ setup_pkgs() {
   done
 
   if [ ${#missing_aur[@]} -gt 0 ]; then
-    log_info "Thiếu ${#missing_aur[@]} gói AUR: ${missing_aur[*]}"
+    log_info "Profile '$target': Thiếu ${#missing_aur[@]}/${#aur_pkgs[@]} gói AUR."
+    log_dim "AUR thiếu: ${missing_aur[*]}"
     local aur_helper=""
     aur_helper="$(get_aur_helper || true)"
     if [ -n "$aur_helper" ]; then
-      log_info "Cài AUR packages qua $aur_helper: ${missing_aur[*]}"
-      if $aur_helper -S --needed --noconfirm "${missing_aur[@]}"; then
-        log_success "Đã cài AUR packages (${missing_aur[*]})."
-      else
-        log_warn "Không thể cài một số AUR packages."
+      log_info "Cài AUR packages qua $aur_helper..."
+      if ! $aur_helper -S --needed --noconfirm "${missing_aur[@]}"; then
+        log_warn "Cài đặt hàng loạt AUR gặp lỗi. Đang thử cài đặt từng gói riêng lẻ..."
+        for apkg in "${missing_aur[@]}"; do
+          if ! pacman -Qi "$apkg" &>/dev/null; then
+            $aur_helper -S --needed --noconfirm "$apkg" || log_warn "Không thể cài gói AUR: $apkg"
+          fi
+        done
       fi
+      log_success "Hoàn tất xử lý gói AUR."
     else
       log_warn "Thiếu AUR helper. Cài thủ công: yay -S ${missing_aur[*]}"
     fi
   else
-    log_success "AUR packages (${aur_pkgs[*]}) đã có."
+    if [ ${#aur_pkgs[@]} -gt 0 ]; then
+      log_success "Profile '$target': Toàn bộ ${#aur_pkgs[@]} gói AUR đã có sẵn."
+    fi
   fi
 }
 
@@ -258,6 +319,9 @@ setup_stow() {
     fi
   fi
 
+  # --- Đảm bảo các thư mục cơ sở tồn tại tránh GNU Stow gập cây (tree folding) ---
+  mkdir -p "$HOME/.config" "$HOME/.local/bin" "$HOME/.local/share" "$HOME/.local/src"
+
   # --- Danh sách packages DWM/X11 theo thứ tự ưu tiên ---
   local packages=(
     shell         # profile, aliasrc, shortcutrc — phải đầu tiên (set PATH, ZDOTDIR)
@@ -267,7 +331,7 @@ setup_stow() {
     nvim          # init.lua, lua/
     lf            # lfrc, scope, icons, cleaner
     brave         # ~/.config/brave-flags.conf (X11 + HD4000)
-    fcitx5        # Bộ gõ tiếng Việt Bamboo
+    input-method  # Fcitx5 + Bamboo: hotkeys, profile, classicui
     opencode      # 9Router AI gateway (nếu dùng)
     pipewire      # RNNoise mic denoising
     media         # mpv, ncmpcpp, mpd
@@ -289,17 +353,17 @@ setup_stow() {
     # Bỏ qua package không tồn tại trong dotfiles
     if [ ! -d "$pkg_dir" ]; then
       log_dim "Bỏ qua $pkg (không tìm thấy thư mục)"
-      ((skipped++))
+      skipped=$((skipped + 1))
       continue
     fi
 
     echo ""
     log_info "→ stow-safe $pkg"
     if stow-safe "$pkg" 2>&1; then
-      ((success++))
+      success=$((success + 1))
     else
       log_error "Lỗi khi stow: $pkg"
-      ((failed++))
+      failed=$((failed + 1))
     fi
   done
 
@@ -553,7 +617,7 @@ fi
 
 case "$1" in
   pkgs|deps)
-    setup_pkgs
+    setup_pkgs "$2"
     ;;
   shell)
     setup_shell
@@ -577,7 +641,8 @@ case "$1" in
     setup_docker
     ;;
   all)
-    setup_pkgs
+    _prof="${2:-core}"
+    setup_pkgs "$_prof"
     echo ""
     setup_shell
     echo ""
@@ -593,7 +658,7 @@ case "$1" in
     echo ""
     setup_docker
     echo ""
-    log_success "=== ka-setup all HOÀN THÀNH ==="
+    log_success "=== ka-setup all HOÀN THÀNH (Profile: $_prof) ===="
     log_warn "Nếu đây là lần cài đầu tiên: hãy REBOOT để áp dụng PAM + shell changes."
     ;;
   --help|-h|help)

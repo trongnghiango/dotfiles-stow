@@ -121,7 +121,7 @@ _backup_conflicts() {
       cp -a "$target" "$dest"
       rm -rf "$target"
       manifest_entries+=("$target")
-      ((conflict_count++))
+      conflict_count=$((conflict_count + 1))
       log_warn "Conflict backed up & cleared: ${DIM}$target${NC}" >&2
 
     elif [ -L "$target" ]; then
@@ -182,10 +182,10 @@ _restore_from_dir() {
       mkdir -p "$(dirname "$target")"
       cp -a "$src" "$target"
       log_ok "Restored: $target"
-      ((restored++))
+      restored=$((restored + 1))
     else
       log_warn "Backup source missing, skipped: $src"
-      ((skipped++))
+      skipped=$((skipped + 1))
     fi
   done < "$manifest"
 
@@ -201,6 +201,9 @@ cmd_deploy() {
   local package="$1"
   _require_stow
   _require_package "$package"
+
+  # Ensure standard base directories exist to prevent GNU Stow directory folding
+  mkdir -p "$TARGET_DIR/.config" "$TARGET_DIR/.local/bin" "$TARGET_DIR/.local/share" "$TARGET_DIR/.local/src"
 
   log_step "Deploying: $package"
   log_dim "Dotfiles → $DOTFILES_DIR"
@@ -347,7 +350,7 @@ cmd_list() {
       (( i == ${#snapshots[@]} - 1 )) && marker="└─"
       [ -f "$snap_dir/MANIFEST" ] && count=$(wc -l < "$snap_dir/MANIFEST")
       echo -e "  ${DIM}$marker ${NC}$snapshot${DIM} ($count file(s))${NC}"
-      ((i++))
+      i=$((i + 1))
     done
     echo ""
   done
