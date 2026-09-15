@@ -1,0 +1,15 @@
+# ~/.config/mise/config.toml
+# Cấu hình runtime mặc định toàn cục cho môi trường lập trình
+
+[tools]
+node = "lts"
+python = "latest"
+rust = "latest"
+go = "latest"
+pnpm = "latest"
+bun = "latest"
+
+[settings]
+experimental = true
+legacy_version_file = true
+idiomatic_version_file = true
