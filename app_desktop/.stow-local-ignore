@@ -1,4 +1,0 @@
-# SAI: *.cache|mimeinfo.cache
-# ĐÚNG:
-^.*\.cache$
-^mimeinfo\.cache$

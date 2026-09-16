@@ -1,7 +1,0 @@
-[Desktop Entry]
-Name=LibreWolf
-Exec=librewolf %u
-Icon=librewolf
-Type=Application
-Categories=Utility;
-Terminal=false

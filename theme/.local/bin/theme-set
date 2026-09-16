@@ -1,0 +1,208 @@
+#!/usr/bin/env bash
+# ==============================================================================
+# theme-set — Hệ thống đổi theme toàn bộ DWM/X11 desktop
+# Triết lý: 1 file màu trung tâm (colors/*.conf) → generate → hook reload
+#
+# Usage:
+#   theme-set                   # list theme có sẵn + theme hiện tại
+#   theme-set <tên-theme>       # đổi theme ngay lập tức
+#   theme-set --preview <tên>   # xem màu sắc mà không áp dụng
+# ==============================================================================
+set -euo pipefail
+
+# --- Paths ---
+THEME_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/theme"
+COLORS_DIR="$THEME_DIR/colors"
+TEMPLATES_DIR="$THEME_DIR/templates"
+HOOKS_DIR="$THEME_DIR/hooks.d"
+CURRENT_LINK="$COLORS_DIR/current.conf"
+
+# --- Colors for output ---
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+CYAN='\033[0;36m'
+BOLD='\033[1m'
+DIM='\033[2m'
+NC='\033[0m'
+
+log_info()  { echo -e "${CYAN}[theme]${NC} $1"; }
+log_ok()    { echo -e "${GREEN}[ok]${NC}    $1"; }
+log_warn()  { echo -e "${YELLOW}[warn]${NC}  $1"; }
+log_err()   { echo -e "${RED}[err]${NC}   $1" >&2; }
+
+# --- Helpers ---
+_require_envsubst() {
+    command -v envsubst &>/dev/null && return
+    log_err "envsubst không có. Cài: sudo pacman -S gettext"
+    exit 1
+}
+
+_current_theme() {
+    [ -L "$CURRENT_LINK" ] && basename "$(readlink -f "$CURRENT_LINK")" .conf || echo "(chưa chọn)"
+}
+
+_list_themes() {
+    echo -e "${BOLD}Theme có sẵn:${NC}"
+    local current; current=$(_current_theme)
+    for f in "$COLORS_DIR"/*.conf; do
+        name=$(basename "$f" .conf)
+        [ "$name" = "current" ] && continue
+        if [ "$name" = "$current" ]; then
+            echo -e "  ${GREEN}▶ $name${NC} ${DIM}(hiện tại)${NC}"
+        else
+            echo -e "  ${DIM}  $name${NC}"
+        fi
+    done
+}
+
+_preview() {
+    local conf="$1"
+    # shellcheck disable=SC1090
+    source "$conf"
+    echo -e "${BOLD}Preview: $(basename "$conf" .conf)${NC}"
+    printf "  BG=%-8s FG=%-8s ACCENT=%s\n" "#$BG" "#$FG" "#$ACCENT"
+    local i
+    for i in 0 1 2 3 4 5 6 7; do
+        local var="COLOR$i"; printf "  \033[48;2;%d;%d;%dm  %s  \033[0m" \
+            "0x${!var:0:2}" "0x${!var:2:2}" "0x${!var:4:2}" "#${!var}" 2>/dev/null || true
+    done
+    echo ""
+}
+
+_generate() {
+    _require_envsubst
+    local conf="$1"
+
+    # Export tất cả biến màu để envsubst nhìn thấy
+    set -a
+    # shellcheck disable=SC1090
+    source "$conf"
+    set +a
+
+    local theme_name; theme_name=$(basename "$conf" .conf)
+    log_info "Generating files cho theme: ${BOLD}$theme_name${NC}"
+
+    # 1. Xresources colors (split file — không ghi đè xresources chính)
+    local xres_colors="${XDG_CONFIG_HOME:-$HOME/.config}/x11/xresources.d/colors"
+    mkdir -p "$(dirname "$xres_colors")"
+    envsubst < "$TEMPLATES_DIR/xresources-colors.tpl" > "$xres_colors"
+    log_ok "  → $xres_colors"
+
+    # 2. Rofi colors.rasi (launcher.rasi đã @import sẵn)
+    local rofi_colors="${XDG_CONFIG_HOME:-$HOME/.config}/rofi/colors.rasi"
+    mkdir -p "$(dirname "$rofi_colors")"
+    envsubst < "$TEMPLATES_DIR/rofi-colors.rasi.tpl" > "$rofi_colors"
+    log_ok "  → $rofi_colors"
+
+    # 3. Dunst urgency — inject vào managed block trong dunstrc
+    local dunstrc="${XDG_CONFIG_HOME:-$HOME/.config}/dunst/dunstrc"
+    if [ -f "$dunstrc" ]; then
+        local block; block=$(envsubst < "$TEMPLATES_DIR/dunst-urgency.tpl")
+        _inject_managed_block "$dunstrc" "$block"
+        log_ok "  → $dunstrc (managed block)"
+    else
+        log_warn "  dunstrc không tìm thấy, bỏ qua dunst"
+    fi
+
+    # 4. Alacritty (tùy chọn — chỉ generate nếu alacritty được cài)
+    if command -v alacritty &>/dev/null; then
+        local alacritty_colors="${XDG_CONFIG_HOME:-$HOME/.config}/alacritty/colors.toml"
+        mkdir -p "$(dirname "$alacritty_colors")"
+        envsubst < "$TEMPLATES_DIR/alacritty-colors.toml.tpl" > "$alacritty_colors"
+        log_ok "  → $alacritty_colors"
+    fi
+
+    set +a
+}
+
+# Chèn block màu vào dunstrc giữa 2 marker, hoặc thêm cuối file nếu chưa có
+_inject_managed_block() {
+    local file="$1" block="$2"
+    local begin="# BEGIN THEME MANAGED BLOCK"
+    local end="# END THEME MANAGED BLOCK"
+
+    python3 - "$file" "$block" "$begin" "$end" << 'PYEOF'
+import sys, re
+path, block, begin, end = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
+text = open(path).read()
+new_block = f"{begin}\n{block}\n{end}"
+if begin in text and end in text:
+    text = re.sub(re.escape(begin) + r".*?" + re.escape(end), new_block, text, flags=re.S)
+else:
+    text = text.rstrip("\n") + "\n\n" + new_block + "\n"
+open(path, "w").write(text)
+PYEOF
+}
+
+_run_hooks() {
+    [ -d "$HOOKS_DIR" ] || return 0
+    local ran=0
+    for hook in "$HOOKS_DIR"/*.sh; do
+        [ -x "$hook" ] || continue
+        log_info "Hook: $(basename "$hook")"
+        "$hook" && ran=$((ran + 1))
+    done
+    [ "$ran" -gt 0 ] && log_ok "Đã chạy $ran hook(s)"
+}
+
+# ==============================================================================
+# Main
+# ==============================================================================
+case "${1:-}" in
+    "")
+        echo -e "${BOLD}theme-set${NC} — DWM/X11 Theme System"
+        echo ""
+        _list_themes
+        echo ""
+        echo -e "  ${DIM}Dùng: theme-set <tên-theme>${NC}"
+        ;;
+
+    --preview|-p)
+        name="${2:-}"
+        [ -z "$name" ] && { log_err "Usage: theme-set --preview <tên-theme>"; exit 1; }
+        src="$COLORS_DIR/$name.conf"
+        [ -f "$src" ] || { log_err "Không tìm thấy theme: $name"; exit 1; }
+        _preview "$src"
+        ;;
+
+    --list|-l)
+        _list_themes
+        ;;
+
+    --current|-c)
+        echo "$(_current_theme)"
+        ;;
+
+    -*)
+        log_err "Option không hợp lệ: $1"
+        echo "Usage: theme-set [tên-theme | --list | --preview <tên> | --current]"
+        exit 1
+        ;;
+
+    *)
+        name="$1"
+        src="$COLORS_DIR/$name.conf"
+
+        if [ ! -f "$src" ]; then
+            log_err "Không tìm thấy theme '$name' trong $COLORS_DIR"
+            echo ""
+            _list_themes
+            exit 1
+        fi
+
+        log_info "Đổi sang theme: ${BOLD}$name${NC}"
+
+        # 1. Cập nhật symlink current.conf
+        ln -sf "$src" "$CURRENT_LINK"
+
+        # 2. Generate tất cả config files
+        _generate "$src"
+
+        # 3. Chạy hooks (reload xrdb, dwm, dunst...)
+        _run_hooks
+
+        echo ""
+        log_ok "✓ Theme ${BOLD}$name${NC} đã được áp dụng!"
+        ;;
+esac

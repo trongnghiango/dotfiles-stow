@@ -8,4 +8,5 @@ setup_arch/
 # Claude AI / Local tools
 *claude-code-url-handler.desktop
 *.log
+**/node_modules/
 

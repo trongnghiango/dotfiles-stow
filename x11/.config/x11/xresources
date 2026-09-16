@@ -1,12 +1,26 @@
-!! Transparency (0-1):
-*.alpha: 0.8
+!! ==============================================================================
+!! Xresources — Cấu hình tĩnh (Font, Alpha, ST-specific)
+!! Màu sắc được quản lý riêng bởi theme-set:
+!!   ~/.config/x11/xresources.d/colors  ← Auto-generated, KHÔNG sửa tay
+!! ==============================================================================
 
-!! Set a default font and font size as below:
-*.font: JetBrains Mono:pixelsize=14:style=SemiBold:antialias=true:autohint=true
-st.font: JetBrains Mono:pixelsize=14:style=SemiBold:antialias=true:autohint=true
-st.fontalt0: Symbols Nerd Font:pixelsize=14:style=SemiBold:antialias=true:autohint=true
+!! Transparency (0.0 - 1.0)
+*.alpha: 0.9
 
-!! Nord Palette (synchronized with dwm/st/dmenu)
+!! Font chính — JetBrains Mono SemiBold
+*.font:    JetBrains Mono:pixelsize=14:style=SemiBold:antialias=true:autohint=true
+st.font:   JetBrains Mono:pixelsize=14:style=SemiBold:antialias=true:autohint=true
+
+!! Font fallback — Symbols Nerd Font (icon glyphs cho dwmblocks/lf)
+st.fontalt0: Symbols Nerd Font Mono:pixelsize=14:style=Regular:antialias=true
+
+!! ==============================================================================
+!! Theme colors — được generate bởi theme-set, load qua #include
+!! Fallback an toàn nếu chưa chạy theme-set lần nào (Nord mặc định)
+!! ==============================================================================
+#if __has_include("xresources.d/colors")
+#include "xresources.d/colors"
+#else
 *.foreground: #d8dee9
 *.background: #2e3440
 *.cursorColor: #d8dee9
@@ -26,3 +40,8 @@ st.fontalt0: Symbols Nerd Font:pixelsize=14:style=SemiBold:antialias=true:autohi
 *.color13: #b48ead
 *.color14: #8fbcbb
 *.color15: #eceff4
+dwm.color0: #2e3440
+dwm.color6: #88c0d0
+dwm.color8: #4c566a
+dwm.color14: #8fbcbb
+#endif

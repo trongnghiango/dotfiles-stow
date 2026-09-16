@@ -25,6 +25,17 @@ Each top-level directory is a Stow package containing `$HOME`-relative paths:
 | `opencode/` | 9Router gateway config, 3 combo tiers (KhaBoDo, KhaSimple, KhaThinking) |
 | `git/` | gitconfig with delta diff, aliases, smart pull/push/fetch, rerere |
 | `pipewire/` | RNNoise AI real-time stereo noise suppression for microphone |
+| `theme/` | Theme system (`theme-set`: 1 file màu → generate Xresources, Rofi, Dunst, hooks) |
+| `desktop/` | XDG mimeapps.list, user-dirs.dirs, custom .desktop handlers (file, img, pdf, text, video) |
+| `input-method/` | Fcitx5 + Bamboo bộ gõ tiếng Việt (hotkeys, profile, classicui) |
+| `yay/` | yay AUR helper config (cleanafter, removemake) |
+| `dunst/` | Dunst notification daemon config |
+| `rofi/` | Rofi app launcher & window switcher configs |
+| `picom/` | Picom compositor config (vsync, blur, shadow) |
+| `gtk/` | GTK 2/3/4 theme settings (Arc-Gruvbox, Papirus-Dark) |
+| `fontconfig/` | Fontconfig rules (reject bitmap fonts) |
+| `nsxiv/` | Nsxiv image viewer keybinds |
+| `brave/` | Brave browser flags config (X11 + HD4000) |
 
 ## Key commands / workflow
 
@@ -50,7 +61,7 @@ Each top-level directory is a Stow package containing `$HOME`-relative paths:
 
 - `scripts/.local/bin/cron/` subdirectory has actual files; `checkup`/`crontog`/`newsup` are symlinks to `cron/*` so they're in PATH + cron jobs can use absolute paths
 - `scripts/.local/bin/user/` has bluetooth scripts (`btmgr`, `btpair`, `btclean`, etc.) — kept separate to avoid cluttering the flat namespace
-- `.stow-local-ignore` used in `app_desktop/`
+- `.stow-local-ignore` used in `opencode/` (ignores node_modules)
 - `.gitignore` only ignores `.zcompdump*` and `shell/.config/shell/profile.local` (used for 9Router API keys)
 
 ## NixOS

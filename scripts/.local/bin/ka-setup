@@ -327,6 +327,7 @@ setup_stow() {
     shell         # profile, aliasrc, shortcutrc — phải đầu tiên (set PATH, ZDOTDIR)
     zsh           # .zshrc, .zprofile, env.zsh
     git           # ~/.config/git/config, ignore
+    yay           # ~/.config/yay/config.json
     tmux          # tmux.conf
     nvim          # init.lua, lua/
     lf            # lfrc, scope, icons, cleaner
@@ -335,13 +336,15 @@ setup_stow() {
     opencode      # 9Router AI gateway (nếu dùng)
     pipewire      # RNNoise mic denoising
     media         # mpv, ncmpcpp, mpd
-    x11           # xinitrc, xprofile, xresources
+    x11           # xinitrc, xprofile, xresources (với #include colors)
     picom         # compositor config
     rofi          # app launcher (alternative to dmenu)
     dunst         # notification daemon
     gtk           # GTK2/3 theme
     fontconfig    # font rendering
     nsxiv         # image viewer keybinds
+    theme         # theme-set: 1 file màu → generate toàn bộ desktop
+    desktop       # XDG mimeapps.list, user-dirs, custom .desktop handlers
     suckless      # suckless source code
     scripts       # ~/.local/bin/* — phải CUỐI CÙNG (stow-safe cần có trong PATH)
   )
