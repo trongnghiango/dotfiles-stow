@@ -161,6 +161,7 @@ static const Rule rules[] = {
 	RULE(.wintype = WTYPE "TOOLBAR", .isfloating = 1)
 	RULE(.wintype = WTYPE "SPLASH", .isfloating = 1)
 	RULE(.class = "brave-app", .isfloating = 1)
+	RULE(.title = "webcam-pip", .isfloating = 1)
 	RULE(.class = "Gimp", .tags = 1 << 4)
 	RULE(.class = "firefox", .tags = 1 << 2)
 	RULE(.class = "pavucontrol", .isfloating = 1)
@@ -337,6 +338,7 @@ static const Key keys[] = {
 	{ MODKEY|ShiftMask,             XK_comma,      tagmon,                 {.i = -1 } },
 	{ MODKEY|ShiftMask,             XK_period,     tagmon,                 {.i = +1 } },
 	{ 0,				XK_Print,      spawn,		       {.v = screenshot } },
+	{ Mod1Mask,			XK_Print,      spawn,		       {.v = (const char*[]){ "record", NULL } } },
 	{ MODKEY,			XK_Print,      spawn,		       {.v = maimpickcmd } },
 	{ ControlMask,			XK_Print,      spawn,		       {.v = capturess } },
 	{ ShiftMask,			XK_Print,      spawn,		       {.v = capwin } },      

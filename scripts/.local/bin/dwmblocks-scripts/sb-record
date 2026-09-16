@@ -1,0 +1,3 @@
+#!/bin/sh
+# sb-record — dwmblocks module displaying active recording indicator
+exec record status

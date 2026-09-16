@@ -1,0 +1,367 @@
+#!/usr/bin/env bash
+# ==============================================================================
+# record — Minimalist, High-Performance Screen Recorder (Omarchy Style for X11)
+# ==============================================================================
+# Usage:
+#   record                    Toggle: start recording menu, or stop if running
+#   record stop               Stop active recording
+#   record full [audio_mode]  Record full screen directly
+#   record area [audio_mode]  Record selected region directly
+#   record window [audio_mode]Record active window directly
+#   record status             Print current status for statusbar (REC / idle)
+#
+# Audio modes:
+#   none (silent), desktop (speakers), mic, both (desktop+mic), webcam
+# ==============================================================================
+set -euo pipefail
+
+# --- Paths & Files ---
+RECORDINGS_DIR="${XDG_VIDEOS_DIR:-$HOME/Videos}/Recordings"
+PID_FILE="/tmp/omarecord.pid"
+WEBCAM_PID_FILE="/tmp/omarecord_webcam.pid"
+META_FILE="/tmp/omarecord.meta"
+STATUS_FILE="/tmp/omarecord.status"
+
+notify() {
+    local urgency="${1:-normal}"
+    local title="$2"
+    local body="$3"
+    local icon="${4:-video-x-generic}"
+    if command -v notify-send >/dev/null 2>&1; then
+        notify-send -u "$urgency" -i "$icon" "$title" "$body"
+    fi
+}
+
+menu_select() {
+    local prompt="$1"
+    local options="$2"
+    if command -v rofi >/dev/null 2>&1; then
+        echo -e "$options" | rofi -dmenu -i -p "$prompt" -theme "${XDG_CONFIG_HOME:-$HOME/.config}/rofi/launcher.rasi" 2>/dev/null
+    elif command -v dmenu >/dev/null 2>&1; then
+        echo -e "$options" | dmenu -i -p "$prompt"
+    else
+        echo -e "$options" | head -n 1
+    fi
+}
+
+is_recording() {
+    if [ -f "$PID_FILE" ]; then
+        local pid
+        pid=$(cat "$PID_FILE" 2>/dev/null || true)
+        if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
+            return 0
+        fi
+    fi
+    return 1
+}
+
+has_webcam() {
+    for dev in /dev/video*; do
+        if [ -e "$dev" ]; then
+            return 0
+        fi
+    done
+    return 1
+}
+
+get_default_sink() {
+    pactl get-default-sink 2>/dev/null || pactl info 2>/dev/null | awk -F": " '/Default Sink:/{print $2}' || echo "default"
+}
+
+get_default_source() {
+    pactl get-default-source 2>/dev/null || pactl info 2>/dev/null | awk -F": " '/Default Source:/{print $2}' || echo "default"
+}
+
+# ==============================================================================
+# STOP RECORDING
+# ==============================================================================
+stop_recording() {
+    if ! is_recording; then
+        notify "low" "🎬 Screen Recorder" "No active recording found."
+        rm -f "$PID_FILE" "$WEBCAM_PID_FILE" "$META_FILE" "$STATUS_FILE"
+        return 0
+    fi
+
+    local rec_pid
+    rec_pid=$(cat "$PID_FILE")
+    local filepath=""
+    [ -f "$META_FILE" ] && filepath=$(cat "$META_FILE")
+
+    notify "normal" "⏳ Finalizing Video..." "Saving video file cleanly..."
+
+    # Gửi SIGINT để ffmpeg hoàn thiện container MP4 (moov atom) mà không hỏng file
+    kill -INT "$rec_pid" 2>/dev/null || true
+
+    # Đợi tiến trình kết thúc sạch (tối đa 5 giây)
+    local wait_count=0
+    while kill -0 "$rec_pid" 2>/dev/null; do
+        sleep 0.2
+        wait_count=$((wait_count + 1))
+        [ $wait_count -ge 25 ] && { kill -9 "$rec_pid" 2>/dev/null || true; break; }
+    done
+
+    # Dừng webcam PIP nếu có
+    if [ -f "$WEBCAM_PID_FILE" ]; then
+        local cam_pid
+        cam_pid=$(cat "$WEBCAM_PID_FILE" 2>/dev/null || true)
+        [ -n "$cam_pid" ] && kill -9 "$cam_pid" 2>/dev/null || true
+        rm -f "$WEBCAM_PID_FILE"
+    fi
+
+    rm -f "$PID_FILE" "$META_FILE" "$STATUS_FILE"
+
+    # Refresh dwmblocks status indicator
+    pkill -RTMIN+9 dwmblocks 2>/dev/null || true
+
+    # Tạo thumbnail nhanh & copy đường dẫn vào clipboard
+    if [ -f "$filepath" ] && [ -s "$filepath" ]; then
+        local thumb="/tmp/rec_thumb_$$.png"
+        ffmpeg -y -ss 00:00:00.5 -i "$filepath" -vframes 1 -q:v 2 "$thumb" >/dev/null 2>&1 || true
+
+        if command -v xclip >/dev/null 2>&1; then
+            echo -n "$filepath" | xclip -selection clipboard
+        fi
+
+        local filename; filename=$(basename "$filepath")
+        local filesize; filesize=$(du -h "$filepath" | awk '{print $1}')
+
+        notify "normal" "✅ Recording Saved ($filesize)" "$filename\nCopied path to clipboard · Click to play" "${thumb:-video-x-generic}"
+    else
+        notify "critical" "⚠️ Recording Failed" "File was empty or interrupted."
+    fi
+}
+
+# ==============================================================================
+# START RECORDING
+# ==============================================================================
+start_recording() {
+    local audio_mode="${1:-none}"
+    local area_mode="${2:-full}"
+
+    mkdir -p "$RECORDINGS_DIR"
+    local timestamp; timestamp=$(date '+%Y-%m-%d_%H-%M-%S')
+    local output_file="$RECORDINGS_DIR/screenrecord-${timestamp}.mp4"
+
+    local video_input=()
+    local audio_input=()
+    local filter_complex=""
+    local map_args=()
+
+    # --- 1. Cấu hình Vùng Ghi Hình (Area) ---
+    case "$area_mode" in
+        area|select)
+            if ! command -v slop >/dev/null 2>&1; then
+                notify "critical" "Error" "slop is required to select area"
+                exit 1
+            fi
+            local slop_out
+            slop_out=$(slop -f "%x %y %w %h" 2>/dev/null || true)
+            [ -z "$slop_out" ] && exit 0 # User cancelled selection
+
+            read -r X Y W H <<< "$slop_out"
+            # ffmpeg yêu cầu kích thước chẵn
+            W=$(( W - W % 2 ))
+            H=$(( H - H % 2 ))
+            video_input=(-f x11grab -draw_mouse 1 -framerate 30 -video_size "${W}x${H}" -i ":0.0+${X},${Y}")
+            ;;
+
+        window)
+            if ! command -v xdotool >/dev/null 2>&1; then
+                notify "critical" "Error" "xdotool is required to select active window"
+                exit 1
+            fi
+            local win_id
+            win_id=$(xdotool getactivewindow 2>/dev/null || true)
+            if [ -z "$win_id" ]; then
+                notify "critical" "Error" "No active window found"
+                exit 1
+            fi
+            local X Y W H
+            eval "$(xdotool getwindowgeometry --shell "$win_id")"
+            W=$(( WIDTH - WIDTH % 2 ))
+            H=$(( HEIGHT - HEIGHT % 2 ))
+            video_input=(-f x11grab -draw_mouse 1 -framerate 30 -video_size "${W}x${H}" -i ":0.0+${X},${Y}")
+            ;;
+
+        full|*)
+            local screen_dim
+            screen_dim=$(xdotool getdisplaygeometry 2>/dev/null || xrandr 2>/dev/null | grep -oP "(?<=current ).*(?=,)" | tr -d " ")
+            local SW SH
+            read -r SW SH <<< "$screen_dim"
+            SW=$(( SW - SW % 2 ))
+            SH=$(( SH - SH % 2 ))
+            video_input=(-f x11grab -draw_mouse 1 -framerate 30 -video_size "${SW}x${SH}" -i ":0.0")
+            ;;
+    esac
+
+    # --- 2. Cấu hình Âm thanh & Webcam ---
+    local default_sink; default_sink=$(get_default_sink)
+    local default_source; default_source=$(get_default_source)
+
+    case "$audio_mode" in
+        desktop)
+            audio_input=(-f pulse -thread_queue_size 1024 -i "${default_sink}.monitor")
+            map_args=(-map "0:v" -map "1:a")
+            ;;
+        mic)
+            audio_input=(-f pulse -thread_queue_size 1024 -i "${default_source}")
+            map_args=(-map "0:v" -map "1:a")
+            ;;
+        both)
+            audio_input=(
+                -f pulse -thread_queue_size 1024 -i "${default_sink}.monitor"
+                -f pulse -thread_queue_size 1024 -i "${default_source}"
+            )
+            filter_complex="[1:a][2:a]amix=inputs=2:duration=first:dropout_transition=0[a]"
+            map_args=(-map "0:v" -map "[a]")
+            ;;
+        webcam)
+            # Âm thanh Desktop + Mic
+            audio_input=(
+                -f pulse -thread_queue_size 1024 -i "${default_sink}.monitor"
+                -f pulse -thread_queue_size 1024 -i "${default_source}"
+            )
+            filter_complex="[1:a][2:a]amix=inputs=2:duration=first:dropout_transition=0[a]"
+            map_args=(-map "0:v" -map "[a]")
+
+            # Mở cửa sổ PIP webcam góc dưới bên phải màn hình (Native X11 via mpv)
+            if command -v mpv >/dev/null 2>&1; then
+                mpv av://v4l2:/dev/video0 \
+                    --profile=low-latency \
+                    --untimed \
+                    --no-cache \
+                    --no-osc \
+                    --no-osd-bar \
+                    --no-input-default-bindings \
+                    --geometry=280x210-20-20 \
+                    --title="webcam-pip" \
+                    --autofit=280x210 \
+                    --ontop \
+                    --no-border >/dev/null 2>&1 &
+                echo $! > "$WEBCAM_PID_FILE"
+            fi
+            ;;
+        none|*)
+            audio_input=()
+            map_args=(-map "0:v")
+            ;;
+    esac
+
+    # --- 3. Bộ mã hóa hiệu năng cực cao (Esports / Low CPU) ---
+    # libx264 -preset ultrafast chỉ tốn ~3-5% CPU trên ThinkPad X230, crf 22 cho chữ sắc nét
+    local encode_opts=(
+        -c:v libx264
+        -preset ultrafast
+        -crf 22
+        -pix_fmt yuv420p
+    )
+
+    local audio_opts=()
+    if [ "${#audio_input[@]}" -gt 0 ]; then
+        audio_opts=(-c:a aac -b:a 192k)
+    fi
+
+    # Lắp ráp câu lệnh ffmpeg hoàn chỉnh
+    local ffmpeg_cmd=(
+        ffmpeg -y
+        "${video_input[@]}"
+        "${audio_input[@]}"
+    )
+
+    [ -n "$filter_complex" ] && ffmpeg_cmd+=(-filter_complex "$filter_complex")
+    ffmpeg_cmd+=("${map_args[@]}" "${encode_opts[@]}")
+    [ "${#audio_opts[@]}" -gt 0 ] && ffmpeg_cmd+=("${audio_opts[@]}")
+    ffmpeg_cmd+=("$output_file")
+
+    # Khởi chạy ngầm
+    "${ffmpeg_cmd[@]}" >/tmp/omarecord.log 2>&1 &
+    local ffmpeg_pid=$!
+
+    echo "$ffmpeg_pid" > "$PID_FILE"
+    echo "$output_file" > "$META_FILE"
+    echo "recording" > "$STATUS_FILE"
+
+    # Refresh dwmblocks status indicator
+    pkill -RTMIN+9 dwmblocks 2>/dev/null || true
+
+    notify "normal" "🔴 Recording Started" "Press Alt+Print Screen to finish\nAudio: $audio_mode | Area: $area_mode"
+}
+
+# ==============================================================================
+# INTERACTIVE MENU (Omarchy Style)
+# ==============================================================================
+interactive_menu() {
+    # Nếu đang ghi âm/hình -> Dừng ngay lập tức (1-click Toggle như Omarchy)
+    if is_recording; then
+        stop_recording
+        return 0
+    fi
+
+    # Menu 1: Chọn Chế độ Âm thanh & Webcam
+    local audio_choices="🔇  No Audio (Silent)\n🔊  Desktop Audio\n🎙️  Microphone only\n🎙️🔊 Desktop + Microphone"
+    if has_webcam; then
+        audio_choices+="\n📹  Desktop + Mic + Webcam (PIP)"
+    fi
+
+    local chosen_audio
+    chosen_audio=$(menu_select "Soundtrack:" "$audio_choices")
+    [ -z "$chosen_audio" ] && exit 0
+
+    local audio_mode="none"
+    case "$chosen_audio" in
+        *No*Audio*)    audio_mode="none" ;;
+        *Desktop*Audio*) audio_mode="desktop" ;;
+        *Microphone*only*) audio_mode="mic" ;;
+        *Desktop*+*Microphone*) audio_mode="both" ;;
+        *Webcam*)      audio_mode="webcam" ;;
+    esac
+
+    # Menu 2: Chọn Vùng Ghi Hình
+    local area_choices="🖥️  Full Screen\n📐  Select Area (Drag rectangle)\n🪟  Active Window"
+    local chosen_area
+    chosen_area=$(menu_select "Capture Area:" "$area_choices")
+    [ -z "$chosen_area" ] && exit 0
+
+    local area_mode="full"
+    case "$chosen_area" in
+        *Full*Screen*) area_mode="full" ;;
+        *Select*Area*) area_mode="area" ;;
+        *Active*Window*) area_mode="window" ;;
+    esac
+
+    start_recording "$audio_mode" "$area_mode"
+}
+
+# ==============================================================================
+# MAIN ROUTER
+# ==============================================================================
+case "${1:-}" in
+    stop)
+        stop_recording
+        ;;
+    status)
+        if is_recording; then
+            echo "^C1^🔴 REC^d^"
+        else
+            echo ""
+        fi
+        ;;
+    full|fullscreen)
+        start_recording "${2:-none}" "full"
+        ;;
+    area|select)
+        start_recording "${2:-none}" "area"
+        ;;
+    window)
+        start_recording "${2:-none}" "window"
+        ;;
+    toggle|"")
+        interactive_menu
+        ;;
+    --help|-h|help)
+        echo "Usage: record [stop | status | full [audio] | area [audio] | window [audio]]"
+        ;;
+    *)
+        interactive_menu
+        ;;
+esac

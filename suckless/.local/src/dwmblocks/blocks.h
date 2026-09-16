@@ -12,6 +12,7 @@ static const Block blocks[] = {
 	{"",		"vap-cpu",			1,			15},
 	{"",		"sb-nettraf",		5,			18},
 	{"",		"vap-volume",		10,			11},
+	{"",		"sb-record",		0,			9},
 	{"",		"sb-clock",			60,			1},
 	{"",		"sb-internet",		15,			4}
 
