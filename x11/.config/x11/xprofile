@@ -13,5 +13,15 @@ export XMODIFIERS=@im=fcitx5
 export INPUT_METHOD=fcitx5
 export SDL_IM_MODULE=fcitx
 # ==============================================================================
-# 3. api-key codex
+# 3. CẤU HÌNH GTK FILE CHOOSER (Upload/Download sắp xếp file mới nhất lên đầu)
 # ==============================================================================
+if command -v gsettings >/dev/null 2>&1; then
+  (
+    for schema in org.gtk.Settings.FileChooser org.gtk.gtk4.Settings.FileChooser; do
+      gsettings set "$schema" sort-column 'modified' 2>/dev/null
+      gsettings set "$schema" sort-order 'descending' 2>/dev/null
+      gsettings set "$schema" sort-directories-first true 2>/dev/null
+    done
+  ) &
+fi
+

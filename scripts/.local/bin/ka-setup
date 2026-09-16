@@ -389,6 +389,16 @@ setup_stow() {
     systemctl --user restart pipewire wireplumber 2>/dev/null && log_dim "pipewire restarted" || true
   fi
 
+  # Áp dụng cấu hình GTK File Chooser (mới nhất lên đầu, thư mục gom nhóm)
+  if command -v gsettings &>/dev/null; then
+    for schema in org.gtk.Settings.FileChooser org.gtk.gtk4.Settings.FileChooser; do
+      gsettings set "$schema" sort-column 'modified' 2>/dev/null || true
+      gsettings set "$schema" sort-order 'descending' 2>/dev/null || true
+      gsettings set "$schema" sort-directories-first true 2>/dev/null || true
+    done
+    log_dim "gtk filechooser settings applied (sort by modified descending)"
+  fi
+
   echo ""
   log_success "Kết quả stow: ${success} thành công, ${failed} thất bại, ${skipped} bỏ qua."
   if (( failed > 0 )); then

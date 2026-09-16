@@ -9,4 +9,7 @@ setup_arch/
 *claude-code-url-handler.desktop
 *.log
 **/node_modules/
+# Dynamic theme runtime artifacts
+theme/.config/theme/colors/current.conf
+x11/.config/x11/xresources.d/
 
