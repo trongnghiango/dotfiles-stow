@@ -779,8 +779,24 @@ clientmessage(XEvent *e)
 			)));
 		}
 	} else if (cme->message_type == netatom[NetActiveWindow]) {
-		if (c != selmon->sel && !c->isurgent)
-			seturgent(c, 1);
+		if (c->mon != selmon) {
+			unfocus(selmon->sel, 0, NULL);
+			selmon = c->mon;
+		}
+		if (HIDDEN(c)) {
+			XMapWindow(dpy, c->win);
+			setclientstate(c, NormalState);
+		}
+		if (c->tags & SPTAGMASK) {
+			selmon->tagset[selmon->seltags] |= (c->tags & SPTAGMASK);
+			arrange(selmon);
+		} else if (c->tags & TAGMASK) {
+			if (!(c->tags & selmon->tagset[selmon->seltags]))
+				view(&(Arg){.ui = (c->tags & TAGMASK)});
+		}
+		focus(c);
+		restack(selmon);
+		XWarpPointer(dpy, None, c->win, 0, 0, 0, 0, c->w / 2, c->h / 2);
 	}
 }
 

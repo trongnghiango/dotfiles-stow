@@ -37,4 +37,5 @@ element selected { background-color: @accent; text-color: #${BG}; }
 EOF
 fi
 
-exec rofi -show drun -theme "${XDG_CONFIG_HOME:-$HOME/.config}/rofi/launcher.rasi" 2>/dev/null
+MODE="${1:-drun}"
+exec rofi -show "$MODE" -theme "${XDG_CONFIG_HOME:-$HOME/.config}/rofi/launcher.rasi" 2>/dev/null

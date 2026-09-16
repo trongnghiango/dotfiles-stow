@@ -248,6 +248,7 @@ static const char *dmenucmd[] = {
 
 /* Rofi */
 static char *roficmd[] = { "rofi-launcher", NULL }; /* ML4W styled launcher */
+static char *rofiwindow[] = { "rofi-launcher", "window", NULL }; /* Window switcher */
 static char *roficalc[] = { "rofi", "-show", "calc", NULL }; /* for calculator */
 static char *rofiemoji[] = { "rofi", "-show", "emoji", NULL }; /* for emoji */
 
@@ -273,6 +274,7 @@ static const char *new_look[] = { "/home/vaproh/.local/bin/scripts/new_look", NU
 
 static const Key keys[] = {
 	/* modifier                     key            function                argument */
+	{ Mod1Mask,                     XK_Tab,        spawn,                  {.v = rofiwindow } },
 	{ MODKEY,                       XK_space,      spawn,                  {.v = roficmd } },
 	{ MODKEY,                       XK_d,          spawn,                  {.v = dmenucmd } },
 	{ MODKEY,                       XK_w,          spawn,                  {.v = bravecmd } },
