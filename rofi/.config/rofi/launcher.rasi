@@ -1,6 +1,6 @@
 /**
- * ML4W Rofi Launcher Theme
- * Centered layout with rounded corners and transparent background
+ * Rofi Launcher Theme
+ * Balanced, compact layout for X11 / DWM (optimized for ThinkPad X230 & standard displays)
  **/
 
 @import "config.rasi"
@@ -11,7 +11,7 @@ window {
     location:                    center;
     anchor:                      center;
     fullscreen:                  false;
-    width:                       800px;
+    width:                       580px;
     x-offset:                    0px;
     y-offset:                    0px;
 
@@ -27,11 +27,11 @@ window {
 
 mainbox {
     enabled:                     true;
-    spacing:                     20px;
+    spacing:                     10px;
     margin:                      0px;
-    padding:                     30px;
+    padding:                     14px;
     border:                      0px solid;
-    border-radius:               0px 0px 0px 0px;
+    border-radius:               0px;
     border-color:                @border;
     background-color:            transparent;
     children:                    [ "inputbar", "mode-switcher", "listview" ];
@@ -39,9 +39,9 @@ mainbox {
 
 inputbar {
     enabled:                     true;
-    spacing:                     10px;
+    spacing:                     8px;
     margin:                      0px;
-    padding:                     15px;
+    padding:                     8px 12px;
     border:                      0px solid;
     border-radius:               0px;
     border-color:                @border;
@@ -54,7 +54,7 @@ prompt {
     enabled:                     true;
     background-color:            transparent;
     text-color:                  @selected;
-    font:                        "JetBrains Mono Nerd Font 14";
+    font:                        "JetBrains Mono Nerd Font 11";
 }
 
 entry {
@@ -64,13 +64,13 @@ entry {
     cursor:                      text;
     placeholder:                 "Search...";
     placeholder-color:           inherit;
-    font:                        "JetBrains Mono 14";
+    font:                        "JetBrains Mono 11";
 }
 
 listview {
     enabled:                     true;
     columns:                     2;
-    lines:                       8;
+    lines:                       6;
     cycle:                       true;
     dynamic:                     true;
     scrollbar:                   false;
@@ -79,7 +79,7 @@ listview {
     fixed-height:                true;
     fixed-columns:               true;
     
-    spacing:                     10px;
+    spacing:                     6px;
     margin:                      0px;
     padding:                     0px;
     border:                      0px solid;
@@ -92,9 +92,9 @@ listview {
 
 element {
     enabled:                     true;
-    spacing:                     15px;
+    spacing:                     10px;
     margin:                      0px;
-    padding:                     10px;
+    padding:                     6px 10px;
     border:                      0px solid;
     border-radius:               0px;
     border-color:                @border;
@@ -116,7 +116,7 @@ element selected.normal {
 element-icon {
     background-color:            transparent;
     text-color:                  inherit;
-    size:                        32px;
+    size:                        20px;
     cursor:                      inherit;
 }
 
@@ -131,7 +131,7 @@ element-text {
 
 mode-switcher {
     enabled:                     true;
-    spacing:                     20px;
+    spacing:                     8px;
     margin:                      0px;
     padding:                     0px;
     border:                      0px solid;
@@ -142,7 +142,7 @@ mode-switcher {
 }
 
 button {
-    padding:                     10px;
+    padding:                     6px 10px;
     border:                      0px solid;
     border-radius:               0px;
     border-color:                @border;

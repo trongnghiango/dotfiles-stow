@@ -2,26 +2,33 @@
 /* Nguồn sự thật: ~/.config/theme/colors/current.conf */
 
 * {
-    /* Base colors from theme palette */
-    bg:       #${BG};
-    bg-alt:   #${COLOR0};
-    fg:       #${FG};
-    fg-dim:   #${COLOR7};
-    accent:   #${ACCENT};
-    red:      #${COLOR1};
-    green:    #${COLOR2};
+    /* Palette definition */
+    background:     #${BG}f2;
+    background-alt: #${COLOR0}ee;
+    foreground:     #${FG};
+    foreground-dim: #${COLOR7};
+    selected:       #${ACCENT};
+    active:         #${COLOR2};
+    urgent:         #${COLOR1};
+    border:         #${ACCENT};
 
-    /* Rofi semantic colors with alpha */
-    background-color: @bg;
-    text-color:       @fg;
+    /* Semantic shortcuts */
+    bg:             @background;
+    bg-alt:         @background-alt;
+    fg:             @foreground;
+    accent:         @selected;
+
+    background-color: transparent;
+    text-color:       @foreground;
 }
 
 window {
-    border-color: @accent;
+    border-color:     @border;
+    background-color: @background;
 }
 
-element selected {
-    background-color: @accent;
+element selected.normal {
+    background-color: @selected;
     text-color:       #${BG};
 }
 
