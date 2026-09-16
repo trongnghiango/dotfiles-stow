@@ -1,60 +1,125 @@
-# OMARCHY_X11_HANDOFF.md — X11/DWM Optimized Architecture
+# OMARCHY_X11_HANDOFF.md — X11/DWM Pure Native & Optimized Architecture
 
 > **MỤC ĐÍCH TÀI LIỆU:**
-> Nhánh `main` này lưu trữ cấu hình X11/DWM nhưng được thiết kế lại dựa trên triết lý sạch sẽ, tối ưu hiệu suất, và có tổ chức của Omarchy OS (Omakub).
-> Bất kỳ AI Assistant nào làm việc với nhánh này **BẮT BUỘC** phải đọc và tuân thủ các quy tắc sau để giữ cho hệ thống luôn sạch sẽ và đạt hiệu năng cao nhất.
+> Nhánh `main` này lưu trữ cấu hình Arch Linux + X11 + DWM được thiết kế lại dựa trên triết lý **Omakase & Clean Computing của Omarchy (DHH)** kết hợp với **tốc độ thuần khiết Native của Suckless (C-Code)**.
+> Mọi AI Assistant khi làm việc với repository này **BẮT BUỘC ĐỌC VÀ TUÂN THỦ** các nguyên tắc kiến trúc sau đây.
 
 ---
 
-## 1. Triết lý Tổ chức (Clean & Organized)
+## 1. Triết lý Cốt lõi (Core Philosophy)
 
-### Tích hợp mã nguồn Suckless
-- **KHÔNG** lưu file binary hay mã nguồn rác rưởi vào `scripts/.local/bin/` nữa.
-- Toàn bộ mã nguồn cốt lõi (Core) gồm: `dwm`, `st`, `dmenu`, `dwmblocks` được đưa vào quản lý trực tiếp tại thư mục `.dotfiles/suckless/.local/src/`.
-- Khi deploy, GNU Stow sẽ tự động link vào `~/.local/src/` và script `ka-setup suckless` sẽ đảm nhiệm việc `make clean install`.
-- **Lợi ích**: "Single Source of Truth", 100% tự động hóa và có thể xem lịch sử git của việc thay đổi hotkey.
+### ① Pure Native Performance — "Dùng WM như không dùng"
+- **Không cõng engine nặng nề**: Tuyệt đối không cài thêm các web engine độc lập (như Helium, Electron bloat) khi DWM và Brave đã giải quyết được ở mức native.
+- **Tiêu thụ tài nguyên tối thiểu**: Khởi động hệ thống chỉ tốn **~150MB - 200MB RAM**, độ trễ gõ phím (input latency) gần như bằng 0.
+- **Low-Latency Compositor**: Giữ `picom` để chống xé hình (`vsync = true`, `use-damage = true`), nhưng **tắt bỏ blur nặng và fading trễ** để đảm bảo tốc độ phản hồi tức thì.
+- **Tối ưu màn hình ThinkPad X230 (12.5" 1366x768)**: Tránh chia nhỏ màn hình vụn vặt; ưu tiên chuyển đổi mượt mà giữa **Toàn màn hình (Fullscreen)** và **Cửa sổ nổi ở trung tâm (Centered Floating)**.
 
-### Thư mục `scripts/` gọn gàng
-- Các script hệ thống của DWM/statusbar phải nằm trong `scripts/.local/bin/dwmblocks-scripts/`.
-- Các dmenu script phải nằm trong `scripts/.local/bin/dmenu-scripts/`.
-- `scripts/.local/bin/` root chỉ dành cho các công cụ CLI mà người dùng (user) trực tiếp gõ vào terminal (như `gm`, `otp`).
-- Biến `$PATH` đã được khai báo sẵn trong `shell/.config/shell/profile` để tự động load các thư mục con này.
+### ② Omakase & Single Source of Truth
+- **Một nguồn sự thật duy nhất cho màu sắc**: Bảng màu desktop nằm ở `theme/.config/theme/colors/*.conf`. Mọi ứng dụng (DWM, ST, Rofi, Dunst) đều nhận màu từ nguồn này thông qua `theme-set`.
+- **Mã nguồn Suckless nằm trực tiếp trong Git**: Toàn bộ source code của `dwm`, `st`, `dmenu`, `dwmblocks` nằm trong `suckless/.local/src/`. Không clone từ GitLab hay download binary rời rạc bên ngoài.
 
-### XDG Base Directory Tối đa
-- Mọi thứ tuân thủ tuyệt đối chuẩn XDG (`~/.config/`, `~/.local/`, `~/.cache/`). 
-- Nếu một ứng dụng cố tình tạo file rác ở `$HOME`, phải tìm cách đưa nó vào XDG thông qua `profile` hoặc `alias`.
-
----
-
-## 2. Tối ưu Hiệu suất Tối đa (Max Performance)
-
-Dù mượn các ý tưởng xịn sò của Omarchy, chúng ta phải giữ được tốc độ "bàn thờ" của X11/DWM.
-
-### LF File Manager
-- **Hình ảnh**: Giữ lại `ueberzug` làm engine preview hình ảnh vì trên X11/st, nó là giải pháp hiển thị ảnh sắc nét, mượt mà và native nhất (Vượt trội hơn chafa/sixel fallback).
-- **Thư mục**: Dùng `eza --tree` siêu tốc để xem trước cấu trúc thư mục.
-- **Văn bản**: Dùng `bat` để syntax highlight.
-- **Tìm kiếm**: Đã tích hợp tính năng siêu việt `fzf_search` (Ctrl+F) kết hợp `ripgrep` và `fzf` để tìm kiếm nội dung file nhanh nhất thế giới.
-
-### Zsh & Shell
-- Đồng bộ cấu hình Zsh từ nhánh omarchy: Lịch sử vô hạn (persistent history), chống trùng lặp, tối ưu tìm kiếm lịch sử nhanh bằng phím mũi tên (history-beginning-search).
-
-### Ứng dụng
-- Giữ lại các ứng dụng X11 nhẹ nhất: `nsxiv` (xem ảnh), `mpv` (xem video GPU decode), `zathura` (đọc PDF).
+### ③ Agentic-Ready Architecture (Thân thiện với AI)
+- **Khai báo dạng bảng (`progs.csv`)**: Danh sách phần mềm được chuẩn hóa 5 cột (`TAG,NAME,TIER,DEPS,PURPOSE`) để AI đọc hiểu, phân loại và cài đặt chính xác theo từng profile.
+- **Tập lệnh Lũy đẳng (`ka-setup`)**: Chạy 1 lần hay 100 lần kết quả vẫn chuẩn xác, không tạo file rác, không ghi đè trùng lặp, có cơ chế an toàn khi chạy lại.
+- **XDG Base Directory 100%**: Mọi file cấu hình đưa về `~/.config/`, dữ liệu vào `~/.local/share/`, cache vào `~/.cache/`.
 
 ---
 
-## 3. Bộ Hotkey Chuẩn (Omarchy Style cho DWM)
+## 2. Quản lý Môi trường & Gói phần mềm
 
-Khi sửa mã nguồn trong `dwm/config.h`, tuân theo chuẩn phím tắt sau để có UX hiện đại:
-- **`Super + Enter`**: Mở Terminal (`st`)
-- **`Super + W`**: Mở Trình duyệt (`brave`)
-- **`Super + E`**: Mở File Manager (`lf`)
-- **`Super + Space`**: Mở Dmenu/Rofi
-- **`Super + Shift + Q`**: Thoát DWM
-- **`Super + Q`**: Đóng cửa sổ (killclient)
+### Runtime Lập trình: Dùng `mise` (Không dùng Pacman cho dev runtimes)
+- **Quy tắc**: Pacman quản lý hệ điều hành và phần cứng; **`mise` quản lý môi trường lập trình** (Node.js, Python, Rust, Go, PNPM, Bun).
+- **Tránh lỗi PEP 668**: Không cài Python modules toàn cục qua `sudo pip`. Dùng `mise` để tạo môi trường dev sạch sẽ trong user space.
+- **Cấu hình toàn cục**: Nằm tại `shell/.config/mise/config.toml` (tự động link qua Stow).
+- **Zsh Hook**: Nạp qua `eval "$(mise activate zsh)"` trong `zsh/.config/zsh/env.zsh`.
+
+### Danh mục Gói (`progs.csv`)
+- **Profile `core` (95 Pacman + 2 AUR)**: Nền tảng DWM/X11, Fonts, Shell, Audio PipeWire, Fcitx5 Bamboo, Brave Browser, Yay.
+- **Profile `dev`**: Công cụ lập trình (Neovim, VSCode, Mise, Git-delta, LazyGit).
+- **Profile `media`**: Âm thanh đa phương tiện (MPD, ncmpcpp, MPV, pulsemixer, yt-dlp).
+- **Profile `tools`**: Tiện ích văn phòng (Pandoc, Anki, Telegram Desktop, Zathura).
+- **Profile `virt`**: Container tối giản (Docker, Docker-compose, Lazydocker). Loại bỏ hoàn toàn QEMU/Libvirt nặng nề.
 
 ---
-> **LỜI NHẮC CHO AI TRỢ LÝ:**
-> Hãy luôn kiểm tra `OMARCHY_X11_HANDOFF.md` trước khi sửa bất kỳ file nào. 
-> Mục tiêu tối thượng: **SIÊU NHANH (DWM) - CỰC SẠCH (Omarchy) - TỰ ĐỘNG HÓA CAO (ka-setup).**
+
+## 3. Hệ thống Giao diện & Window Management
+
+### Dynamic Theming (`theme-set`)
+- **Lệnh điều khiển**: `theme-set [nord | gruvbox-dark | catppuccin-mocha]`
+- **Cơ chế Hot-Reload không restart session**:
+  1. Link `colors/current.conf` trỏ vào palette tương ứng.
+  2. Sinh ra file màu `~/.config/x11/xresources.d/colors` và `~/.config/rofi/colors.rasi`.
+  3. Bơm block màu vào `~/.config/dunst/dunstrc`.
+  4. Chạy `hooks.d/10-xrdb.sh`: nạp `xrdb -merge` và bắn `kill -HUP $(pidof dwm)` $\rightarrow$ DWM reload màu ngay trên RAM mà cửa sổ làm việc không bị tắt.
+  5. Chạy `hooks.d/20-dunst.sh` và `30-dwmblocks.sh` để đồng bộ notification và statusbar.
+
+### Native C Window Management (DWM)
+- **Centered Floating (`Super + Shift + Space`)**: Cửa sổ nổi tự động tính toán kích thước vàng (**75% chiều rộng $\times$ 80% chiều cao**) và đặt chính xác vào **tâm giữa màn hình** ThinkPad X230. Bấm lại để quay về Tiling.
+- **Toggle Fullscreen (`Super + F`)**: Chuyển đổi tức thì giữa kích thước cửa sổ hiện tại và chế độ toàn màn hình 100% (Native C function `togglefullscreen`).
+- **Web App Cửa sổ Nổi (`brave-app <url>`)**: Khởi chạy trang web (YouTube, ChatGPT, Gemini...) dưới dạng ứng dụng mini không viền, tự động nổi ở giữa màn hình.
+- **ROFI Window Switcher (`Alt + Tab`)**: 
+  - DWM đã patch xử lý sự kiện `_NET_ACTIVE_WINDOW` trong `clientmessage()`.
+  - Khi chọn cửa sổ trong ROFI (bằng `Alt + Tab` hoặc tab `WINDOWS`), DWM sẽ **tự động chuyển sang đúng Workspace/Tag đó, unhide cửa sổ nếu bị ẩn, focus bàn phím và warp con trỏ chuột vào giữa cửa sổ**.
+
+### Giao diện Rofi Chuẩn Tỉ Lệ Vàng
+- Chiều rộng thu gọn **580px** (thay vì 800px thô to), font **11pt**, icon **20px**, 6 dòng $\times$ 2 cột.
+- Cân đối tuyệt đối ở tâm màn hình, không còn hiện tượng phóng to quá khổ.
+
+### GTK File Chooser (Hộp thoại Upload/Download)
+- **Thanh bên trái (Bookmarks)**: Khai báo sẵn trong `gtk/.config/gtk-3.0/bookmarks` (Downloads, Repos, Documents, Pictures, Videos, Dotfiles).
+- **Mặc định tệp mới nhất lên đầu**: Tự động áp dụng qua GSettings trong `xprofile` (`sort-column='modified'`, `sort-order='descending'`, `sort-directories-first=true`).
+
+---
+
+## 4. Cấu trúc GNU Stow Packages (23 Packages)
+
+| Package | Mô tả cấu hình |
+| :--- | :--- |
+| `shell/` | `profile`, `aliasrc`, `inputrc`, `mise/config.toml`, `starship.toml` |
+| `zsh/` | `.zshrc`, `.zprofile` (gọi `startx` tại tty1), `env.zsh` |
+| `git/` | `~/.config/git/config` với delta diff và smart aliases |
+| `yay/` | `~/.config/yay/config.json` cấu hình dọn dẹp cache |
+| `tmux/` | `tmux.conf` (prefix Ctrl+Space, vi mode, escape-time 0) |
+| `nvim/` | Neovim IDE modular (`init.lua`, `lua/{core,plugins,utils}/`) |
+| `lf/` | Trình quản lý file terminal (`lfrc`, preview ảnh `ueberzugpp`) |
+| `brave/` | `brave-flags.conf` tối ưu phần cứng Intel HD 4000 & X11 |
+| `input-method/`| Fcitx5 + Bamboo bộ gõ tiếng Việt (hotkeys, profile, classicui) |
+| `opencode/` | Gateway AI code agents (đã có `.stow-local-ignore` chặn `node_modules`) |
+| `pipewire/` | RNNoise AI khử ồn thời gian thực cho microphone |
+| `media/` | Cấu hình `mpv`, `ncmpcpp`, `mpd` |
+| `x11/` | `xinitrc` (D-Bus, autostart), `xprofile`, `xresources` (dùng `#if __has_include`) |
+| `picom/` | Compositor tối ưu Low-Latency (vsync glx, tắt blur/fading) |
+| `rofi/` | `launcher.rasi`, `config.rasi`, `colors.rasi` thiết kế tỉ lệ vàng |
+| `dunst/` | Daemon thông báo với block quản lý màu tự động |
+| `gtk/` | Cấu hình giao diện Arc-Gruvbox, font Inter 10, GTK bookmarks |
+| `fontconfig/` | Khử font bitmap, tối ưu hiển thị chữ trên màn hình |
+| `nsxiv/` | Trình xem ảnh X11 siêu nhẹ |
+| `theme/` | Hệ thống theme động (`theme-set`, palettes, templates, hooks) |
+| `desktop/` | XDG `mimeapps.list`, `user-dirs.dirs`, custom desktop handlers |
+| `suckless/` | Source code DWM, ST, Dmenu, Dwmblocks tại `~/.local/src/` |
+| `scripts/` | `~/.local/bin/` (chia thư mục `dwmblocks-scripts` và `dmenu-scripts`) |
+
+---
+
+## 5. Danh mục Hotkey Thiết Yếu (Ergonomic Shortcuts)
+
+| Phím tắt | Chức năng | Ghi chú |
+| :--- | :--- | :--- |
+| **`Super + Enter`** | Mở Terminal | Gọi `st` native C |
+| **`Super + Space`** | Menu ứng dụng | Mở `rofi-launcher` (APPS/RUN/FILES/WINDOWS) |
+| **`Alt + Tab`** | Chuyển đổi cửa sổ | Mở thẳng bộ chọn cửa sổ Rofi, tự nhảy Workspace |
+| **`Super + W`** | Mở trình duyệt web | Mở `brave` đã tối ưu cờ phần cứng |
+| **`Super + E`** | Mở trình quản lý tệp | Mở `lf` có preview ảnh nổi `ueberzugpp` |
+| **`Super + Q`** | Đóng cửa sổ hiện tại | Native C `killclient` |
+| **`Super + F`** | Bật/tắt Fullscreen 100% | Native C `togglefullscreen` (cực chuẩn cho X230) |
+| **`Super + Shift + Space`** | Nổi ở giữa màn hình | Nổi thông minh, tự căn giữa tỉ lệ vàng 75% $\times$ 80% |
+| **`Super + [1 - 9]`** | Chuyển Workspace / Tag | Chuyển tag làm việc |
+| **`Super + Shift + [1 - 9]`**| Ném cửa sổ sang Tag khác| Di chuyển cửa sổ |
+| **`Super + Shift + Q`** | Đăng xuất DWM | Thoát về TTY1 |
+| **`Super + F5`** | Nạp lại Xresources | DWM reload bảng màu |
+
+---
+> **LỜI NHẮC CHO CÁC AI PHIÊN TIẾP THEO:**
+> - Luôn bảo đảm tính **Idempotent** của script.
+> - Tuyệt đối không đưa rác và binary lạ vào `$HOME`.
+> - Giữ vững tiêu chuẩn: **SIÊU NHANH (DWM/C) - CỰC GỌN (Omarchy) - TỰ ĐỘNG HÓA CAO (ka-setup).**
