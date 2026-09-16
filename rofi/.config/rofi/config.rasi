@@ -4,10 +4,10 @@ configuration {
     font:                       "JetBrains Mono 11";
     show-icons:                 true;
     icon-theme:                 "Papirus";
-    display-drun:               " APPS";
-    display-run:                " RUN";
-    display-filebrowser:        " FILES";
-    display-window:             " WINDOWS";
+    display-drun:               "  APPS";
+    display-run:                "  RUN";
+    display-filebrowser:        "  FILES";
+    display-window:             "  WINDOWS";
     drun-display-format:        "{name}";
     hover-select:               true;
     me-select-entry:            "";
@@ -15,14 +15,15 @@ configuration {
     window-format:              "{w} · {c} · {t}";
     click-to-exit:              true;
     
-    /* Keybindings */
-    kb-mode-next:               "Tab";
-    kb-mode-previous:           "ISO_Left_Tab";
+    /* Ergonomic Navigation: Tab/Shift-Tab & Vim keys (j/k) navigate items; NEVER jump modes unexpectedly */
+    kb-mode-next:               "Control+Tab";
+    kb-mode-previous:           "Control+ISO_Left_Tab";
+    kb-row-down:                "Down,Control+n,Control+j,Tab";
+    kb-row-up:                  "Up,Control+p,Control+k,ISO_Left_Tab";
     kb-element-next:            "";
     kb-element-prev:            "";
     kb-row-tab:                 "";
     kb-remove-to-eol:           "";
-    kb-accept-entry:            "Control+m,Return,KP_Enter";
-    kb-row-down:                "Down,Control+n,Control+j";
-    kb-row-up:                  "Up,Control+p,Control+k";
+    kb-accept-entry:            "Return,KP_Enter,Control+m";
+    kb-cancel:                  "Escape,Control+bracketleft";
 }
