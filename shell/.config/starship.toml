@@ -1,0 +1,104 @@
+# ==============================================================================
+# Starship Prompt Config — DWM/X11 (ThinkPad X230)
+# ==============================================================================
+# Tối ưu cho repo lớn có node_modules: tăng scan_timeout để tránh WARN spam.
+# Mặc định 30ms quá thấp cho git_status (~69ms) và nodejs scan (~16ms).
+
+# Thời gian tối đa để scan thư mục hiện tại (ms)
+# 30ms mặc định → WARN khi cd vào repo lớn có node_modules
+scan_timeout = 100
+
+# Thời gian tối đa cho mỗi shell command (ms)
+command_timeout = 1000
+
+# Thêm dòng trống trước prompt (tách biệt với output lệnh trước)
+add_newline = true
+
+# ==============================================================================
+# FORMAT — Chỉ hiện những gì thật sự cần thiết
+# ==============================================================================
+format = """
+$directory$git_branch$git_status$git_state\
+$nodejs$python$rust$golang$mise\
+$jobs$cmd_duration\
+$line_break$character"""
+
+# ==============================================================================
+# DIRECTORY
+# ==============================================================================
+[directory]
+truncation_length = 3
+truncate_to_repo = true
+style = "bold cyan"
+
+# ==============================================================================
+# GIT
+# ==============================================================================
+[git_branch]
+symbol = " "
+style = "bold purple"
+
+[git_status]
+# Tắt bỏ các check nặng không cần thiết:
+# ahead/behind cần chạy 'git rev-list' trên toàn bộ history
+ahead = "⇡${count}"
+behind = "⇣${count}"
+diverged = "⇕⇡${ahead_count}⇣${behind_count}"
+# Giữ lại các ký hiệu thay đổi file (nhanh — chỉ đọc index)
+staged = "[+${count}](green)"
+modified = "[!${count}](yellow)"
+# Tắt untracked: chạy 'git ls-files' scan toàn bộ tree → chậm nhất (~50-100ms)
+# Repo lớn (node_modules, .git 194MB) sẽ mất 100-200ms chỉ để scan untracked
+untracked = ""
+deleted = "[-${count}](red)"
+style = "bold red"
+
+[git_state]
+style = "bold yellow"
+
+# ==============================================================================
+# LANGUAGES — Chỉ hiện khi đang trong project tương ứng
+# ==============================================================================
+[nodejs]
+symbol = " "
+style = "bold green"
+# Chỉ hiện khi có package.json hoặc .nvmrc — không scan node_modules
+detect_files = ["package.json", ".nvmrc", ".node-version"]
+detect_folders = []
+
+[python]
+symbol = " "
+style = "bold yellow"
+detect_files = ["pyproject.toml", "Pipfile", ".python-version", "requirements.txt"]
+
+[rust]
+symbol = " "
+style = "bold red"
+
+[golang]
+symbol = " "
+style = "bold cyan"
+
+# mise version display (nếu có .mise.toml)
+[mise]
+style = "bold blue"
+
+# ==============================================================================
+# UX — Thời gian lệnh & Background jobs
+# ==============================================================================
+[cmd_duration]
+min_time = 2000          # Chỉ hiện nếu lệnh chạy > 2 giây
+format = " [$duration](bold yellow)"
+
+[jobs]
+symbol = "✦"
+style = "bold blue"
+number_threshold = 1
+
+# ==============================================================================
+# PROMPT CHARACTER
+# ==============================================================================
+[character]
+success_symbol = "[❯](bold green)"
+error_symbol = "[❯](bold red)"
+vimcmd_symbol = "[❮](bold green)"
