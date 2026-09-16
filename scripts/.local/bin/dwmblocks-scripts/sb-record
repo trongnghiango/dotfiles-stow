@@ -1,3 +1,9 @@
 #!/bin/sh
 # sb-record — dwmblocks module displaying active recording indicator
+# Click chuột trái vào icon 🔴 REC trên thanh bar để dừng quay ngay lập tức
+
+case "${BLOCK_BUTTON:-${BUTTON:-0}}" in
+    1) record stop ;;
+esac
+
 exec record status
