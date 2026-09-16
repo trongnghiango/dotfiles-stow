@@ -348,6 +348,7 @@ static void tag(const Arg *arg);
 static void tagmon(const Arg *arg);
 static void togglebar(const Arg *arg);
 static void togglefloating(const Arg *arg);
+static void togglefullscreen(const Arg *arg);
 static void toggletag(const Arg *arg);
 static void toggleview(const Arg *arg);
 static void unfocus(Client *c, int setfocus, Client *nextfocus);
@@ -2261,15 +2262,27 @@ togglefloating(const Arg *arg)
 	if (c->isfullscreen) /* no support for fullscreen windows */
 		return;
 	c->isfloating = !c->isfloating || c->isfixed;
-	if (c->isfloating)
-		XSetWindowBorder(dpy, c->win, scheme[SchemeSel][ColFloat].pixel);
-	else
-		XSetWindowBorder(dpy, c->win, scheme[SchemeSel][ColBorder].pixel);
 	if (c->isfloating) {
-		resize(c, c->x, c->y, c->w, c->h, 0);
+		XSetWindowBorder(dpy, c->win, scheme[SchemeSel][ColFloat].pixel);
+		/* Tự động căn giữa màn hình với kích thước vàng (75% rộng, 80% cao) tối ưu cho ThinkPad X230 */
+		int nw = (int)(c->mon->ww * 0.75) - (c->bw * 2);
+		int nh = (int)(c->mon->wh * 0.80) - (c->bw * 2);
+		int nx = c->mon->wx + (c->mon->ww - (nw + c->bw * 2)) / 2;
+		int ny = c->mon->wy + (c->mon->wh - (nh + c->bw * 2)) / 2;
+		resizeclient(c, nx, ny, nw, nh);
+	} else {
+		XSetWindowBorder(dpy, c->win, scheme[SchemeSel][ColBorder].pixel);
 	}
 	arrange(c->mon);
+}
 
+void
+togglefullscreen(const Arg *arg)
+{
+	Client *c = selmon->sel;
+	if (!c)
+		return;
+	setfullscreen(c, !c->isfullscreen);
 }
 
 void

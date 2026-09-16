@@ -1,0 +1,5 @@
+#!/bin/sh
+# brave-app [url] — Mở webapp dạng cửa sổ mini độc lập (tự động nổi ở trung tâm)
+# Usage: brave-app https://youtube.com
+URL="${1:-https://google.com}"
+exec brave --app="$URL" --class="brave-app" >/dev/null 2>&1 &
