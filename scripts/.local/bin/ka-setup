@@ -161,28 +161,29 @@ setup_pkgs() {
     if [ "$target" = "all" ]; then
       match=true
     elif [ "$target" = "core" ]; then
-      # Tách deps theo dấu + để kiểm tra từng thành phần (ví dụ: dwm+st → dwm, st)
-      local dep_item
-      IFS='+' read -ra _dep_parts <<< "$deps"
-      IFS="$old_ifs"
-      for dep_item in "${_dep_parts[@]}"; do
-        case "$dep_item" in
-          core|dwm|st|dmenu|dwmblocks|lf|zsh|fcitx5|pipewire|zathura|intel)
-            match=true
-            break
-            ;;
-        esac
-      done
+      case "$deps" in
+        base|x11|dwm|dwm+st|dwm,st|st|dwmblocks|fcitx5|zsh|cli|lf|pipewire|browser|zathura|fonts|intel|system)
+          match=true
+          ;;
+      esac
     elif [ "$target" = "dev" ]; then
-      [ "$tier" = "4" ] || [ "$deps" = "dev" ] && match=true
+      case "$deps" in
+        dev|vscode) match=true ;;
+      esac
     elif [ "$target" = "media" ]; then
-      [ "$tier" = "6" ] || [ "$deps" = "media" ] || [ "$name" = "yt-dlp" ] && match=true
+      case "$deps" in
+        music|media) match=true ;;
+      esac
     elif [ "$target" = "tools" ]; then
-      [ "$tier" = "8" ] && match=true
+      case "$deps" in
+        docs|apps|otp) match=true ;;
+      esac
     elif [ "$target" = "virt" ]; then
-      [ "$tier" = "9" ] || [ "$deps" = "virt" ] && match=true
+      [ "$deps" = "docker" ] && match=true
     elif [ "$target" = "sys" ]; then
-      [ "$tier" = "11" ] || [ "$tier" = "1" ] || [ "$deps" = "sys" ] && match=true
+      case "$deps" in
+        intel|bluetooth|system|theme|base) match=true ;;
+      esac
     elif [[ "$target" =~ ^[0-9,]+$ ]]; then
       local t_arr=()
       IFS="," read -ra t_arr <<< "$target"

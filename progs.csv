@@ -1,19 +1,18 @@
 #TAG,NAME,TIER,DEPS,PURPOSE
-,base,1,core,Minimal Arch Linux system.
-,base-devel,1,core,"Essential compilation tools (gcc, make, etc.)."
-,direnv,1,core,Environment switcher loaded in env.zsh (eval direnv hook zsh).
-,efibootmgr,1,core,Manipulates EFI Boot Manager variables.
-,grub,1,core,GNU GRUB bootloader.
-,linux-firmware,1,core,Firmware files for Linux kernel.
-,linux-lts,1,core,Long Term Support Linux kernel.
-,lvm2,1,core,Logical Volume Manager tools.
-,man-db,1,core,Read man pages of programs.
-,networkmanager,1,core,Manages network connections.
-,stow,1,core,GNU Stow symlink manager to manage dotfiles.
-,sudo,1,core,Users to run programs with security privileges.
-,tuned,1,opt,Dynamic adaptive system tuning daemon.
-,zram-generator,1,core,Manages zram swap devices automatically.
-,dunst,2,core,Suckless notification daemon; paired with libnotify.
+,base,1,base,Minimal Arch Linux system.
+,base-devel,1,base,"Essential compilation tools (gcc, make, etc.)."
+,direnv,1,base,Environment switcher loaded in env.zsh (eval direnv hook zsh).
+,efibootmgr,1,base,Manipulates EFI Boot Manager variables.
+,grub,1,base,GNU GRUB bootloader.
+,linux-firmware,1,base,Firmware files for Linux kernel.
+,linux-lts,1,base,Long Term Support Linux kernel.
+,lvm2,1,base,Logical Volume Manager tools.
+,man-db,1,base,Read man pages of programs.
+,networkmanager,1,base,Manages network connections.
+,stow,1,base,GNU Stow symlink manager to manage dotfiles.
+,sudo,1,base,Users to run programs with security privileges.
+,zram-generator,1,base,Manages zram swap devices automatically.
+,dunst,2,x11,Suckless notification daemon; paired with libnotify.
 ,fontconfig,2,dwm+st,Library for configuring and customizing font access.
 ,harfbuzz,2,st,OpenType text shaping engine required to compile st with ligatures support.
 ,imlib2,2,dwm,Image loading and rendering library for DWM icon and tag preview.
@@ -21,130 +20,126 @@
 ,libxft,2,dwm+st,FreeType font rendering library for DWM and ST.
 ,libxinerama,2,dwm,Xinerama multi-monitor extension library for DWM.
 ,libxrender,2,dwm+st,X Rendering Extension client library.
-,lxappearance,2,opt,GTK theme and icon configurator.
-,maim,2,core,Can take quick screenshots (used by maimpick script).
-,picom,2,core,Modern X compositor for transparency and removing screen-tearing; uses glx backend with vsync.
-,rofi,2,core,"Window switcher, application launcher and dmenu replacement."
-,slock,2,core,You to lock your computer with a simple password prompt.
-,unclutter,2,core,Hides an inactive mouse cursor after a few seconds.
-,xclip,2,core,For copying and pasting from the command line.
-,xdotool,2,core,Window action utilities on the command line (used in DWM scripts).
-,xorg-server,2,core,Graphical server. This first one may take a while as it pulls many other dependencies first on clean installs.
-,xorg-setxkbmap,2,core,Keyboard layout configuration utility.
-,xorg-xinit,2,core,Starts the graphical server.
-,xorg-xprop,2,core,Tool for detecting window properties.
-,xorg-xrandr,2,core,"Set resolution, mode, rate ."
-,xorg-xset,2,core,Utility for configuring and ajusting X server
-,xorg-xsetroot,2,core,Sets window parameters of the root window.
-,xorg-xwininfo,2,core,Querying information about windows.
-,xwallpaper,2,core,Sets the wallpaper via setbg script.
-,fcitx5,3,core,Generic input method framework.
+,maim,2,x11,Can take quick screenshots (used by maimpick script).
+,picom,2,x11,Modern X compositor for transparency and removing screen-tearing; uses glx backend with vsync.
+,rofi,2,x11,"Window switcher, application launcher and dmenu replacement."
+,slock,2,x11,You to lock your computer with a simple password prompt.
+,unclutter,2,x11,Hides an inactive mouse cursor after a few seconds.
+,xclip,2,x11,For copying and pasting from the command line.
+,xdotool,2,x11,Window action utilities on the command line (used in DWM scripts).
+,xorg-server,2,x11,Graphical server. This first one may take a while as it pulls many other dependencies first on clean installs.
+,xorg-setxkbmap,2,x11,Keyboard layout configuration utility.
+,xorg-xinit,2,x11,Starts the graphical server.
+,xorg-xprop,2,x11,Tool for detecting window properties.
+,xorg-xrandr,2,x11,"Set resolution, mode, rate ."
+,xorg-xset,2,x11,Utility for configuring and ajusting X server
+,xorg-xsetroot,2,x11,Sets window parameters of the root window.
+,xorg-xwininfo,2,x11,Querying information about windows.
+,xwallpaper,2,x11,Sets the wallpaper via setbg script.
+,fcitx5,3,fcitx5,Generic input method framework.
 ,fcitx5-bamboo,3,fcitx5,Vietnamese Bamboo input method.
 ,fcitx5-configtool,3,fcitx5,Configures Fcitx5 layout and engines.
 ,fcitx5-gtk,3,fcitx5,GTK support for Fcitx5.
 ,fcitx5-qt,3,fcitx5,Qt support for Fcitx5.
-,clang,4,opt,C/C++ compiler and LLVM tooling.
-,code,4,opt,Open-source VS Code editor.
+,clang,4,dev,C/C++ compiler and LLVM tooling.
+,code,4,vscode,Open-source VS Code editor.
 ,git-delta,4,dev,Syntax-highlighting pager for git.
-,lua51,4,opt,Lua 5.1 interpreter.
+,lua51,4,dev,Lua 5.1 interpreter.
 ,mise,4,dev,"Polyglot runtime manager for Node, Python, Rust, Go."
-,neovide,4,opt,Modern graphical UI for Neovim.
-,neovim,4,opt,"Primary text editor (EDITOR env var), modular config in ~/.config/nvim."
-,tree-sitter-cli,4,opt,Tree-sitter parser command-line tool.
+,neovide,4,dev,Modern graphical UI for Neovim.
+,neovim,4,dev,"Primary text editor (EDITOR env var), modular config in ~/.config/nvim."
 ,bat,5,lf,Can highlight code output and display files; used for previews in lf.
-,btop,5,opt,Shows system hardware utilization.
-,eza,5,core,Modern Rust-based replacement for ls used in aliasrc.
-,fd,5,core,Finds files and directories quickly.
-,fzf,5,core,Fuzzy finder tool used for quick file location (Ctrl+F binding).
+,btop,5,cli,Shows system hardware utilization.
+,eza,5,cli,Modern Rust-based replacement for ls used in aliasrc.
+,fd,5,cli,Finds files and directories quickly.
+,fzf,5,cli,Fuzzy finder tool used for quick file location (Ctrl+F binding).
 ,jq,5,dwmblocks,Parses JSON data for weather forecast in dwmblocks status bar (sb-forecast).
-,lf,5,core,Keyboard-centric terminal file manager.
-,moreutils,5,opt,Collection of useful unix tools.
-,rsync,5,core,Synchronizes files and folders.
-,socat,5,dwmblocks,Utility which establishes two byte streams; used by clipboard-tray.
+,lf,5,lf,Keyboard-centric terminal file manager.
+,rsync,5,cli,Synchronizes files and folders.
 ,starship,5,zsh,"Cross-shell prompt showing git status, runtime versions, and exit codes."
-,tmux,5,core,Terminal multiplexer.
-,trash-cli,5,opt,Moves files to trash cleanly.
-,yt-dlp,5,opt,Can download any YouTube video (or playlist or channel) when given the link.
+,tmux,5,cli,Terminal multiplexer.
+,trash-cli,5,cli,Moves files to trash cleanly.
+,yt-dlp,5,media,Can download any YouTube video (or playlist or channel) when given the link.
 ,zoxide,5,zsh,Smarter cd command that remembers your most used directories.
 ,zsh-autosuggestions,5,zsh,Fish-like fast autosuggestions for zsh based on history.
 ,zsh-syntax-highlighting,5,zsh,Fish-like command syntax highlighting for zsh.
 ,ffmpegthumbnailer,6,lf,Creates thumbnail previews of video files in lf file manager.
-,imagemagick,6,core,Manipulates images on CLI.
+,imagemagick,6,media,Manipulates images on CLI.
 ,mediainfo,6,lf,Shows audio/video info and is used in lf file previews.
-,mpc,6,media,Terminal interface for mpd.
-,mpd,6,opt,Lightweight music daemon (required by ncmpcpp).
-,mpv,6,core,Video player; also used by lf for video previews.
-,ncmpcpp,6,media,A ncurses interface for mpd with multiple formats and a powerful tag editor.
-,pipewire,6,core,Server and user space API to handle multimedia pipelines.
+,mpc,6,music,Terminal interface for mpd.
+,mpd,6,music,Lightweight music daemon (required by ncmpcpp).
+,mpv,6,media,Video player; also used by lf for video previews.
+,ncmpcpp,6,music,A ncurses interface for mpd with multiple formats and a powerful tag editor.
+,pipewire,6,pipewire,Server and user space API to handle multimedia pipelines.
 ,pipewire-alsa,6,pipewire,ALSA compatibility layer for Pipewire.
 ,pipewire-pulse,6,pipewire,Pipewire compatibility with PulseAudio programs.
 ,pulsemixer,6,dwmblocks,Is an audio mixer CLI tool for volume control.
 ,wireplumber,6,pipewire,Audio session manager for Pipewire.
-A,brave-bin,7,core,Default web browser (BROWSER env var).
-,cloudflared,7,opt,Establishes Cloudflare tunnel connections.
-,curl,7,core,Transfers HTTP payload on CLI.
-,dnsmasq,7,opt,Configures local DNS proxy cache.
-,s-tui,7,opt,Monitors CPU temp and performs stress testing.
-,sshpass,7,core,Passes SSH password programmatically.
-,wget,7,core,Downloads files from the internet.
-,anki,8,opt,Facilitates flashcard vocabulary learning.
-,calcurse,8,opt,Terminal-based organizer for interactive and command line use
-,newsboat,8,opt,Terminal RSS client (used with cron/news.psv).
-,pandoc-cli,8,opt,Compiles document markups to PDF/Docx.
-,poppler,8,lf+zathura,Manipulates .pdfs and gives .pdf previews in lf file manager.
-,telegram-desktop,8,opt,Telegram chat messenger.
-,w3m,8,opt,Terminal web browser with image display capability.
-,zathura,8,core,PDF viewer with vim-like bindings.
+A,brave-bin,7,browser,Default web browser (BROWSER env var).
+,cloudflared,7,net,Establishes Cloudflare tunnel connections.
+,curl,7,net,Transfers HTTP payload on CLI.
+,dnsmasq,7,net,Configures local DNS proxy cache.
+,s-tui,7,system,Monitors CPU temp and performs stress testing.
+,sshpass,7,net,Passes SSH password programmatically.
+,wget,7,net,Downloads files from the internet.
+,anki,8,apps,Facilitates flashcard vocabulary learning.
+,calcurse,8,apps,Terminal-based organizer for interactive and command line use
+,newsboat,8,apps,Terminal RSS client (used with cron/news.psv).
+,pandoc-cli,8,docs,Compiles document markups to PDF/Docx.
+,poppler,8,zathura,Manipulates .pdfs and gives .pdf previews in lf file manager.
+,telegram-desktop,8,apps,Telegram chat messenger.
+,w3m,8,docs,Terminal web browser with image display capability.
+,zathura,8,zathura,PDF viewer with vim-like bindings.
 ,zathura-pdf-mupdf,8,zathura,Mupdf pdf compatibility in zathura.
-,zbar,8,opt,Zbarimg for QR-code scanning in otp script.
-,docker,9,opt,Container application engine.
-,docker-compose,9,virt,Orchestrates multi-container apps.
-A,lazydocker-bin,9,virt,Manages Docker status via TUI.
-A,gtk-theme-arc-gruvbox-git,10,sys,The dark GTK theme (Arc-Gruvbox) used consistently in GTK2/3/4 config.
-,inter-font,10,core,Typeface specially designed for computer screens.
-,noto-fonts,10,core,Is an expansive font package for CJK and other language support.
-,noto-fonts-cjk,10,core,CJK language glyphs.
-,noto-fonts-emoji,10,core,Is an emoji font set.
-,papirus-icon-theme,10,core,Papirus system icons.
-,ttf-jetbrains-mono,10,core,Lightweight JetBrains Mono monospace font optimized for DWM/st.
+,zbar,8,otp,Zbarimg for QR-code scanning in otp script.
+,docker,9,docker,Container application engine.
+,docker-compose,9,docker,Orchestrates multi-container apps.
+A,lazydocker-bin,9,docker,Manages Docker status via TUI.
+A,gtk-theme-arc-gruvbox-git,10,theme,The dark GTK theme (Arc-Gruvbox) used consistently in GTK2/3/4 config.
+,inter-font,10,fonts,Typeface specially designed for computer screens.
+,noto-fonts,10,fonts,Is an expansive font package for CJK and other language support.
+,noto-fonts-cjk,10,fonts,CJK language glyphs.
+,noto-fonts-emoji,10,fonts,Is an emoji font set.
+,papirus-icon-theme,10,fonts,Papirus system icons.
+,ttf-jetbrains-mono,10,fonts,Lightweight JetBrains Mono monospace font optimized for DWM/st.
 ,ttf-nerd-fonts-symbols,10,dwmblocks,Font containing nerd icon glyphs for dwmblocks and lf.
-,7zip,11,core,Compresses files in 7z format.
-,alsa-utils,11,opt,Alsa-utils utility.
+,7zip,11,system,Compresses files in 7z format.
+,alsa-utils,11,system,Alsa-utils utility.
 ,atool,11,lf,Manages archives (used by lf for archive extraction and preview).
-,autorandr,11,opt,Autorandr utility.
-,bc,11,core,Mathematics language used for the dropdown calculator (bound to Ctrl+A).
-,bluez,11,opt,Bluetooth services protocol stack.
-,bluez-utils,11,sys,Bluetoothctl to manage Bluetooth devices via btmgr.
-,bmon,11,opt,Bmon utility.
+,autorandr,11,system,Autorandr utility.
+,bc,11,cli,Mathematics language used for the dropdown calculator (bound to Ctrl+A).
+,bluez,11,bluetooth,Bluetooth services protocol stack.
+,bluez-utils,11,bluetooth,Bluetoothctl to manage Bluetooth devices via btmgr.
+,bmon,11,system,Bmon utility.
 ,brightnessctl,11,dwmblocks,Enables changing screen brightness (used by ka-battery and sb-battery scripts).
-,clipmenu,11,opt,Shows clipboard history menu via Rofi.
-A,code-marketplace,11,dev,Enables MS marketplace extensions inside code.
-,dash,11,core,Runs shell script POSIX commands fast.
-,dosfstools,11,core,Your computer to access dos-like filesystems.
-,git,11,core,Tracks code changes with git.
-,gnome-keyring,11,core,Serves as the system keyring for Brave and other apps.
-,gvfs-mtp,11,opt,Gvfs-mtp utility.
-,hugo,11,opt,Compiles static markdown websites.
+,clipmenu,11,system,Shows clipboard history menu via Rofi.
+A,code-marketplace,11,vscode,Enables MS marketplace extensions inside code.
+,dash,11,system,Runs shell script POSIX commands fast.
+,dosfstools,11,system,Your computer to access dos-like filesystems.
+,git,11,system,Tracks code changes with git.
+,gnome-keyring,11,system,Serves as the system keyring for Brave and other apps.
+,gvfs-mtp,11,system,Gvfs-mtp utility.
+,hugo,11,system,Compiles static markdown websites.
 ,intel-media-driver,11,intel,Accelerates video on Intel GPUs (VA-API).
 ,lazygit,11,dev,Lazygit utility.
-,libnewt,11,opt,Libnewt utility.
-,libnotify,11,core,Libnotify utility.
-,nsxiv,11,core,Nsxiv utility.
-,ntfs-3g,11,opt,Accessing NTFS partitions.
-A,opencode-bin,11,opt,Relays code agents via AI gateway.
-,polkit-gnome,11,core,Displays admin authentication GUI.
-,rate-mirrors,11,opt,Ranks Arch Linux mirrorlists.
-,smartmontools,11,opt,Tests hard drive S.M.A.R.T. health.
-,sof-firmware,11,opt,Sof-firmware utility.
-,udiskie,11,core,Removable media automounter with tray notification support.
+,libnotify,11,x11,Libnotify utility.
+,nsxiv,11,system,Nsxiv utility.
+,ntfs-3g,11,system,Accessing NTFS partitions.
+A,opencode-bin,11,dev,Relays code agents via AI gateway.
+,pass,11,otp,Standard UNIX password manager (used by otp script).
+,pass-otp,11,otp,GPG-based 2FA one-time password extension for pass.
+,polkit-gnome,11,system,Displays admin authentication GUI.
+,rate-mirrors,11,system,Ranks Arch Linux mirrorlists.
+,smartmontools,11,system,Tests hard drive S.M.A.R.T. health.
+,udiskie,11,system,Removable media automounter with tray notification support.
 ,ueberzugpp,11,lf,Enables image previews in the lf file manager (required dependency of lf).
-,unrar,11,opt,Extracts RAR archives.
-,unzip,11,core,Unzips zip archives (used by archive extractor scripts).
-,usbutils,11,core,Queries USB details on CLI (lsusb).
+,unrar,11,system,Extracts RAR archives.
+,unzip,11,system,Unzips zip archives (used by archive extractor scripts).
+,usbutils,11,system,Queries USB details on CLI (lsusb).
 ,vulkan-intel,11,intel,Vulkan graphics API to Intel cards.
 ,vulkan-tools,11,intel,Vulkan utilities (vulkaninfo).
-,xdg-desktop-portal-gtk,11,core,GTK implementation for portals.
-,xfce4-power-manager,11,core,"Power manager for battery, display brightness and sleep on lid close."
-A,yay-bin,11,core,AUR package compilation helper.
-,zip,11,core,Creates ZIP archives.
-,zsh,11,core,Zsh utility.
+,xdg-desktop-portal-gtk,11,system,GTK implementation for portals.
+,xfce4-power-manager,11,system,"Power manager for battery, display brightness and sleep on lid close."
+A,yay-bin,11,system,AUR package compilation helper.
+,zip,11,system,Creates ZIP archives.
+,zsh,11,zsh,Zsh utility.
