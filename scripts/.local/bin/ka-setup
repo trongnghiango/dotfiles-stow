@@ -161,11 +161,18 @@ setup_pkgs() {
     if [ "$target" = "all" ]; then
       match=true
     elif [ "$target" = "core" ]; then
-      case "$deps" in
-        core|dwm|st|dmenu|dwmblocks|lf|zsh|fcitx5|pipewire|zathura|intel|"dwm,st"|"lf,zathura")
-          match=true
-          ;;
-      esac
+      # Tách deps theo dấu + để kiểm tra từng thành phần (ví dụ: dwm+st → dwm, st)
+      local dep_item
+      IFS='+' read -ra _dep_parts <<< "$deps"
+      IFS="$old_ifs"
+      for dep_item in "${_dep_parts[@]}"; do
+        case "$dep_item" in
+          core|dwm|st|dmenu|dwmblocks|lf|zsh|fcitx5|pipewire|zathura|intel)
+            match=true
+            break
+            ;;
+        esac
+      done
     elif [ "$target" = "dev" ]; then
       [ "$tier" = "4" ] || [ "$deps" = "dev" ] && match=true
     elif [ "$target" = "media" ]; then
@@ -423,7 +430,8 @@ setup_suckless() {
       (
         cd "$src_dir/$tool"
         local make_log="/tmp/make-${tool}.log"
-        if sudo make clean install >"$make_log" 2>&1; then
+        # Compile dưới user (tránh file .o owned by root), chỉ install bằng sudo
+        if make clean >"$make_log" 2>&1 && make >>"$make_log" 2>&1 && sudo make install >>"$make_log" 2>&1; then
           log_dim "Đã biên dịch $tool thành công"
         else
           log_error "Lỗi khi biên dịch $tool. Xem chi tiết tại $make_log:"

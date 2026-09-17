@@ -169,8 +169,7 @@ static const Rule rules[] = {
 	RULE(.class = "code-oss", .tags = 1 << 3)
 	RULE(.class = "St", .isterminal = 1)
 	RULE(.class = "vesktop", .tags = 1 << 7, .isfloating = 1)
-	RULE(.instance = "spterm", .tags = SPTAG(0), .isfloating = 1)
-  RULE(.class = "Virt-manager", .tags = 1 << 5, .isfloating = 1)
+	RULE(.class = "Virt-manager", .tags = 1 << 5, .isfloating = 1)
   RULE(.class = "vlc", .tags = 1 << 6)
   RULE(.title = "AudioRelay", .tags = 1 << 4)
   RULE(.class = "TelegramDesktop", .tags = 1 << 7, .isfloating = 1)
@@ -265,7 +264,7 @@ static const char *maimpickcmd[] = { "maimpick", NULL };      // maimpick menu
 /* commands */
 static const char *powermenu[] = { "sysact", NULL };
 static const char *lf[] = { "st", "-e", "lfub", NULL };
-static const char *new_look[] = { "/home/vaproh/.local/bin/scripts/new_look", NULL };
+static const char *themesetcmd[] = { "theme-set", NULL };
 
 /* This defines the name of the executable that handles the bar (used for signalling purposes) */
 #define STATUSBAR "dwmblocks"
@@ -342,11 +341,11 @@ static const Key keys[] = {
 	{ ControlMask,			XK_Print,      spawn,		       {.v = capturess } },
 	{ ShiftMask,			XK_Print,      spawn,		       {.v = capwin } },      
 	{ ControlMask|ShiftMask,        XK_space,      spawn,                  SHCMD("fcitx-toggle") },
-	{ MODKEY,                       XK_n,	       spawn,                  {.v = new_look } },
+	{ MODKEY,                       XK_n,	       spawn,                  {.v = themesetcmd } },
 	{ MODKEY,			XK_x,	       togglescratch,	       {.ui = 0 } },
-	{ 0, XF86XK_AudioMute,                         spawn,                  SHCMD("wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle; kill -44 $(pidof dwmblocks)") },
-	{ 0, XF86XK_AudioRaiseVolume,                  spawn,                  SHCMD("wpctl set-volume @DEFAULT_AUDIO_SINK@ 0%- && wpctl set-volume @DEFAULT_AUDIO_SINK@ 3%+; kill -44 $(pidof dwmblocks)") },
-	{ 0, XF86XK_AudioLowerVolume,                  spawn,                  SHCMD("wpctl set-volume @DEFAULT_AUDIO_SINK@ 0%+ && wpctl set-volume @DEFAULT_AUDIO_SINK@ 3%-; kill -44 $(pidof dwmblocks)") },
+	{ 0, XF86XK_AudioMute,                         spawn,                  SHCMD("wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle; pkill -RTMIN+11 dwmblocks") },
+	{ 0, XF86XK_AudioRaiseVolume,                  spawn,                  SHCMD("wpctl set-volume @DEFAULT_AUDIO_SINK@ 0%- && wpctl set-volume @DEFAULT_AUDIO_SINK@ 3%+; pkill -RTMIN+11 dwmblocks") },
+	{ 0, XF86XK_AudioLowerVolume,                  spawn,                  SHCMD("wpctl set-volume @DEFAULT_AUDIO_SINK@ 0%+ && wpctl set-volume @DEFAULT_AUDIO_SINK@ 3%-; pkill -RTMIN+11 dwmblocks") },
 	{ 0, XF86XK_AudioPrev,                         spawn,                  {.v = (const char*[]){ "mpc", "prev", NULL } } },
 	{ 0, XF86XK_AudioNext,                         spawn,                  {.v = (const char*[]){ "mpc",  "next", NULL } } },
 	{ 0, XF86XK_AudioPause,                        spawn,                  {.v = (const char*[]){ "mpc", "pause", NULL } } },
