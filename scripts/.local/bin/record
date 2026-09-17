@@ -64,6 +64,16 @@ has_webcam() {
     return 1
 }
 
+get_webcam_device() {
+    for dev in /dev/video*; do
+        if [ -e "$dev" ]; then
+            echo "$dev"
+            return 0
+        fi
+    done
+    echo "/dev/video0"
+}
+
 get_default_sink() {
     pactl get-default-sink 2>/dev/null || pactl info 2>/dev/null | awk -F": " '/Default Sink:/{print $2}' || echo "default"
 }
@@ -224,18 +234,20 @@ start_recording() {
             filter_complex="[1:a][2:a]amix=inputs=2:duration=first:dropout_transition=0[a]"
             map_args=(-map "0:v" -map "[a]")
 
-            # Mở cửa sổ PIP webcam góc dưới bên phải màn hình (Native X11 via mpv)
-            if command -v mpv >/dev/null 2>&1; then
-                mpv av://v4l2:/dev/video0 \
+            # Mở cửa sổ PIP webcam dạng floating, kích thước nhỏ (240x180) ở góc dưới bên phải
+            local cam_dev; cam_dev=$(get_webcam_device)
+            if command -v mpv >/dev/null 2>&1 && [ -e "$cam_dev" ]; then
+                mpv "av://v4l2:$cam_dev" \
                     --profile=low-latency \
                     --untimed \
                     --no-cache \
                     --no-osc \
                     --no-osd-bar \
                     --no-input-default-bindings \
-                    --geometry=280x210-20-20 \
+                    --geometry=240x180-15-15 \
+                    --autofit=240x180 \
                     --title="webcam-pip" \
-                    --autofit=280x210 \
+                    --x11-name="webcam-pip" \
                     --ontop \
                     --no-border >/dev/null 2>&1 &
                 echo $! > "$WEBCAM_PID_FILE"

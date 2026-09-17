@@ -207,7 +207,7 @@ struct Client {
 	int bw, oldbw;
 	unsigned int tags;
 	int isfixed, isfloating, isurgent, neverfocus, oldstate, isfullscreen;
-	int isterminal, noswallow;
+	int isterminal, noswallow, isbottomright;
 	pid_t pid;
 	Client *next;
 	Client *snext;
@@ -266,6 +266,7 @@ typedef struct {
 	int isterminal;
 	int noswallow;
 	int monitor;
+	int isbottomright;
 } Rule;
 
 #define RULE(...) { .monitor = -1, __VA_ARGS__ },
@@ -460,6 +461,7 @@ applyrules(Client *c)
 			c->isterminal = r->isterminal;
 			c->noswallow = r->noswallow;
 			c->isfloating = r->isfloating;
+			c->isbottomright = r->isbottomright;
 			c->tags |= r->tags;
 			if ((r->tags & SPTAGMASK) && r->isfloating) {
 				c->x = c->mon->wx + (c->mon->ww / 2 - WIDTH(c) / 2);
@@ -1517,8 +1519,13 @@ manage(Window w, XWindowAttributes *wa)
 	updatesizehints(c);
 	updatewmhints(c);
 
-	c->x = c->mon->wx + (c->mon->ww - WIDTH(c)) / 2;
-	c->y = c->mon->wy + (c->mon->wh - HEIGHT(c)) / 2;
+	if (c->isbottomright || strstr(c->name, "webcam-pip")) {
+		c->x = c->mon->wx + c->mon->ww - WIDTH(c) - 15;
+		c->y = c->mon->wy + c->mon->wh - HEIGHT(c) - 15;
+	} else {
+		c->x = c->mon->wx + (c->mon->ww - WIDTH(c)) / 2;
+		c->y = c->mon->wy + (c->mon->wh - HEIGHT(c)) / 2;
+	}
 
 	if (getatomprop(c, netatom[NetWMState], XA_ATOM) == netatom[NetWMFullscreen])
 		setfullscreen(c, 1);
@@ -2280,12 +2287,20 @@ togglefloating(const Arg *arg)
 	c->isfloating = !c->isfloating || c->isfixed;
 	if (c->isfloating) {
 		XSetWindowBorder(dpy, c->win, scheme[SchemeSel][ColFloat].pixel);
-		/* Tự động căn giữa màn hình với kích thước vàng (75% rộng, 80% cao) tối ưu cho ThinkPad X230 */
-		int nw = (int)(c->mon->ww * 0.75) - (c->bw * 2);
-		int nh = (int)(c->mon->wh * 0.80) - (c->bw * 2);
-		int nx = c->mon->wx + (c->mon->ww - (nw + c->bw * 2)) / 2;
-		int ny = c->mon->wy + (c->mon->wh - (nh + c->bw * 2)) / 2;
-		resizeclient(c, nx, ny, nw, nh);
+		if (c->isbottomright || strstr(c->name, "webcam-pip")) {
+			int nw = 240;
+			int nh = 180;
+			int nx = c->mon->wx + c->mon->ww - (nw + c->bw * 2) - 15;
+			int ny = c->mon->wy + c->mon->wh - (nh + c->bw * 2) - 15;
+			resizeclient(c, nx, ny, nw, nh);
+		} else {
+			/* Tự động căn giữa màn hình với kích thước vàng (75% rộng, 80% cao) tối ưu cho ThinkPad X230 */
+			int nw = (int)(c->mon->ww * 0.75) - (c->bw * 2);
+			int nh = (int)(c->mon->wh * 0.80) - (c->bw * 2);
+			int nx = c->mon->wx + (c->mon->ww - (nw + c->bw * 2)) / 2;
+			int ny = c->mon->wy + (c->mon->wh - (nh + c->bw * 2)) / 2;
+			resizeclient(c, nx, ny, nw, nh);
+		}
 	} else {
 		XSetWindowBorder(dpy, c->win, scheme[SchemeSel][ColBorder].pixel);
 	}
