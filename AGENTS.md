@@ -51,6 +51,7 @@ Each top-level directory is a Stow package containing `$HOME`-relative paths (23
 - **Undeploy:** `stow -Dvt ~ <package>` or `stow-safe --unstow <package>`
 - **Session start:** auto via `zsh/.config/zsh/.zprofile` — khi login tty1, gọi `startx "$XINITRC"` → `xinitrc` → `exec ssh-agent dwm`
 - **Web App Mini:** `brave-app <url>` — Mở webapp nổi ở trung tâm màn hình không thanh tab/url
+- **Statusbar Dropdown Popovers:** `dwm-dropdown <volume|clock|battery|cpu|memory|network|forecast>` — Thẻ popup GUI phong cách Omarchy (0px border-radius, viền 2px accent, auto-dismiss, toggle)
 - **Shortcuts:** `shortcuts` regenerates `shortcutrc`/`shortcutenvrc`/`zshnameddirrc` from `bm-dirs`/`bm-files`
 - **Git Manager:** `gm` — multi-account git tool under `~/Repos/`, uses git `includeIf`
 - **Wallpapers:** `setbg` — handles WebP, pywal, xwallpaper; runs at X startup

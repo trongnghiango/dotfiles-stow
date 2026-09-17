@@ -61,6 +61,21 @@
   - DWM đã patch xử lý sự kiện `_NET_ACTIVE_WINDOW` trong `clientmessage()`.
   - Khi chọn cửa sổ trong ROFI (bằng `Alt + Tab` hoặc tab `WINDOWS`), DWM sẽ **tự động chuyển sang đúng Workspace/Tag đó, unhide cửa sổ nếu bị ẩn, focus bàn phím và warp con trỏ chuột vào giữa cửa sổ**.
 
+### Hệ thống Dropdown Popover Thống Nhất (`dwm-dropdown`)
+- **Triết lý Omarchy**: Mọi block trên statusbar (`dwmblocks`) khi click chuột trái đều hiển thị thẻ popup GUI sắc nét, vuông góc nguyên bản (`border-radius: 0px`), viền nổi 2px accent (`border: 2px solid @accent`), tự động nhận màu động từ `~/.config/theme/colors/current.conf`.
+- **Cơ chế DWM Native C**:
+  - Gạch chân (underline) màu cyan sáng ôm khít chính xác từng ký tự/icon của block được click (`drawstatusbar` tính toán động theo thời gian thực, không bị trôi vị trí khi CPU/Mạng nhảy số).
+  - Cửa sổ dropdown neo sát mép dưới statusbar (`y = m->wy`), tự động canh lề theo trục X của block và kẹp lề màn hình an toàn.
+  - Tự động đóng khi click lại vào block (Toggle) hoặc click ra ngoài màn hình (Auto-Dismiss).
+- **Danh mục 7 Dropdown Modules**:
+  - `dwm-dropdown volume`: Thanh trượt âm lượng (hỗ trợ cuộn chuột), nút Mute nhanh, bộ chọn cổng ra âm thanh (PipeWire `wpctl`).
+  - `dwm-dropdown clock`: Giờ hiện tại cỡ lớn, ngày tháng chi tiết, lịch tháng tương tác (`Gtk.Calendar`), thời gian hoạt động hệ thống (uptime).
+  - `dwm-dropdown battery`: Thanh đo pin, trạng thái sạc/xả, công suất tiêu thụ (W), thanh trượt độ sáng màn hình (`brightnessctl`).
+  - `dwm-dropdown cpu`: Thanh tải CPU tổng quan, nhiệt độ phần cứng (`sensors`), tốc độ quạt (RPM), bảng top 4 tiến trình ngốn CPU, nút mở nhanh `btop`.
+  - `dwm-dropdown memory`: Thanh tải RAM & Swap, dung lượng chi tiết, bảng top 4 tiến trình ngốn RAM, nút mở nhanh `btop`.
+  - `dwm-dropdown network`: Thông tin Wi-Fi SSID, cường độ sóng, địa chỉ IPv4 nội bộ, tốc độ tải lên/xuống (RX/TX live throughput), nút mở `nmtui`.
+  - `dwm-dropdown forecast`: Thẻ thời tiết trực quan, nhiệt độ hiện tại & cảm nhận thực tế, độ ẩm, sức gió, áp suất khí quyển, nút nạp lại dự báo.
+
 ### Giao diện Rofi Chuẩn Tỉ Lệ Vàng
 - Chiều rộng thu gọn **580px** (thay vì 800px thô to), font **11pt**, icon **20px**, 6 dòng $\times$ 2 cột.
 - Cân đối tuyệt đối ở tâm màn hình, không còn hiện tượng phóng to quá khổ.
