@@ -22,10 +22,10 @@
     X("", "ka-forecast", 1800, 14)    \
     X("", "ka-memory",   10,   10)    \
     X("", "ka-cpu",      2,    15)    \
-    X("", "ka-nettraf",  2,    18)    \
+    X("", "ka-network",  10,   4)     \
     X("", "ka-battery",  60,   30)    \
-    X("", "ka-volume",   60,    11)    \
-    X("", "ka-internet", 10,   4)     \
+    X("", "ka-volume",   60,   11)    \
+    X("", "sb-record",   0,    9)     \
     X("", "ka-clock",    60,   1)
 
 #endif  // CONFIG_H

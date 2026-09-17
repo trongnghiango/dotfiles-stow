@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+
+case ${BLOCK_BUTTON:-${BUTTON:-0}} in
+1) setsid -f dwm-dropdown network ;;
+3) ifinstalled nmtui && setsid -f "$TERMINAL" -e nmtui ;;
+6) setsid -f "$TERMINAL" -e "$EDITOR" "$0" ;;
+esac
+
+wifi_icon=""
+net_icon="❌"
+tun_icon=""
+
+# Wi-Fi check
+if [ -d /sys/class/net/w* ]; then
+  state=$(cat /sys/class/net/w*/operstate 2>/dev/null | head -n1)
+  if [ "$state" = "up" ]; then
+    sig=$(awk '/^\s*w/ { print int($3 * 100 / 70) }' /proc/net/wireless | head -n1)
+    sig=${sig:-0}
+    wifi_icon="📶 ${sig}%"
+    net_icon=""
+  fi
+fi
+
+# Ethernet check
+if [ -d /sys/class/net/e* ]; then
+  estate=$(cat /sys/class/net/e*/operstate 2>/dev/null | head -n1)
+  if [ "$estate" = "up" ]; then
+    net_icon="🌐"
+  fi
+fi
+
+# VPN/Tun check
+if [ -n "$(cat /sys/class/net/tun*/operstate 2>/dev/null)" ]; then
+  tun_icon=" 🔒"
+fi
+
+if [ -z "$wifi_icon" ] && [ "$net_icon" = "❌" ]; then
+  printf "^C9^❌ Offline^d^\n"
+else
+  prefix="${wifi_icon:-$net_icon}$tun_icon"
+  printf "^C4^%s^d^\n" "$prefix"
+fi
