@@ -15,11 +15,11 @@ configuration {
     window-format:              "{w} · {c} · {t}";
     click-to-exit:              true;
     
-    /* Ergonomic Navigation: Tab/Shift-Tab & Vim keys (j/k) navigate items; NEVER jump modes unexpectedly */
-    kb-mode-next:               "Control+Tab";
-    kb-mode-previous:           "Control+ISO_Left_Tab";
-    kb-row-down:                "Down,Control+n,Control+j,Tab";
-    kb-row-up:                  "Up,Control+p,Control+k,ISO_Left_Tab";
+    /* Keybindings: Tab/Shift-Tab switch tabs (modes); navigation keys (arrows, Ctrl+n/p, Ctrl+j/k) navigate items */
+    kb-mode-next:               "Tab";
+    kb-mode-previous:           "ISO_Left_Tab,Shift+Tab";
+    kb-row-down:                "Down,Control+n,Control+j";
+    kb-row-up:                  "Up,Control+p,Control+k";
     kb-element-next:            "";
     kb-element-prev:            "";
     kb-row-tab:                 "";

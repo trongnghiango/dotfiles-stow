@@ -34,7 +34,7 @@ mainbox {
     border-radius:               0px;
     border-color:                @border;
     background-color:            transparent;
-    children:                    [ "inputbar", "listview" ];
+    children:                    [ "inputbar", "mode-switcher", "listview" ];
 }
 
 inputbar {
