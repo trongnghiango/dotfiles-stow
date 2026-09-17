@@ -912,8 +912,8 @@ class NetworkDropdown(BaseDropdown):
     def __init__(self):
         super().__init__("network", min_width=360)
 
-        ssid, signal, dev = self.get_wifi_info()
-        ip_addr = self.get_ip_address()
+        ssid, signal, dev, ip_addr, dns_list = self.query_network_status()
+        self.dev = dev
         rx_val, tx_val = self.get_traffic()
 
         nmtui_btn = Gtk.Button(label="󰖩 nmtui")
@@ -1011,10 +1011,56 @@ class NetworkDropdown(BaseDropdown):
         dns_tile.pack_start(self.custom_box, False, False, 0)
         self.main_box.pack_start(dns_tile, False, False, 0)
 
-        self.dev = dev
-        self.update_dns_display()
+        self.update_dns_display(dns_list)
 
         self.build_footer("Esc to close")
+
+    def query_network_status(self):
+        sig = 0
+        if os.path.exists("/proc/net/wireless"):
+            try:
+                with open("/proc/net/wireless") as f:
+                    for line in f:
+                        if line.strip().startswith("w"):
+                            parts = line.split()
+                            if len(parts) >= 3:
+                                sig = int(float(parts[2].replace(".", "")) * 100 / 70)
+                                sig = min(100, max(0, sig))
+                            break
+            except Exception:
+                pass
+
+        dev = "wlp3s0"
+        if os.path.exists("/proc/net/route"):
+            try:
+                with open("/proc/net/route") as f:
+                    for line in f:
+                        fields = line.split()
+                        if len(fields) >= 2 and fields[1] == "00000000":
+                            dev = fields[0]
+                            break
+            except Exception:
+                pass
+
+        ssid = "Disconnected"
+        ip_addr = "Not connected"
+        dns_list = []
+        try:
+            out = subprocess.check_output(
+                ["nmcli", "-t", "-f", "GENERAL.CONNECTION,IP4.ADDRESS,IP4.DNS", "dev", "show", dev],
+                text=True, stderr=subprocess.DEVNULL
+            )
+            for line in out.splitlines():
+                if line.startswith("GENERAL.CONNECTION:"):
+                    ssid = line.split(":", 1)[1].strip()
+                elif line.startswith("IP4.ADDRESS"):
+                    ip_addr = line.split(":", 1)[1].split("/")[0].strip()
+                elif line.startswith("IP4.DNS"):
+                    dns_list.append(line.split(":", 1)[1].strip())
+        except Exception:
+            pass
+
+        return ssid, sig, dev, ip_addr, dns_list
 
     def get_dns_info(self, dev):
         dns_list = []
@@ -1037,10 +1083,22 @@ class NetworkDropdown(BaseDropdown):
 
         return current_dns_str, provider
 
-    def update_dns_display(self):
-        dns_servers, provider = self.get_dns_info(self.dev)
+    def update_dns_display(self, preloaded_dns=None):
+        if preloaded_dns is not None:
+            dns_list = preloaded_dns
+            current_dns_str = ", ".join(dns_list) if dns_list else "Automatic (DHCP)"
+            provider = "dhcp"
+            if "1.1.1.1" in current_dns_str:
+                provider = "cloudflare"
+            elif "8.8.8.8" in current_dns_str:
+                provider = "google"
+            elif dns_list:
+                provider = "custom"
+        else:
+            current_dns_str, provider = self.get_dns_info(self.dev)
+
         prov_title = provider.upper()
-        self.dns_status_lbl.set_markup(f"Active: <b>{dns_servers}</b> ({prov_title})")
+        self.dns_status_lbl.set_markup(f"Active: <b>{current_dns_str}</b> ({prov_title})")
 
         for p_id, btn in self.dns_btns.items():
             ctx = btn.get_style_context()
@@ -1052,7 +1110,7 @@ class NetworkDropdown(BaseDropdown):
         if provider == "custom":
             self.custom_box.set_visible(True)
             if not self.custom_entry.get_text():
-                self.custom_entry.set_text(dns_servers.split(",")[0].strip())
+                self.custom_entry.set_text(current_dns_str.split(",")[0].strip())
         else:
             self.custom_box.set_visible(False)
 
@@ -1076,35 +1134,6 @@ class NetworkDropdown(BaseDropdown):
         if val:
             subprocess.run(["set-dns", "custom", val], stderr=subprocess.DEVNULL)
             self.update_dns_display()
-
-    def get_wifi_info(self):
-        ssid, signal, dev = "Disconnected", 0, "wlp3s0"
-        try:
-            out = subprocess.check_output(
-                ["nmcli", "-t", "-f", "active,ssid,signal,device", "dev", "wifi"],
-                text=True, stderr=subprocess.DEVNULL
-            )
-            for line in out.splitlines():
-                if line.startswith("yes:"):
-                    parts = line.split(":")
-                    if len(parts) >= 4:
-                        ssid = parts[1]
-                        signal = int(parts[2])
-                        dev = parts[3]
-                        break
-        except Exception:
-            pass
-        return ssid, signal, dev
-
-    def get_ip_address(self):
-        try:
-            out = subprocess.check_output(["ip", "route", "get", "1.1.1.1"], text=True, stderr=subprocess.DEVNULL)
-            m = re.search(r"src\s+([0-9.]+)", out)
-            if m:
-                return m.group(1)
-        except Exception:
-            pass
-        return "Not connected"
 
     def get_traffic(self):
         def format_bytes(n):
