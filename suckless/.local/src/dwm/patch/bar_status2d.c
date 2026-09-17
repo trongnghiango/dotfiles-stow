@@ -145,10 +145,90 @@ drawstatusbar(BarArg *a, char* stext)
 	}
 	free(p);
 
-	if (active_block.sig > 0 && active_block.w > 0) {
-		drw_setscheme(drw, scheme[SchemeTagsSel]);
-		drw_rect(drw, active_block.bar_x + ulinepad, bh - ulinestroke - ulinevoffset,
-		         active_block.w - (ulinepad * 2), ulinestroke, 1, 1);
+	if (active_block.win) {
+		Client *dc = wintoclient(active_block.win);
+		if (dc) {
+			int dsig = dropdowntosig(dc->name);
+			if (dsig > 0)
+				active_block.sig = dsig;
+		}
+	}
+
+	if (active_block.sig > 0) {
+		char rtext[1024];
+		strncpy(rtext, rawstext, sizeof(rtext) - 1);
+		rtext[sizeof(rtext) - 1] = '\0';
+		char *t = rtext;
+		int bx = 0, ti = -1, cur_sig = -1;
+		int found = 0, ab_x = 0, ab_w = 0;
+		int bar_start_x = a->x + (lrpad / 2);
+
+		while (t[++ti]) {
+			if ((unsigned char)t[ti] < ' ') {
+				char ch = t[ti];
+				t[ti] = '\0';
+				if (cur_sig > 0) {
+					int tw = status2dtextlength(t);
+					if (cur_sig == active_block.sig) {
+						char trimmed[1024];
+						strncpy(trimmed, t, sizeof(trimmed) - 1);
+						trimmed[sizeof(trimmed) - 1] = '\0';
+						int tlen = strlen(trimmed);
+						while (tlen > 0 && trimmed[tlen - 1] == ' ')
+							trimmed[--tlen] = '\0';
+						ab_x = bx;
+						ab_w = status2dtextlength(trimmed);
+						found = 1;
+						break;
+					}
+					bx += tw;
+				}
+				t[ti] = ch;
+				t += ti + 1;
+				ti = -1;
+				cur_sig = (unsigned char)ch;
+			}
+		}
+		if (!found && cur_sig > 0) {
+			if (cur_sig == active_block.sig) {
+				char trimmed[1024];
+				strncpy(trimmed, t, sizeof(trimmed) - 1);
+				trimmed[sizeof(trimmed) - 1] = '\0';
+				int tlen = strlen(trimmed);
+				while (tlen > 0 && trimmed[tlen - 1] == ' ')
+					trimmed[--tlen] = '\0';
+				ab_x = bx;
+				ab_w = status2dtextlength(trimmed);
+				found = 1;
+			}
+		}
+		if (found && ab_w > 0) {
+			active_block.bar_x = bar_start_x + ab_x;
+			active_block.w = ab_w;
+			active_block.screen_x = (selmon ? selmon->wx : 0) + active_block.bar_x;
+			int ux = active_block.bar_x;
+			int uw = ab_w;
+			drw_setscheme(drw, scheme[LENGTH(colors)]);
+			drw->scheme[ColFg] = scheme[SchemeTagsSel][ColBg];
+			drw->scheme[ColBg] = scheme[SchemeTagsSel][ColBg];
+			drw_rect(drw, ux, bh - ulinestroke - ulinevoffset, uw, ulinestroke, 1, 0);
+
+			if (active_block.win) {
+				Client *dc = wintoclient(active_block.win);
+				if (dc && dc->mon) {
+					int drop_x = active_block.screen_x;
+					int max_x = dc->mon->wx + dc->mon->ww - WIDTH(dc) - 8;
+					if (drop_x > max_x)
+						drop_x = max_x;
+					if (drop_x < dc->mon->wx + 8)
+						drop_x = dc->mon->wx + 8;
+					if (dc->x != drop_x && drop_x > 0) {
+						dc->x = drop_x;
+						XMoveWindow(dpy, dc->win, dc->x, dc->y);
+					}
+				}
+			}
+		}
 	}
 
 	drw_setscheme(drw, scheme[SchemeNorm]);

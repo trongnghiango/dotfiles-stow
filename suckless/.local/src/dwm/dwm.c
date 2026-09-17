@@ -446,6 +446,51 @@ closewindow(Window win)
 	}
 }
 
+static void
+killdropdown(Window win)
+{
+	if (!win)
+		return;
+	XGrabServer(dpy);
+	XSetErrorHandler(xerrordummy);
+	XSetCloseDownMode(dpy, DestroyAll);
+	XKillClient(dpy, win);
+	XSync(dpy, False);
+	XSetErrorHandler(xerror);
+	XUngrabServer(dpy);
+}
+
+static int
+isinsideclient(Client *c, int x_root, int y_root)
+{
+	if (!c)
+		return 0;
+	return (x_root >= c->x && x_root <= c->x + WIDTH(c) &&
+	        y_root >= c->y && y_root <= c->y + HEIGHT(c));
+}
+
+static int
+dropdowntosig(const char *name)
+{
+	if (!name)
+		return 0;
+	if (strstr(name, "forecast") || strstr(name, "weather"))
+		return 14;
+	if (strstr(name, "memory") || strstr(name, "mem"))
+		return 10;
+	if (strstr(name, "cpu") || strstr(name, "load"))
+		return 15;
+	if (strstr(name, "network") || strstr(name, "net") || strstr(name, "traffic") || strstr(name, "internet") || strstr(name, "wifi"))
+		return 4;
+	if (strstr(name, "battery") || strstr(name, "power") || strstr(name, "bat"))
+		return 30;
+	if (strstr(name, "volume") || strstr(name, "audio") || strstr(name, "sound"))
+		return 11;
+	if (strstr(name, "clock") || strstr(name, "time") || strstr(name, "calendar"))
+		return 1;
+	return 0;
+}
+
 /* configuration, allows nested code to access above variables */
 #include "config.h"
 
@@ -656,13 +701,16 @@ buttonpress(XEvent *e)
 		}
 	}
 
-	if ((active_block.win || active_block.sig) && ev->window != active_block.win && ev->window != (selmon->bar ? selmon->bar->win : None)) {
-		if (active_block.win)
-			closewindow(active_block.win);
-		active_block.win = 0;
-		active_block.sig = 0;
-		active_block.w = 0;
-		drawbar(selmon);
+	Client *active_c = active_block.win ? wintoclient(active_block.win) : NULL;
+	if (active_block.win || active_block.sig) {
+		if (click != ClkStatusText && (!active_c || !isinsideclient(active_c, ev->x_root, ev->y_root))) {
+			if (active_block.win)
+				killdropdown(active_block.win);
+			active_block.win = 0;
+			active_block.sig = 0;
+			active_block.w = 0;
+			drawbar(selmon);
+		}
 	}
 
 	if (click == ClkRootWin && (c = wintoclient(ev->window))) {
@@ -925,8 +973,6 @@ configurerequest(XEvent *e)
 				c->y = m->wy;
 				if (active_block.w > 0)
 					c->x = active_block.screen_x;
-				else
-					c->x = m->wx + m->ww - WIDTH(c) - 8;
 				int max_x = m->wx + m->ww - WIDTH(c) - 8;
 				if (c->x > max_x)
 					c->x = max_x;
@@ -1233,6 +1279,9 @@ enternotify(XEvent *e)
 	Client *c;
 	Monitor *m;
 	XCrossingEvent *ev = &e->xcrossing;
+
+	if (active_block.win)
+		return;
 
 	if ((ev->mode != NotifyNormal || ev->detail == NotifyInferior) && ev->window != root)
 		return;
@@ -1572,11 +1621,21 @@ manage(Window w, XWindowAttributes *wa)
 	updatewmhints(c);
 
 	if (c->isdropdown || strstr(c->name, "dwm-dropdown")) {
+		/* Close & destroy any existing dropdown window immediately */
+		Client *k, *knxt;
+		for (k = c->mon->clients; k; k = knxt) {
+			knxt = k->next;
+			if (k != c && (k->isdropdown || strstr(k->name, "dwm-dropdown"))) {
+				killdropdown(k->win);
+			}
+		}
 		c->bw = 0;
 		wc.border_width = 0;
 		XConfigureWindow(dpy, w, CWBorderWidth, &wc);
 		c->y = c->mon->wy;
 		if (active_block.w > 0)
+			c->x = active_block.screen_x;
+		else if (active_block.screen_x > 0)
 			c->x = active_block.screen_x;
 		else
 			c->x = c->mon->wx + c->mon->ww - WIDTH(c) - 8;
@@ -2486,7 +2545,7 @@ unmanage(Client *c, int destroyed)
 		XUngrabServer(dpy);
 	}
 
-	if (c->isdropdown || (active_block.win && c->win == active_block.win)) {
+	if (active_block.win && c->win == active_block.win) {
 		active_block.sig = 0;
 		active_block.win = 0;
 		active_block.w = 0;
