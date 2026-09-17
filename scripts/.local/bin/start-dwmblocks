@@ -6,7 +6,7 @@
 PROG="dwmblocks"
 # Nạp đường dẫn script con (Quan trọng)
 export PATH="$HOME/.local/bin:$HOME/.local/bin/dwmblocks-scripts:$HOME/.local/bin/dmenu-scripts:$PATH"
-export DISPLAY=:0
+export DISPLAY="${DISPLAY:-:0}"
 
 # ==============================================================================
 # FUNCTIONS

@@ -1,6 +1,5 @@
 {
   "aururl": "https://aur.archlinux.org",
-  "buildDir": "/home/$USER/.cache/yay",
 
   "editor": "nvim",
   "editorflags": "",
