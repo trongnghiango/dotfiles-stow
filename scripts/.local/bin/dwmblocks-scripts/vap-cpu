@@ -5,8 +5,8 @@
 # Each bar represents amount of load on one core since
 # last run.
 
-case $BUTTON in
-	1) setsid -f st -e btop ;;
+case ${BLOCK_BUTTON:-${BUTTON:-0}} in
+	1) setsid -f dwm-dropdown cpu ;;
 	3) notify-send "🪨 CPU load module" "Left click to open bashtop";;
 esac
 

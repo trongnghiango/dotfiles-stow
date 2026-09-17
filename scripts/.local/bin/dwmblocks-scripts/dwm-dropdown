@@ -1,0 +1,1307 @@
+#!/usr/bin/env python3
+"""
+dwm-dropdown: Unified Omarchy-style GUI Popover Cards for DWM / dwmblocks.
+Pure Native GTK3 popover cards with 0px border-radius, 2px accent border,
+and auto-theming from ~/.config/theme/colors/current.conf.
+
+Modules:
+  - volume   : Master volume slider, mute toggle, sink output selector
+  - clock    : Current time, full date, interactive calendar, uptime
+  - battery  : Battery gauge, charging status, display brightness slider
+  - cpu      : Overall CPU load, thermal sensors, fan speed, top CPU processes
+  - memory   : RAM & Swap gauges, cache info, top memory-hog processes
+  - network  : Active Wi-Fi/Ethernet status, signal bar, local IP, live traffic
+  - forecast : Weather condition card, temp, feels like, humidity, wind, pressure
+"""
+
+import os
+import sys
+import re
+import time
+import json
+import signal
+import atexit
+import subprocess
+import gi
+
+gi.require_version("Gtk", "3.0")
+gi.require_version("Gdk", "3.0")
+from gi.repository import Gtk, Gdk, GLib
+
+GLib.set_prgname("dwm-dropdown")
+
+
+def load_theme_colors():
+    conf_path = os.path.expanduser("~/.config/theme/colors/current.conf")
+    colors = {
+        "BG": "2e3440",
+        "FG": "d8dee9",
+        "COLOR0": "3b4252",
+        "COLOR1": "bf616a",
+        "COLOR2": "a3be8c",
+        "COLOR3": "ebcb8b",
+        "COLOR4": "81a1c1",
+        "COLOR8": "4c566a",
+        "COLOR14": "8fbcbb",
+        "COLOR15": "eceff4",
+        "ACCENT": "88c0d0",
+        "MODE": "dark",
+    }
+    if os.path.exists(conf_path):
+        try:
+            with open(conf_path, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line or line.startswith("#") or "=" not in line:
+                        continue
+                    k, v = line.split("=", 1)
+                    k = k.strip()
+                    v = v.split("#")[0].strip().strip('"').strip("'")
+                    colors[k] = v
+        except Exception:
+            pass
+    return colors
+
+
+def get_common_css(colors):
+    bg = "#" + colors.get("BG", "2e3440")
+    fg = "#" + colors.get("FG", "d8dee9")
+    card_bg = "#" + colors.get("COLOR0", "3b4252")
+    accent = "#" + colors.get("ACCENT", colors.get("COLOR14", "88c0d0"))
+    border = "#" + colors.get("COLOR8", "4c566a")
+    red = "#" + colors.get("COLOR1", "bf616a")
+    green = "#" + colors.get("COLOR2", "a3be8c")
+    yellow = "#" + colors.get("COLOR3", "ebcb8b")
+    is_light = colors.get("MODE", "dark") == "light"
+
+    subtext = "rgba(60, 50, 40, 0.72)" if is_light else "rgba(216, 222, 233, 0.70)"
+    trough_bg = "rgba(60, 50, 40, 0.16)" if is_light else "rgba(255, 255, 255, 0.12)"
+    card_shadow = "0 8px 24px rgba(0, 0, 0, 0.30)"
+
+    return f"""
+    * {{
+        font-family: 'JetBrains Mono', 'Symbols Nerd Font', sans-serif;
+    }}
+    window {{
+        background-color: transparent;
+    }}
+    .popover-box {{
+        background-color: {bg};
+        color: {fg};
+        border: 2px solid {accent};
+        border-radius: 0px;
+        padding: 16px 18px;
+        box-shadow: {card_shadow};
+    }}
+    .title-label {{
+        font-size: 13px;
+        font-weight: 700;
+        color: {fg};
+    }}
+    .subtitle-label {{
+        font-size: 11px;
+        font-weight: 500;
+        color: {subtext};
+    }}
+    .metric-big {{
+        font-size: 22px;
+        font-weight: 800;
+        color: {accent};
+    }}
+    .metric-sub {{
+        font-size: 11px;
+        color: {subtext};
+    }}
+    .badge {{
+        background-color: {card_bg};
+        color: {accent};
+        border: 1px solid {border};
+        border-radius: 0px;
+        padding: 4px 8px;
+        font-size: 11px;
+        font-weight: 600;
+    }}
+    .badge.active {{
+        background-color: {accent};
+        color: {bg};
+        border-color: {accent};
+    }}
+    .badge.danger {{
+        background-color: {red};
+        color: #ffffff;
+        border-color: {red};
+    }}
+    .badge.success {{
+        background-color: {green};
+        color: {bg};
+        border-color: {green};
+    }}
+    .action-btn {{
+        background-color: {card_bg};
+        color: {fg};
+        border: 1px solid {border};
+        border-radius: 0px;
+        padding: 5px 12px;
+        font-size: 11px;
+        font-weight: 600;
+    }}
+    .action-btn:hover {{
+        background-color: {accent};
+        color: {bg};
+        border-color: {accent};
+    }}
+    .action-btn.is-active {{
+        background-color: {red};
+        color: #ffffff;
+        border-color: {red};
+    }}
+    .btn-pill {{
+        background-color: {card_bg};
+        color: {fg};
+        border: 1px solid {border};
+        border-radius: 0px;
+        padding: 5px 8px;
+        font-size: 11px;
+        font-weight: 600;
+    }}
+    .btn-pill:hover {{
+        background-color: {accent};
+        color: {bg};
+        border-color: {accent};
+    }}
+    .btn-pill.selected {{
+        background-color: {accent};
+        color: {bg};
+        border-color: {accent};
+    }}
+    entry {{
+        background-color: {card_bg};
+        color: {fg};
+        border: 1px solid {border};
+        border-radius: 0px;
+        padding: 5px 8px;
+        font-size: 11px;
+    }}
+    entry:focus {{
+        border-color: {accent};
+    }}
+    scale trough {{
+        min-height: 8px;
+        border-radius: 0px;
+        background-color: {trough_bg};
+    }}
+    scale highlight {{
+        border-radius: 0px;
+        background-color: {accent};
+    }}
+    scale slider {{
+        min-width: 14px;
+        min-height: 18px;
+        margin: -5px 0;
+        border-radius: 0px;
+        background-color: {accent};
+        border: 1px solid {bg};
+    }}
+    scale slider:hover {{
+        background-color: {fg};
+    }}
+    progressbar trough {{
+        min-height: 8px;
+        border-radius: 0px;
+        background-color: {trough_bg};
+    }}
+    progressbar progress {{
+        border-radius: 0px;
+        background-color: {accent};
+    }}
+    progressbar.warning progress {{
+        background-color: {yellow};
+    }}
+    progressbar.danger progress {{
+        background-color: {red};
+    }}
+    combobox button {{
+        background-color: {card_bg};
+        color: {fg};
+        border: 1px solid {border};
+        border-radius: 0px;
+        padding: 5px 10px;
+        font-size: 12px;
+    }}
+    combobox button:hover {{
+        border-color: {accent};
+    }}
+    menu {{
+        background-color: {card_bg};
+        color: {fg};
+        border: 1px solid {border};
+        border-radius: 0px;
+        padding: 4px;
+    }}
+    menuitem {{
+        border-radius: 0px;
+    }}
+    menuitem:hover {{
+        background-color: {accent};
+        color: {bg};
+    }}
+    calendar {{
+        background-color: {card_bg};
+        color: {fg};
+        border: 1px solid {border};
+        border-radius: 0px;
+        padding: 6px;
+    }}
+    calendar:selected {{
+        background-color: {accent};
+        color: {bg};
+        font-weight: 700;
+    }}
+    calendar.header {{
+        color: {accent};
+        font-weight: 700;
+    }}
+    calendar.highlight {{
+        color: {yellow};
+    }}
+    .section-header {{
+        font-size: 11px;
+        font-weight: 700;
+        color: {subtext};
+        margin-top: 4px;
+        letter-spacing: 0.5px;
+    }}
+    .stat-row {{
+        padding: 3px 0;
+    }}
+    .stat-label {{
+        font-size: 11px;
+        color: {subtext};
+    }}
+    .stat-val {{
+        font-size: 12px;
+        font-weight: 600;
+        color: {fg};
+    }}
+    .footer-label {{
+        font-size: 10px;
+        color: {subtext};
+        margin-top: 4px;
+    }}
+    .card-tile {{
+        background-color: {card_bg};
+        border: 1px solid {border};
+        border-radius: 0px;
+        padding: 8px 12px;
+    }}
+    """
+
+
+class BaseDropdown(Gtk.Window):
+    def __init__(self, name, min_width=340):
+        super().__init__(type=Gtk.WindowType.TOPLEVEL)
+        self.set_wmclass("dwm-dropdown", "dwm-dropdown")
+        self.set_title(f"dwm-dropdown-{name}")
+        self.set_decorated(False)
+        self.set_resizable(False)
+        self.set_skip_taskbar_hint(True)
+        self.set_skip_pager_hint(True)
+        self.set_type_hint(Gdk.WindowTypeHint.DIALOG)
+
+        self.colors = load_theme_colors()
+        self.min_width = min_width
+
+        self.setup_css()
+
+        self.main_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
+        self.main_box.get_style_context().add_class("popover-box")
+        self.main_box.set_size_request(self.min_width, -1)
+        self.add(self.main_box)
+
+        self.connect("key-press-event", self.on_key_press)
+
+    def setup_css(self):
+        css_data = get_common_css(self.colors)
+        provider = Gtk.CssProvider()
+        provider.load_from_data(css_data.encode("utf-8"))
+        Gtk.StyleContext.add_provider_for_screen(
+            Gdk.Screen.get_default(),
+            provider,
+            Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION,
+        )
+
+    def build_header(self, title, subtitle="", action_widget=None):
+        header_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+        title_vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+
+        title_lbl = Gtk.Label(label=title, xalign=0)
+        title_lbl.get_style_context().add_class("title-label")
+        title_vbox.pack_start(title_lbl, False, False, 0)
+
+        if subtitle:
+            self.sub_lbl = Gtk.Label(label=subtitle, xalign=0)
+            self.sub_lbl.get_style_context().add_class("subtitle-label")
+            title_vbox.pack_start(self.sub_lbl, False, False, 0)
+
+        header_box.pack_start(title_vbox, True, True, 0)
+        if action_widget:
+            header_box.pack_end(action_widget, False, False, 0)
+
+        self.main_box.pack_start(header_box, False, False, 0)
+        return header_box
+
+    def build_footer(self, hint="Esc to close"):
+        footer_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        hint_lbl = Gtk.Label(label=hint, xalign=0)
+        hint_lbl.get_style_context().add_class("footer-label")
+        footer_box.pack_start(hint_lbl, True, True, 0)
+        self.main_box.pack_start(footer_box, False, False, 0)
+
+    def on_key_press(self, widget, event):
+        if event.keyval in (Gdk.KEY_Escape, Gdk.KEY_q):
+            self.close()
+            return True
+        return False
+
+
+# ==============================================================================
+# 1. VOLUME MODULE
+# ==============================================================================
+class VolumeDropdown(BaseDropdown):
+    def __init__(self):
+        super().__init__("volume", min_width=340)
+        self.is_updating = False
+
+        self.sinks, self.default_id = self.get_wpctl_sinks()
+        self.current_vol = 0.5
+        self.is_muted = False
+        default_name = "Built-in Audio"
+        for s in self.sinks:
+            if s["default"]:
+                self.current_vol = s["vol"]
+                self.is_muted = s["muted"]
+                default_name = s["name"]
+                break
+
+        # Header
+        self.mute_btn = Gtk.Button()
+        self.mute_btn.get_style_context().add_class("action-btn")
+        self.update_mute_btn()
+        self.mute_btn.connect("clicked", self.on_mute_toggle)
+        self.build_header("Audio Output", default_name, self.mute_btn)
+
+        # Slider row
+        slider_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+        self.main_box.pack_start(slider_box, False, False, 0)
+
+        self.vol_icon_lbl = Gtk.Label(label=self.get_vol_icon())
+        self.vol_icon_lbl.get_style_context().add_class("metric-sub")
+        slider_box.pack_start(self.vol_icon_lbl, False, False, 0)
+
+        self.vol_scale = Gtk.Scale.new_with_range(Gtk.Orientation.HORIZONTAL, 0, 100, 1)
+        self.vol_scale.set_draw_value(False)
+        self.vol_scale.set_value(round(self.current_vol * 100))
+        self.vol_scale.connect("value-changed", self.on_slider_changed)
+        slider_box.pack_start(self.vol_scale, True, True, 0)
+
+        self.percent_lbl = Gtk.Label(label=f"{round(self.current_vol * 100)}%", xalign=1)
+        self.percent_lbl.get_style_context().add_class("stat-val")
+        self.percent_lbl.set_size_request(44, -1)
+        slider_box.pack_end(self.percent_lbl, False, False, 0)
+
+        # Output Device Selector
+        dev_title = Gtk.Label(label="OUTPUT DEVICE", xalign=0)
+        dev_title.get_style_context().add_class("section-header")
+        self.main_box.pack_start(dev_title, False, False, 0)
+
+        self.device_combo = Gtk.ComboBoxText()
+        active_idx = 0
+        for idx, s in enumerate(self.sinks):
+            short_name = s["name"]
+            if len(short_name) > 34:
+                short_name = short_name[:32] + "..."
+            self.device_combo.append(str(s["id"]), short_name)
+            if s["default"]:
+                active_idx = idx
+
+        if self.sinks:
+            self.device_combo.set_active(active_idx)
+        self.device_combo.connect("changed", self.on_device_changed)
+        self.main_box.pack_start(self.device_combo, False, False, 0)
+
+        self.build_footer("Scroll to adjust volume • Esc to close")
+        self.connect("scroll-event", self.on_scroll)
+
+    def get_wpctl_sinks(self):
+        sinks = []
+        default_id = None
+        try:
+            out = subprocess.check_output(["wpctl", "status"], text=True, stderr=subprocess.DEVNULL)
+            in_sinks = False
+            for line in out.splitlines():
+                if "Sinks:" in line:
+                    in_sinks = True
+                    continue
+                if in_sinks:
+                    if any(sec in line for sec in ["Sources:", "Filters:", "Streams:"]):
+                        break
+                    m = re.search(r"([*]?)\s+(\d+)\.\s+(.*?)\s+\[vol:\s+([0-9.]+)(.*?)\]", line)
+                    if m:
+                        is_def = bool(m.group(1))
+                        sink_id = int(m.group(2))
+                        name = m.group(3).strip()
+                        vol = float(m.group(4))
+                        muted = "MUTED" in m.group(5)
+                        sinks.append({"id": sink_id, "name": name, "vol": vol, "muted": muted, "default": is_def})
+                        if is_def:
+                            default_id = sink_id
+        except Exception:
+            pass
+        return sinks, default_id
+
+    def get_vol_icon(self):
+        if self.is_muted or self.current_vol == 0:
+            return ""
+        v = self.current_vol * 100
+        return "" if v >= 70 else ("" if v >= 30 else "")
+
+    def update_mute_btn(self):
+        ctx = self.mute_btn.get_style_context()
+        if self.is_muted:
+            self.mute_btn.set_label(" Muted")
+            if not ctx.has_class("is-active"):
+                ctx.add_class("is-active")
+        else:
+            self.mute_btn.set_label(" Sound")
+            if ctx.has_class("is-active"):
+                ctx.remove_class("is-active")
+
+    def on_mute_toggle(self, widget):
+        subprocess.run(["wpctl", "set-mute", "@DEFAULT_AUDIO_SINK@", "toggle"])
+        self.is_muted = not self.is_muted
+        self.update_mute_btn()
+        self.vol_icon_lbl.set_text(self.get_vol_icon())
+        subprocess.run(["pkill", "-RTMIN+11", "dwmblocks"], stderr=subprocess.DEVNULL)
+
+    def on_slider_changed(self, scale):
+        if self.is_updating:
+            return
+        val = int(scale.get_value())
+        self.current_vol = val / 100.0
+        self.percent_lbl.set_text(f"{val}%")
+        self.vol_icon_lbl.set_text(self.get_vol_icon())
+        subprocess.run(["wpctl", "set-volume", "@DEFAULT_AUDIO_SINK@", f"{self.current_vol:.2f}"])
+        subprocess.run(["pkill", "-RTMIN+11", "dwmblocks"], stderr=subprocess.DEVNULL)
+
+    def on_scroll(self, widget, event):
+        delta = 0
+        if event.direction == Gdk.ScrollDirection.UP:
+            delta = 2
+        elif event.direction == Gdk.ScrollDirection.DOWN:
+            delta = -2
+        elif event.direction == Gdk.ScrollDirection.SMOOTH:
+            _, _, dy = event.get_scroll_deltas()
+            if dy < 0:
+                delta = 2
+            elif dy > 0:
+                delta = -2
+        if delta != 0:
+            cur = self.vol_scale.get_value()
+            self.vol_scale.set_value(max(0, min(100, cur + delta)))
+        return True
+
+    def on_device_changed(self, combo):
+        sink_id = combo.get_active_id()
+        if sink_id:
+            subprocess.run(["wpctl", "set-default", sink_id])
+            for s in self.sinks:
+                if str(s["id"]) == sink_id:
+                    self.sub_lbl.set_text(s["name"])
+                    break
+            subprocess.run(["pkill", "-RTMIN+11", "dwmblocks"], stderr=subprocess.DEVNULL)
+
+
+# ==============================================================================
+# 2. CLOCK & CALENDAR MODULE
+# ==============================================================================
+class ClockDropdown(BaseDropdown):
+    def __init__(self):
+        super().__init__("clock", min_width=320)
+
+        # Uptime badge
+        uptime_str = self.get_uptime()
+        uptime_badge = Gtk.Label(label=f"up {uptime_str}")
+        uptime_badge.get_style_context().add_class("badge")
+
+        now_time = time.strftime("%I:%M %p")
+        now_date = time.strftime("%A, %d %B %Y")
+        self.build_header(now_time, now_date, uptime_badge)
+
+        # Interactive Calendar
+        self.calendar = Gtk.Calendar()
+        self.calendar.set_display_options(
+            Gtk.CalendarDisplayOptions.SHOW_HEADING
+            | Gtk.CalendarDisplayOptions.SHOW_DAY_NAMES
+        )
+        self.main_box.pack_start(self.calendar, True, True, 0)
+
+        # Quick Timezone / Local details
+        tz_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+        tz_box.get_style_context().add_class("card-tile")
+
+        tz_lbl = Gtk.Label(label="Timezone", xalign=0)
+        tz_lbl.get_style_context().add_class("stat-label")
+        tz_box.pack_start(tz_lbl, True, True, 0)
+
+        tz_name = time.tzname[0] if time.tzname else "Local"
+        tz_val = Gtk.Label(label=f"{tz_name} (UTC{time.strftime('%z')})", xalign=1)
+        tz_val.get_style_context().add_class("stat-val")
+        tz_box.pack_end(tz_val, False, False, 0)
+
+        self.main_box.pack_start(tz_box, False, False, 0)
+        self.build_footer("Esc to close")
+
+    def get_uptime(self):
+        try:
+            with open("/proc/uptime", "r") as f:
+                secs = float(f.readline().split()[0])
+            hrs = int(secs // 3600)
+            mins = int((secs % 3600) // 60)
+            return f"{hrs}h {mins}m"
+        except Exception:
+            return "unknown"
+
+
+# ==============================================================================
+# 3. BATTERY & POWER MODULE
+# ==============================================================================
+class BatteryDropdown(BaseDropdown):
+    def __init__(self):
+        super().__init__("battery", min_width=340)
+
+        bat_path = "/sys/class/power_supply/BAT0"
+        if not os.path.exists(bat_path):
+            bat_path = "/sys/class/power_supply/BAT1"
+
+        status = "Unknown"
+        capacity = 100
+        power_now = 0
+        if os.path.exists(bat_path):
+            try:
+                with open(f"{bat_path}/status") as f:
+                    status = f.read().strip()
+                with open(f"{bat_path}/capacity") as f:
+                    capacity = int(f.read().strip())
+                if os.path.exists(f"{bat_path}/power_now"):
+                    with open(f"{bat_path}/power_now") as f:
+                        power_now = int(f.read().strip()) / 1_000_000.0  # Watts
+            except Exception:
+                pass
+
+        # Status badge
+        badge = Gtk.Label(label=status)
+        badge.get_style_context().add_class("badge")
+        if status == "Charging":
+            badge.get_style_context().add_class("success")
+        elif capacity <= 20:
+            badge.get_style_context().add_class("danger")
+
+        self.build_header("Power & Battery", f"Battery Level: {capacity}%", badge)
+
+        # Battery Progress Bar
+        bar = Gtk.ProgressBar()
+        bar.set_fraction(capacity / 100.0)
+        if capacity <= 20:
+            bar.get_style_context().add_class("danger")
+        elif capacity <= 45:
+            bar.get_style_context().add_class("warning")
+        self.main_box.pack_start(bar, False, False, 0)
+
+        # Power Stats tile
+        tile = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+        tile.get_style_context().add_class("card-tile")
+
+        def add_row(lbl, val):
+            row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+            l = Gtk.Label(label=lbl, xalign=0)
+            l.get_style_context().add_class("stat-label")
+            v = Gtk.Label(label=val, xalign=1)
+            v.get_style_context().add_class("stat-val")
+            row.pack_start(l, True, True, 0)
+            row.pack_end(v, False, False, 0)
+            tile.pack_start(row, False, False, 0)
+
+        add_row("Power State", status)
+        if power_now > 0:
+            add_row("Discharge Rate", f"{power_now:.2f} W")
+        add_row("Device", "ThinkPad X230 Internal Battery")
+        self.main_box.pack_start(tile, False, False, 0)
+
+        # Brightness Slider
+        cur_bright, max_bright = self.get_brightness()
+        if max_bright > 0:
+            bright_lbl = Gtk.Label(label="DISPLAY BRIGHTNESS", xalign=0)
+            bright_lbl.get_style_context().add_class("section-header")
+            self.main_box.pack_start(bright_lbl, False, False, 0)
+
+            bright_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+            b_icon = Gtk.Label(label="󰃠")
+            bright_row.pack_start(b_icon, False, False, 0)
+
+            self.bright_scale = Gtk.Scale.new_with_range(Gtk.Orientation.HORIZONTAL, 5, 100, 1)
+            self.bright_scale.set_draw_value(False)
+            pct = round((cur_bright / max_bright) * 100)
+            self.bright_scale.set_value(pct)
+            self.bright_scale.connect("value-changed", self.on_brightness_changed)
+            bright_row.pack_start(self.bright_scale, True, True, 0)
+
+            self.b_pct_lbl = Gtk.Label(label=f"{pct}%", xalign=1)
+            self.b_pct_lbl.get_style_context().add_class("stat-val")
+            self.b_pct_lbl.set_size_request(44, -1)
+            bright_row.pack_end(self.b_pct_lbl, False, False, 0)
+            self.main_box.pack_start(bright_row, False, False, 0)
+
+        self.build_footer("Scroll to adjust brightness • Esc to close")
+        self.connect("scroll-event", self.on_scroll)
+
+    def get_brightness(self):
+        try:
+            cur = int(subprocess.check_output(["brightnessctl", "get"], text=True).strip())
+            m = int(subprocess.check_output(["brightnessctl", "max"], text=True).strip())
+            return cur, m
+        except Exception:
+            return 0, 0
+
+    def on_brightness_changed(self, scale):
+        pct = int(scale.get_value())
+        self.b_pct_lbl.set_text(f"{pct}%")
+        subprocess.run(["brightnessctl", "set", f"{pct}%"], stderr=subprocess.DEVNULL)
+
+    def on_scroll(self, widget, event):
+        delta = 0
+        if event.direction == Gdk.ScrollDirection.UP:
+            delta = 3
+        elif event.direction == Gdk.ScrollDirection.DOWN:
+            delta = -3
+        elif event.direction == Gdk.ScrollDirection.SMOOTH:
+            _, _, dy = event.get_scroll_deltas()
+            if dy < 0:
+                delta = 3
+            elif dy > 0:
+                delta = -3
+        if delta != 0 and hasattr(self, "bright_scale"):
+            cur = self.bright_scale.get_value()
+            self.bright_scale.set_value(max(5, min(100, cur + delta)))
+        return True
+
+
+# ==============================================================================
+# 4. CPU & THERMALS MODULE
+# ==============================================================================
+class CpuDropdown(BaseDropdown):
+    def __init__(self):
+        super().__init__("cpu", min_width=360)
+
+        # Overall CPU %
+        cpu_pct = self.calc_cpu_usage()
+        temp_str, fan_str = self.get_sensors()
+
+        btop_btn = Gtk.Button(label=" btop")
+        btop_btn.get_style_context().add_class("action-btn")
+        btop_btn.connect("clicked", lambda w: subprocess.Popen(["st", "-e", "btop"]))
+
+        self.build_header("CPU & Thermals", f"Utilization: {cpu_pct:.1f}% • {temp_str}", btop_btn)
+
+        # Progress bar
+        bar = Gtk.ProgressBar()
+        bar.set_fraction(min(1.0, cpu_pct / 100.0))
+        if cpu_pct >= 85:
+            bar.get_style_context().add_class("danger")
+        elif cpu_pct >= 60:
+            bar.get_style_context().add_class("warning")
+        self.main_box.pack_start(bar, False, False, 0)
+
+        # Thermals & Fan Tile
+        tile = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+        tile.get_style_context().add_class("card-tile")
+
+        def add_row(lbl, val):
+            row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+            l = Gtk.Label(label=lbl, xalign=0)
+            l.get_style_context().add_class("stat-label")
+            v = Gtk.Label(label=val, xalign=1)
+            v.get_style_context().add_class("stat-val")
+            row.pack_start(l, True, True, 0)
+            row.pack_end(v, False, False, 0)
+            tile.pack_start(row, False, False, 0)
+
+        add_row("Package Temperature", temp_str)
+        if fan_str:
+            add_row("Cooling Fan", fan_str)
+        add_row("Processor", "Intel Core i5-3320M @ 2.60GHz")
+        self.main_box.pack_start(tile, False, False, 0)
+
+        # Top Processes Table
+        p_lbl = Gtk.Label(label="TOP PROCESSES BY CPU", xalign=0)
+        p_lbl.get_style_context().add_class("section-header")
+        self.main_box.pack_start(p_lbl, False, False, 0)
+
+        proc_tile = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+        proc_tile.get_style_context().add_class("card-tile")
+
+        procs = self.get_top_procs()
+        for p in procs:
+            row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+            cmd_lbl = Gtk.Label(label=f"{p['pid']:>5}  {p['name']:<18}", xalign=0)
+            cmd_lbl.get_style_context().add_class("stat-label")
+            val_lbl = Gtk.Label(label=f"{p['cpu']}%", xalign=1)
+            val_lbl.get_style_context().add_class("stat-val")
+            row.pack_start(cmd_lbl, True, True, 0)
+            row.pack_end(val_lbl, False, False, 0)
+            proc_tile.pack_start(row, False, False, 0)
+
+        self.main_box.pack_start(proc_tile, False, False, 0)
+        self.build_footer("Esc to close")
+
+    def calc_cpu_usage(self):
+        def sample():
+            with open("/proc/stat") as f:
+                l = f.readline()
+            flds = [float(x) for x in l.split()[1:8]]
+            return flds[3] + flds[4], sum(flds)
+        try:
+            i1, t1 = sample()
+            time.sleep(0.08)
+            i2, t2 = sample()
+            dt, di = t2 - t1, i2 - i1
+            return 100.0 * (dt - di) / dt if dt else 0.0
+        except Exception:
+            return 0.0
+
+    def get_sensors(self):
+        temp, fan = "N/A", ""
+        try:
+            out = subprocess.check_output(["sensors"], text=True, stderr=subprocess.DEVNULL)
+            for line in out.splitlines():
+                if "Package id 0:" in line:
+                    temp = line.split(":")[1].split("(")[0].strip()
+                elif "fan1:" in line:
+                    fan = line.split(":")[1].strip()
+        except Exception:
+            pass
+        return temp, fan
+
+    def get_top_procs(self):
+        procs = []
+        try:
+            out = subprocess.check_output(
+                ["ps", "-eo", "pid,comm,%cpu", "--sort=-%cpu"],
+                text=True, stderr=subprocess.DEVNULL
+            )
+            lines = out.strip().splitlines()[1:5]
+            for l in lines:
+                parts = l.split(None, 2)
+                if len(parts) >= 3:
+                    procs.append({"pid": parts[0], "name": parts[1][:16], "cpu": parts[2]})
+        except Exception:
+            pass
+        return procs
+
+
+# ==============================================================================
+# 5. MEMORY MODULE
+# ==============================================================================
+class MemoryDropdown(BaseDropdown):
+    def __init__(self):
+        super().__init__("memory", min_width=360)
+
+        ram_used, ram_total, swap_used, swap_total = self.get_mem_stats()
+        ram_pct = (ram_used / ram_total * 100) if ram_total else 0
+
+        btop_btn = Gtk.Button(label=" btop")
+        btop_btn.get_style_context().add_class("action-btn")
+        btop_btn.connect("clicked", lambda w: subprocess.Popen(["st", "-e", "btop"]))
+
+        self.build_header(
+            "Memory & Storage",
+            f"RAM: {ram_used:.1f} GB / {ram_total:.1f} GB ({ram_pct:.0f}%)",
+            btop_btn
+        )
+
+        # RAM Progress bar
+        ram_bar = Gtk.ProgressBar()
+        ram_bar.set_fraction(min(1.0, ram_pct / 100.0))
+        if ram_pct >= 85:
+            ram_bar.get_style_context().add_class("danger")
+        elif ram_pct >= 65:
+            ram_bar.get_style_context().add_class("warning")
+        self.main_box.pack_start(ram_bar, False, False, 0)
+
+        # Swap Bar
+        swap_pct = (swap_used / swap_total * 100) if swap_total else 0
+        swap_lbl = Gtk.Label(label=f"SWAP: {swap_used:.1f} GB / {swap_total:.1f} GB ({swap_pct:.0f}%)", xalign=0)
+        swap_lbl.get_style_context().add_class("stat-label")
+        self.main_box.pack_start(swap_lbl, False, False, 0)
+
+        swap_bar = Gtk.ProgressBar()
+        swap_bar.set_fraction(min(1.0, swap_pct / 100.0))
+        self.main_box.pack_start(swap_bar, False, False, 0)
+
+        # Top Procs by RAM
+        p_lbl = Gtk.Label(label="TOP MEMORY HOGS", xalign=0)
+        p_lbl.get_style_context().add_class("section-header")
+        self.main_box.pack_start(p_lbl, False, False, 0)
+
+        proc_tile = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+        proc_tile.get_style_context().add_class("card-tile")
+
+        procs = self.get_top_procs()
+        for p in procs:
+            row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+            cmd_lbl = Gtk.Label(label=f"{p['pid']:>5}  {p['name']:<18}", xalign=0)
+            cmd_lbl.get_style_context().add_class("stat-label")
+            val_lbl = Gtk.Label(label=f"{p['rss']} MB ({p['mem']}%)", xalign=1)
+            val_lbl.get_style_context().add_class("stat-val")
+            row.pack_start(cmd_lbl, True, True, 0)
+            row.pack_end(val_lbl, False, False, 0)
+            proc_tile.pack_start(row, False, False, 0)
+
+        self.main_box.pack_start(proc_tile, False, False, 0)
+        self.build_footer("Esc to close")
+
+    def get_mem_stats(self):
+        info = {}
+        try:
+            with open("/proc/meminfo") as f:
+                for l in f:
+                    pts = l.split(":")
+                    if len(pts) == 2:
+                        info[pts[0].strip()] = int(pts[1].strip().split()[0])
+            total = info.get("MemTotal", 1) / 1024 / 1024
+            avail = info.get("MemAvailable", info.get("MemFree", 0)) / 1024 / 1024
+            used = total - avail
+            st = info.get("SwapTotal", 0) / 1024 / 1024
+            sf = info.get("SwapFree", 0) / 1024 / 1024
+            su = st - sf
+            return used, total, su, st
+        except Exception:
+            return 0, 1, 0, 1
+
+    def get_top_procs(self):
+        procs = []
+        try:
+            out = subprocess.check_output(
+                ["ps", "-eo", "pid,comm,%mem,rss", "--sort=-%mem"],
+                text=True, stderr=subprocess.DEVNULL
+            )
+            lines = out.strip().splitlines()[1:5]
+            for l in lines:
+                parts = l.split(None, 3)
+                if len(parts) >= 4:
+                    rss_mb = int(parts[3]) // 1024
+                    procs.append({"pid": parts[0], "name": parts[1][:16], "mem": parts[2], "rss": rss_mb})
+        except Exception:
+            pass
+        return procs
+
+
+# ==============================================================================
+# 6. NETWORK & TRAFFIC MODULE
+# ==============================================================================
+class NetworkDropdown(BaseDropdown):
+    def __init__(self):
+        super().__init__("network", min_width=360)
+
+        ssid, signal, dev = self.get_wifi_info()
+        ip_addr = self.get_ip_address()
+        rx_val, tx_val = self.get_traffic()
+
+        nmtui_btn = Gtk.Button(label="󰖩 nmtui")
+        nmtui_btn.get_style_context().add_class("action-btn")
+        nmtui_btn.connect("clicked", lambda w: subprocess.Popen(["st", "-e", "nmtui"]))
+
+        status_text = f"Connected: {ssid}" if ssid != "Disconnected" else "Disconnected"
+        self.build_header("Network & Traffic", status_text, nmtui_btn)
+
+        # Connection Tile
+        tile = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+        tile.get_style_context().add_class("card-tile")
+
+        def add_row(lbl, val):
+            row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+            l = Gtk.Label(label=lbl, xalign=0)
+            l.get_style_context().add_class("stat-label")
+            v = Gtk.Label(label=val, xalign=1)
+            v.get_style_context().add_class("stat-val")
+            row.pack_start(l, True, True, 0)
+            row.pack_end(v, False, False, 0)
+            tile.pack_start(row, False, False, 0)
+
+        add_row("Active SSID", ssid)
+        add_row("Interface", dev)
+        add_row("IPv4 Address", ip_addr)
+        if signal > 0:
+            add_row("Wi-Fi Signal", f"{signal}%")
+        self.main_box.pack_start(tile, False, False, 0)
+
+        # Live Traffic Rate
+        t_lbl = Gtk.Label(label="DATA THROUGHPUT", xalign=0)
+        t_lbl.get_style_context().add_class("section-header")
+        self.main_box.pack_start(t_lbl, False, False, 0)
+
+        traf_tile = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+        traf_tile.get_style_context().add_class("card-tile")
+
+        rx_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+        rx_h = Gtk.Label(label="DOWNLOAD (RX)", xalign=0)
+        rx_h.get_style_context().add_class("stat-label")
+        rx_v = Gtk.Label(label=f"🔻 {rx_val}", xalign=0)
+        rx_v.get_style_context().add_class("stat-val")
+        rx_box.pack_start(rx_h, False, False, 0)
+        rx_box.pack_start(rx_v, False, False, 0)
+        traf_tile.pack_start(rx_box, True, True, 0)
+
+        tx_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+        tx_h = Gtk.Label(label="UPLOAD (TX)", xalign=0)
+        tx_h.get_style_context().add_class("stat-label")
+        tx_v = Gtk.Label(label=f"🔺 {tx_val}", xalign=0)
+        tx_v.get_style_context().add_class("stat-val")
+        tx_box.pack_start(tx_h, False, False, 0)
+        tx_box.pack_start(tx_v, False, False, 0)
+        traf_tile.pack_start(tx_box, True, True, 0)
+
+        self.main_box.pack_start(traf_tile, False, False, 0)
+
+        # DNS Configuration Tile
+        dns_header = Gtk.Label(label="DNS RESOLVER", xalign=0)
+        dns_header.get_style_context().add_class("section-header")
+        self.main_box.pack_start(dns_header, False, False, 0)
+
+        dns_tile = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+        dns_tile.get_style_context().add_class("card-tile")
+
+        self.dns_status_lbl = Gtk.Label(xalign=0)
+        self.dns_status_lbl.get_style_context().add_class("stat-val")
+        dns_tile.pack_start(self.dns_status_lbl, False, False, 0)
+
+        btn_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        btn_box.set_homogeneous(True)
+
+        self.dns_btns = {}
+        for p_id, p_label in [("dhcp", "DHCP"), ("cloudflare", "Cloudflare"), ("google", "Google"), ("custom", "Custom")]:
+            b = Gtk.Button(label=p_label)
+            b.get_style_context().add_class("btn-pill")
+            b.connect("clicked", self.on_dns_select, p_id)
+            btn_box.pack_start(b, True, True, 0)
+            self.dns_btns[p_id] = b
+
+        dns_tile.pack_start(btn_box, False, False, 0)
+
+        self.custom_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        self.custom_entry = Gtk.Entry()
+        self.custom_entry.set_placeholder_text("IP (e.g. 9.9.9.9)")
+        self.custom_entry.connect("activate", self.on_apply_custom_dns)
+        self.custom_box.pack_start(self.custom_entry, True, True, 0)
+
+        apply_btn = Gtk.Button(label="Apply")
+        apply_btn.get_style_context().add_class("action-btn")
+        apply_btn.connect("clicked", self.on_apply_custom_dns)
+        self.custom_box.pack_end(apply_btn, False, False, 0)
+
+        dns_tile.pack_start(self.custom_box, False, False, 0)
+        self.main_box.pack_start(dns_tile, False, False, 0)
+
+        self.dev = dev
+        self.update_dns_display()
+
+        self.build_footer("Esc to close")
+
+    def get_dns_info(self, dev):
+        dns_list = []
+        try:
+            out = subprocess.check_output(["nmcli", "dev", "show", dev], text=True, stderr=subprocess.DEVNULL)
+            for line in out.splitlines():
+                if "IP4.DNS" in line:
+                    dns_list.append(line.split(":", 1)[1].strip())
+        except Exception:
+            pass
+
+        current_dns_str = ", ".join(dns_list) if dns_list else "Automatic (DHCP)"
+        provider = "dhcp"
+        if "1.1.1.1" in current_dns_str:
+            provider = "cloudflare"
+        elif "8.8.8.8" in current_dns_str:
+            provider = "google"
+        elif dns_list:
+            provider = "custom"
+
+        return current_dns_str, provider
+
+    def update_dns_display(self):
+        dns_servers, provider = self.get_dns_info(self.dev)
+        prov_title = provider.upper()
+        self.dns_status_lbl.set_markup(f"Active: <b>{dns_servers}</b> ({prov_title})")
+
+        for p_id, btn in self.dns_btns.items():
+            ctx = btn.get_style_context()
+            if p_id == provider:
+                ctx.add_class("selected")
+            else:
+                ctx.remove_class("selected")
+
+        if provider == "custom":
+            self.custom_box.set_visible(True)
+            if not self.custom_entry.get_text():
+                self.custom_entry.set_text(dns_servers.split(",")[0].strip())
+        else:
+            self.custom_box.set_visible(False)
+
+    def on_dns_select(self, btn, p_id):
+        if p_id == "custom":
+            self.custom_box.set_visible(True)
+            self.custom_entry.grab_focus()
+            for k, b in self.dns_btns.items():
+                ctx = b.get_style_context()
+                if k == "custom":
+                    ctx.add_class("selected")
+                else:
+                    ctx.remove_class("selected")
+            return
+
+        subprocess.run(["set-dns", p_id], stderr=subprocess.DEVNULL)
+        self.update_dns_display()
+
+    def on_apply_custom_dns(self, widget):
+        val = self.custom_entry.get_text().strip()
+        if val:
+            subprocess.run(["set-dns", "custom", val], stderr=subprocess.DEVNULL)
+            self.update_dns_display()
+
+    def get_wifi_info(self):
+        ssid, signal, dev = "Disconnected", 0, "wlp3s0"
+        try:
+            out = subprocess.check_output(
+                ["nmcli", "-t", "-f", "active,ssid,signal,device", "dev", "wifi"],
+                text=True, stderr=subprocess.DEVNULL
+            )
+            for line in out.splitlines():
+                if line.startswith("yes:"):
+                    parts = line.split(":")
+                    if len(parts) >= 4:
+                        ssid = parts[1]
+                        signal = int(parts[2])
+                        dev = parts[3]
+                        break
+        except Exception:
+            pass
+        return ssid, signal, dev
+
+    def get_ip_address(self):
+        try:
+            out = subprocess.check_output(["ip", "route", "get", "1.1.1.1"], text=True, stderr=subprocess.DEVNULL)
+            m = re.search(r"src\s+([0-9.]+)", out)
+            if m:
+                return m.group(1)
+        except Exception:
+            pass
+        return "Not connected"
+
+    def get_traffic(self):
+        def format_bytes(n):
+            if n < 1024:
+                return f"{n} B"
+            elif n < 1024 * 1024:
+                return f"{n/1024:.1f} KB"
+            else:
+                return f"{n/(1024*1024):.1f} MB"
+        try:
+            rx_total = sum(int(open(p).read()) for p in [f"/sys/class/net/{d}/statistics/rx_bytes" for d in os.listdir("/sys/class/net") if d.startswith(("e", "w")) and os.path.exists(f"/sys/class/net/{d}/statistics/rx_bytes")])
+            tx_total = sum(int(open(p).read()) for p in [f"/sys/class/net/{d}/statistics/tx_bytes" for d in os.listdir("/sys/class/net") if d.startswith(("e", "w")) and os.path.exists(f"/sys/class/net/{d}/statistics/tx_bytes")])
+            return format_bytes(rx_total), format_bytes(tx_total)
+        except Exception:
+            return "0 B", "0 B"
+
+
+# ==============================================================================
+# 7. FORECAST & WEATHER MODULE
+# ==============================================================================
+class ForecastDropdown(BaseDropdown):
+    def __init__(self):
+        super().__init__("forecast", min_width=360)
+
+        self.ref_btn = Gtk.Button(label="󰖐 Refresh")
+        self.ref_btn.get_style_context().add_class("action-btn")
+        self.ref_btn.connect("clicked", self.on_refresh)
+
+        self.build_header("Weather Forecast", "Govap, Ho Chi Minh City", self.ref_btn)
+
+        # Big Condition Tile
+        tile = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=14)
+        tile.get_style_context().add_class("card-tile")
+
+        self.icon_lbl = Gtk.Label(label="⛅")
+        self.icon_lbl.get_style_context().add_class("metric-big")
+        tile.pack_start(self.icon_lbl, False, False, 0)
+
+        temp_vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+        self.temp_lbl = Gtk.Label(label="--°C", xalign=0)
+        self.temp_lbl.get_style_context().add_class("metric-big")
+        self.desc_lbl = Gtk.Label(label="Loading...", xalign=0)
+        self.desc_lbl.get_style_context().add_class("stat-label")
+        temp_vbox.pack_start(self.temp_lbl, False, False, 0)
+        temp_vbox.pack_start(self.desc_lbl, False, False, 0)
+        tile.pack_start(temp_vbox, True, True, 0)
+        self.main_box.pack_start(tile, False, False, 0)
+
+        # Metrics Grid
+        m_lbl = Gtk.Label(label="ATMOSPHERIC CONDITIONS", xalign=0)
+        m_lbl.get_style_context().add_class("section-header")
+        self.main_box.pack_start(m_lbl, False, False, 0)
+
+        grid = Gtk.Grid()
+        grid.set_column_spacing(12)
+        grid.set_row_spacing(8)
+        grid.set_column_homogeneous(True)
+        grid.get_style_context().add_class("card-tile")
+
+        self.metrics = {}
+        def add_metric(row, col, key, lbl):
+            box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+            l = Gtk.Label(label=lbl, xalign=0)
+            l.get_style_context().add_class("stat-label")
+            v = Gtk.Label(label="--", xalign=0)
+            v.get_style_context().add_class("stat-val")
+            box.pack_start(l, False, False, 0)
+            box.pack_start(v, False, False, 0)
+            grid.attach(box, col, row, 1, 1)
+            self.metrics[key] = v
+
+        add_metric(0, 0, "humidity", "Humidity")
+        add_metric(0, 1, "wind", "Wind Speed")
+        add_metric(1, 0, "pressure", "Atm. Pressure")
+        add_metric(1, 1, "visibility", "Visibility")
+
+        self.main_box.pack_start(grid, False, False, 0)
+        self.build_footer("Esc to close")
+
+        self.load_weather()
+
+    def load_weather(self):
+        cache_file = os.path.expanduser("~/.cache/weatherreport")
+        data = {}
+        if os.path.exists(cache_file):
+            try:
+                with open(cache_file) as f:
+                    data = json.load(f)
+            except Exception:
+                pass
+
+        city = data.get("name", "Ho Chi Minh City")
+        desc = "Partly Cloudy"
+        if data.get("weather"):
+            desc = data["weather"][0].get("description", "Clear").title()
+
+        temp = data.get("main", {}).get("temp", 26.0)
+        feels = data.get("main", {}).get("feels_like", temp)
+        humidity = data.get("main", {}).get("humidity", 80)
+        pressure = data.get("main", {}).get("pressure", 1010)
+        wind = data.get("wind", {}).get("speed", 3.0)
+        vis = data.get("visibility", 10000) // 1000
+
+        self.sub_lbl.set_text(f"Govap, {city}")
+        self.temp_lbl.set_text(f"{temp:.0f}°C")
+        self.desc_lbl.set_text(f"{desc} (Feels like {feels:.0f}°C)")
+        self.metrics["humidity"].set_text(f"{humidity}%")
+        self.metrics["wind"].set_text(f"{wind} m/s")
+        self.metrics["pressure"].set_text(f"{pressure} hPa")
+        self.metrics["visibility"].set_text(f"{vis} km")
+
+    def on_refresh(self, widget):
+        widget.set_sensitive(False)
+        widget.set_label("Updating...")
+        subprocess.Popen(["ka-forecast"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        GLib.timeout_add(1500, self._finish_refresh)
+
+    def _finish_refresh(self):
+        self.load_weather()
+        self.ref_btn.set_sensitive(True)
+        self.ref_btn.set_label("󰖐 Refresh")
+        subprocess.run(["pkill", "-RTMIN+14", "dwmblocks"], stderr=subprocess.DEVNULL)
+        return False
+
+
+# ==============================================================================
+# MAIN ROUTER
+# ==============================================================================
+def main():
+    # Enforce strictly 1 dwm-dropdown instance at any given time
+    my_pid = os.getpid()
+    pid_file = os.path.expanduser("~/.cache/dwm-dropdown.pid")
+    if os.path.exists(pid_file):
+        try:
+            with open(pid_file, "r") as f:
+                old_pid = int(f.read().strip())
+            if old_pid != my_pid:
+                try:
+                    os.kill(old_pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+        except Exception:
+            pass
+
+    try:
+        out = subprocess.check_output(["pgrep", "-f", "dwm-dropdown"], text=True)
+        for p_str in out.split():
+            p = int(p_str)
+            if p != my_pid:
+                try:
+                    os.kill(p, signal.SIGKILL)
+                except Exception:
+                    pass
+    except Exception:
+        pass
+
+    try:
+        os.makedirs(os.path.dirname(pid_file), exist_ok=True)
+        with open(pid_file, "w") as f:
+            f.write(str(my_pid))
+    except Exception:
+        pass
+
+    def cleanup():
+        try:
+            if os.path.exists(pid_file):
+                with open(pid_file) as f:
+                    if int(f.read().strip()) == os.getpid():
+                        os.remove(pid_file)
+        except Exception:
+            pass
+
+    atexit.register(cleanup)
+
+    target = sys.argv[1].lower() if len(sys.argv) > 1 else "volume"
+
+    if target in ("volume", "audio", "vol", "sound"):
+        win = VolumeDropdown()
+    elif target in ("clock", "calendar", "time", "date"):
+        win = ClockDropdown()
+    elif target in ("battery", "power", "bat"):
+        win = BatteryDropdown()
+    elif target in ("cpu", "proc", "load"):
+        win = CpuDropdown()
+    elif target in ("memory", "mem", "ram"):
+        win = MemoryDropdown()
+    elif target in ("network", "net", "internet", "traffic", "nettraf", "wifi"):
+        win = NetworkDropdown()
+    elif target in ("forecast", "weather", "weath"):
+        win = ForecastDropdown()
+    else:
+        win = VolumeDropdown()
+
+    win.connect("destroy", Gtk.main_quit)
+    win.show_all()
+    Gtk.main()
+
+
+if __name__ == "__main__":
+    main()

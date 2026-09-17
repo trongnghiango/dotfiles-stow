@@ -17,8 +17,8 @@ case "$hour" in
     "11") icon="🕚" ;;
 esac
 
-case $BLOCK_BUTTON in
-    1) notify-send "Calendar" "$(cal | sed "s/\<$(date +'%e' | tr -d ' ')\>/<b><span color='red'>&<\/span><\/b>/")" ;;
+case ${BLOCK_BUTTON:-${BUTTON:-0}} in
+    1) setsid -f dwm-dropdown clock ;;
     2) ifinstalled calcurse && setsid -f "$TERMINAL" -e calcurse ;;
     3) notify-send "📅 Time" "Left: Month view\nMiddle: Calcurse" ;;
     6) setsid -f "$TERMINAL" -e "$EDITOR" "$0" ;;

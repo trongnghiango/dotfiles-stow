@@ -1,9 +1,16 @@
 #!/usr/bin/env bash
+# set-dns — Switch DNS server across NetworkManager or systemd-resolved
 set -euo pipefail
 
-DNS_PROVIDER="${1:-cloudflare}"
+DNS_PROVIDER="${1:-show}"
+DNS4=""
+DNS6=""
 
 case "$DNS_PROVIDER" in
+show)
+  ;;
+dhcp|auto)
+  ;;
 cloudflare)
   DNS4="1.1.1.1 1.0.0.1"
   DNS6="2606:4700:4700::1111,2606:4700:4700::1001"
@@ -20,68 +27,76 @@ opendns)
   DNS4="208.67.222.222 208.67.220.220"
   DNS6="2620:119:35::35,2620:119:53::53"
   ;;
+custom)
+  DNS4="${2:-}"
+  DNS6="${3:-}"
+  if [[ -z "$DNS4" ]]; then
+    echo "Usage: $(basename "$0") custom <ipv4_dns> [ipv6_dns]"
+    exit 1
+  fi
+  ;;
 *)
-  echo "Usage: $(basename "$0") {cloudflare|google|quad9|opendns}"
+  echo "Usage: $(basename "$0") {dhcp|cloudflare|google|quad9|opendns|custom <ip>|show}"
   exit 1
   ;;
 esac
-
-echo "DNS Provider : $DNS_PROVIDER"
-echo "IPv4 DNS     : $DNS4"
-echo "IPv6 DNS     : $DNS6"
-echo
 
 ############################################################
 # NetworkManager
 ############################################################
 
-if command -v nmcli >/dev/null 2>&1 &&
-  systemctl is-active --quiet NetworkManager; then
-
-  echo "[INFO] Using NetworkManager"
-
+if command -v nmcli >/dev/null 2>&1 && systemctl is-active --quiet NetworkManager; then
   DEVICE=$(ip route | awk '/default/ {print $5; exit}')
+  if [[ -z "$DEVICE" ]]; then
+    DEVICE=$(nmcli -t -f DEVICE,STATE dev | awk -F: '$2=="connected" {print $1; exit}')
+  fi
 
   if [[ -z "$DEVICE" ]]; then
-    echo "[ERROR] No default route found."
+    echo "[ERROR] No active network device found."
     exit 1
   fi
 
-  CONNECTION=$(
-    nmcli -t -f GENERAL.CONNECTION device show "$DEVICE" |
-      cut -d: -f2
-  )
-
+  CONNECTION=$(nmcli -t -f GENERAL.CONNECTION device show "$DEVICE" 2>/dev/null | cut -d: -f2 | head -n1)
   if [[ -z "$CONNECTION" ]]; then
     echo "[ERROR] Cannot determine active connection."
     exit 1
   fi
 
-  echo "[INFO] Device     : $DEVICE"
-  echo "[INFO] Connection : $CONNECTION"
-
-  sudo nmcli connection modify "$CONNECTION" \
-    ipv4.ignore-auto-dns yes \
-    ipv4.dns "$DNS4"
-
-  if ip -6 route show default >/dev/null 2>&1 &&
-    ip -6 route show default | grep -q .; then
-
-    sudo nmcli connection modify "$CONNECTION" \
-      ipv6.ignore-auto-dns yes \
-      ipv6.dns "$DNS6"
+  if [[ "$DNS_PROVIDER" == "show" ]]; then
+    echo "Device     : $DEVICE"
+    echo "Connection : $CONNECTION"
+    nmcli device show "$DEVICE" | grep -i DNS || echo "DNS: None / DHCP default"
+    exit 0
   fi
 
-  sudo nmcli device reapply "$DEVICE" ||
-    sudo nmcli connection up "$CONNECTION"
+  echo "[INFO] Using NetworkManager ($CONNECTION on $DEVICE)"
 
-  echo
-  echo "[OK] DNS updated."
+  run_nmcli() {
+    if nmcli "$@" 2>/dev/null; then
+      return 0
+    fi
+    if command -v sudo >/dev/null 2>&1; then
+      sudo nmcli "$@"
+    else
+      nmcli "$@"
+    fi
+  }
 
-  echo
-  echo "Current DNS:"
-  nmcli device show "$DEVICE" | grep DNS || true
+  if [[ "$DNS_PROVIDER" == "dhcp" || "$DNS_PROVIDER" == "auto" ]]; then
+    run_nmcli connection modify "$CONNECTION" ipv4.ignore-auto-dns no ipv4.dns ""
+    if ip -6 route show default >/dev/null 2>&1 && ip -6 route show default | grep -q .; then
+      run_nmcli connection modify "$CONNECTION" ipv6.ignore-auto-dns no ipv6.dns "" || true
+    fi
+    echo "[OK] Reset DNS to DHCP (Automatic)."
+  else
+    run_nmcli connection modify "$CONNECTION" ipv4.ignore-auto-dns yes ipv4.dns "$DNS4"
+    if ip -6 route show default >/dev/null 2>&1 && ip -6 route show default | grep -q . && [[ -n "$DNS6" ]]; then
+      run_nmcli connection modify "$CONNECTION" ipv6.ignore-auto-dns yes ipv6.dns "$DNS6" || true
+    fi
+    echo "[OK] Set DNS to $DNS_PROVIDER ($DNS4)."
+  fi
 
+  run_nmcli device reapply "$DEVICE" 2>/dev/null || run_nmcli connection up "$CONNECTION" 2>/dev/null || true
   exit 0
 fi
 
@@ -89,38 +104,23 @@ fi
 # systemd-resolved
 ############################################################
 
-if command -v resolvectl >/dev/null 2>&1 &&
-  systemctl is-active --quiet systemd-resolved; then
-
+if command -v resolvectl >/dev/null 2>&1 && systemctl is-active --quiet systemd-resolved; then
   echo "[INFO] Using systemd-resolved"
-
-  sudo mkdir -p /etc/systemd/resolved.conf.d
-
-  sudo tee /etc/systemd/resolved.conf.d/dns.conf >/dev/null <<EOF
+  if [[ "$DNS_PROVIDER" == "dhcp" || "$DNS_PROVIDER" == "auto" ]]; then
+    sudo rm -f /etc/systemd/resolved.conf.d/dns.conf
+  else
+    sudo mkdir -p /etc/systemd/resolved.conf.d
+    sudo tee /etc/systemd/resolved.conf.d/dns.conf >/dev/null <<EOF
 [Resolve]
 DNS=$DNS4
 FallbackDNS=
 DNSStubListener=yes
 EOF
-
+  fi
   sudo systemctl restart systemd-resolved
-
-  echo
   echo "[OK] DNS updated."
-
-  echo
-  resolvectl status
-
   exit 0
 fi
 
-############################################################
-# Unsupported
-############################################################
-
 echo "[ERROR] No supported DNS manager found."
-echo
-echo "Supported:"
-echo "  - NetworkManager"
-echo "  - systemd-resolved"
 exit 1

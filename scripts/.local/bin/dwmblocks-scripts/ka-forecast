@@ -24,9 +24,9 @@ if [ ! -s "$CACHE_FILE" ] || [ $(($(date +%s) - $(date -r "$CACHE_FILE" +%s))) -
 fi
 
 # Xử lý click chuột
-case $BLOCK_BUTTON in
-1) getforecast && notify-send "Weather" "Updating in background..." ;;
-3) notify-send "Weather Module" "Middle click to force update." ;;
+case ${BLOCK_BUTTON:-${BUTTON:-0}} in
+1) setsid -f dwm-dropdown forecast ;;
+3) getforecast && notify-send "Weather" "Updating in background..." ;;
 esac
 
 # =========================================================

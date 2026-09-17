@@ -1,8 +1,8 @@
 #!/bin/sh
 
 # --- 1. XỬ LÝ CLICK ---
-case $BLOCK_BUTTON in
-1) ifinstalled btop && setsid -f st -e btop ;; # Click trái: Mở btop
+case ${BLOCK_BUTTON:-${BUTTON:-0}} in
+1) setsid -f dwm-dropdown cpu ;; # Click trái: Mở popover CPU
 3)
   # Click phải: Lấy nhiệt độ từ sensors, làm đẹp và notify
   # Lọc lấy: Fan Speed, CPU Temp, Core Temp, Pin (nếu cần)

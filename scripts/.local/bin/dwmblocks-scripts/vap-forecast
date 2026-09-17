@@ -56,8 +56,8 @@ else
 	emoji_temp="🌞"
 fi
 
-case $BUTTON in
-	1) getforecast && $TERMINAL -e less -Sf /$HOME/.cache/weatherreport ;;
+case ${BLOCK_BUTTON:-${BUTTON:-0}} in
+	1) setsid -f dwm-dropdown forecast ;;
 	3) notify-send "🌈 Weather module" "\- Middle click to update forecast." ;;
 esac
 
