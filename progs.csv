@@ -14,13 +14,13 @@
 ,tuned,1,opt,Dynamic adaptive system tuning daemon.
 ,zram-generator,1,core,Manages zram swap devices automatically.
 ,dunst,2,core,Suckless notification daemon; paired with libnotify.
-,fontconfig,2,"dwm,st",Library for configuring and customizing font access.
+,fontconfig,2,dwm+st,Library for configuring and customizing font access.
 ,harfbuzz,2,st,OpenType text shaping engine required to compile st with ligatures support.
 ,imlib2,2,dwm,Image loading and rendering library for DWM icon and tag preview.
 ,libxcb,2,dwm,X C Binding client library required for DWM and suckless builds.
-,libxft,2,"dwm,st",FreeType font rendering library for DWM and ST.
+,libxft,2,dwm+st,FreeType font rendering library for DWM and ST.
 ,libxinerama,2,dwm,Xinerama multi-monitor extension library for DWM.
-,libxrender,2,"dwm,st",X Rendering Extension client library.
+,libxrender,2,dwm+st,X Rendering Extension client library.
 ,lxappearance,2,opt,GTK theme and icon configurator.
 ,maim,2,core,Can take quick screenshots (used by maimpick script).
 ,picom,2,core,Modern X compositor for transparency and removing screen-tearing; uses glx backend with vsync.
@@ -91,7 +91,7 @@ A,brave-bin,7,core,Default web browser (BROWSER env var).
 ,calcurse,8,opt,Terminal-based organizer for interactive and command line use
 ,newsboat,8,opt,Terminal RSS client (used with cron/news.psv).
 ,pandoc-cli,8,opt,Compiles document markups to PDF/Docx.
-,poppler,8,"lf,zathura",Manipulates .pdfs and gives .pdf previews in lf file manager.
+,poppler,8,lf+zathura,Manipulates .pdfs and gives .pdf previews in lf file manager.
 ,telegram-desktop,8,opt,Telegram chat messenger.
 ,w3m,8,opt,Terminal web browser with image display capability.
 ,zathura,8,core,PDF viewer with vim-like bindings.
