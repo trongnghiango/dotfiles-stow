@@ -1690,9 +1690,7 @@ manage(Window w, XWindowAttributes *wa)
 	XSelectInput(dpy, w, EnterWindowMask|FocusChangeMask|PropertyChangeMask|StructureNotifyMask);
 	grabbuttons(c, 0);
 
-	if (strstr(c->name, "ka-clip"))
-		c->isfloating = 1;
-	else if (!c->isfloating)
+	if (!c->isfloating)
 		c->isfloating = c->oldstate = trans != None || c->isfixed;
 	if (c->isfloating) {
 		XRaiseWindow(dpy, c->win);
