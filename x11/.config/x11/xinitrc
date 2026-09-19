@@ -71,12 +71,20 @@ fi
 # 4. NẠP CẤU HÌNH THEO TỪNG HỆ ĐIỀU HÀNH (ARCH / VOID / NIXOS)
 # ==============================================================================
 if [ -f /etc/os-release ]; then
-  # Trích xuất ID hệ điều hành (ví dụ: arch, void, nixos)
+  # Trích xuất ID và ID_LIKE hệ điều hành (ví dụ: arch, debian, void, nixos)
   OS=$(. /etc/os-release && echo "$ID")
+  OS_LIKE=$(. /etc/os-release && echo "$ID_LIKE")
 
   OS_CONFIG="${XDG_CONFIG_HOME:-$HOME/.config}/x11/xinitrc.$OS"
   if [ -f "$OS_CONFIG" ]; then
     . "$OS_CONFIG"
+  elif [ -n "$OS_LIKE" ]; then
+    for like in $OS_LIKE; do
+      if [ -f "${XDG_CONFIG_HOME:-$HOME/.config}/x11/xinitrc.$like" ]; then
+        . "${XDG_CONFIG_HOME:-$HOME/.config}/x11/xinitrc.$like"
+        break
+      fi
+    done
   fi
 fi
 

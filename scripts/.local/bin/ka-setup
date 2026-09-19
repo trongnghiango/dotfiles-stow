@@ -113,6 +113,14 @@ setup_pkgs() {
         return 1
       fi
       ;;
+    void)
+      log_warn "Hệ điều hành Void Linux sử dụng trình quản lý gói XBPS (xbps-install)."
+      log_info "Bạn có thể tham khảo danh mục gói tại pkgs/arch.csv để cài đặt các gói tương đương."
+      ;;
+    nixos)
+      log_info "Hệ điều hành NixOS được quản lý khai báo qua Nix Flake & Home-Manager."
+      log_info "Để triển khai hệ thống, chạy: sudo nixos-rebuild switch --flake $DOTFILES_DIR/nixos#thinkbox"
+      ;;
     *)
       log_warn "Hệ điều hành '$current_os' chưa có driver cài đặt tự động."
       log_info "Bạn có thể tham khảo danh mục gói tại pkgs/arch.csv hoặc pkgs/debian.csv."
