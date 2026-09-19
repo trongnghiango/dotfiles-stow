@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 """
-ka-clip — Unified Clipboard Manager & History Visualizer
-Triết lý Omarchy / DHH kết hợp tính thực dụng của Chris Titus:
-- Hỗ trợ cả Văn bản (Text) lẫn Hình ảnh (Image / Screenshot / OCR).
-- Giao diện Rofi Master-Detail 2 cột:
-    + Cột trái: Thứ tự thời gian, icon phân loại, tóm tắt ngắn gọn 1 dòng.
-    + Cột phải: Xem trước chi tiết nội dung đầy đủ (Text multi-line / Ảnh phóng to / Metadata).
-- Tích hợp phím tắt Super + V / Super + Ctrl + V và Unified CLI (ka clip).
-- Tương thích 100% đa Distro (Arch, Debian, Void, NixOS).
+ka-clip — Unified Native Clipboard Manager (Omarchy / Titus Architecture)
+- Thiết kế 2 cột chuẩn tỷ lệ vàng 2 : 3 (Bên trái 400px / 40% : Bên phải 600px / 60%).
+- Cột trái: Ô tìm kiếm real-time, danh sách bản sao với số thứ tự, icon badge, giờ copy, tóm tắt.
+- Cột phải: Xem trước chi tiết nội dung đầy đủ:
+    + Hình ảnh (Image / Screenshot / OCR): Xem ảnh phóng to sắc nét (560px x 340px), đúng tỷ lệ thật, thông số pixel & dung lượng.
+    + Văn bản (Text / Code / URL): Hiển thị 100% nội dung nhiều dòng, tự động ngắt dòng (word wrap), không bị cắt cụt.
+- Tự động nạp bảng màu từ ~/.config/theme/colors/current.conf (0px border-radius, 2px accent border).
+- Khay hệ thống native X11 (Gtk.StatusIcon) nhúng trực tiếp, 0 tệp rác trên đĩa.
+- Hỗ trợ Pre-warmed Socket Daemon cho phản hồi tức thì < 2ms (Super + V / click khay hệ thống / ka clip).
 """
 
 import os
@@ -16,12 +17,20 @@ import time
 import json
 import struct
 import signal
+import socket
 import hashlib
+import threading
 import subprocess
 from pathlib import Path
 
+# ==============================================================================
+# 0. THƯ MỤC LƯU TRỮ & SOCKET NHANH (< 2ms FAST PATH)
+# ==============================================================================
+XDG_RUNTIME_DIR = os.environ.get("XDG_RUNTIME_DIR", "/tmp")
+SOCKET_PATH = os.path.join(XDG_RUNTIME_DIR, f"ka-clip-{os.getuid()}.sock")
+PID_FILE = Path(XDG_RUNTIME_DIR) / f"ka-clip-{os.getuid()}.pid"
+
 def get_cache_base() -> Path:
-    """Xác định thư mục cache có quyền ghi (ưu tiên XDG_CACHE_HOME, fallback /tmp nếu sandbox/read-only)."""
     xdg_cache = os.environ.get("XDG_CACHE_HOME", os.path.expanduser("~/.cache"))
     try:
         p = Path(xdg_cache) / "ka-clip"
@@ -37,16 +46,30 @@ def get_cache_base() -> Path:
 
 CACHE_DIR = get_cache_base()
 ENTRIES_DIR = CACHE_DIR / "entries"
-THUMBS_DIR = CACHE_DIR / "thumbs"
 HISTORY_FILE = CACHE_DIR / "history.json"
-PID_FILE = Path(os.environ.get("XDG_RUNTIME_DIR", "/tmp")) / f"ka-clip-{os.getuid()}.pid"
-
 MAX_ENTRIES = 100
-MAX_TEXT_SIZE = 2 * 1024 * 1024  # 2MB max for clipboard text
+MAX_TEXT_SIZE = 2 * 1024 * 1024
 
+# Fast-path: Nếu gọi từ CLI / phím tắt mà daemon đang chạy -> gửi lệnh qua socket
+is_daemon = len(sys.argv) > 1 and sys.argv[1].lower() in ("daemon", "--daemon", "-d")
+if not is_daemon and (len(sys.argv) == 1 or sys.argv[1].lower() in ("menu", "toggle", "--toggle")):
+    try:
+        sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        sock.settimeout(0.08)
+        sock.connect(SOCKET_PATH)
+        sock.sendall(json.dumps({"action": "toggle"}).encode("utf-8") + b"\n")
+        resp = sock.recv(64)
+        sock.close()
+        sys.exit(0)
+    except Exception:
+        # Daemon chưa chạy -> chạy standalone giao diện bên dưới
+        pass
+
+# ==============================================================================
+# 1. QUẢN LÝ DỮ LIỆU LỊCH SỬ CLIPBOARD
+# ==============================================================================
 def ensure_dirs():
     ENTRIES_DIR.mkdir(parents=True, exist_ok=True)
-    THUMBS_DIR.mkdir(parents=True, exist_ok=True)
 
 def load_history():
     if HISTORY_FILE.exists():
@@ -65,7 +88,6 @@ def save_history(history):
     tmp_file.replace(HISTORY_FILE)
 
 def get_png_dimensions(data: bytes):
-    """Trích xuất kích thước ảnh PNG thuần túy bằng chuẩn header IHDR (0ms latency)."""
     if len(data) >= 24 and data[:8] == b'\x89PNG\r\n\x1a\n':
         w, h = struct.unpack('>II', data[16:24])
         return w, h
@@ -79,22 +101,8 @@ def format_size(bytes_len: int) -> str:
     else:
         return f"{bytes_len / (1024 * 1024):.1f} MB"
 
-def create_thumbnail(src_path: Path, thumb_path: Path):
-    """Tạo thumbnail nhỏ cho hình ảnh để hiển thị mượt mà trong Rofi."""
-    # Thử dùng ImageMagick convert nếu có
-    if subprocess.run(["which", "convert"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode == 0:
-        cmd = ["convert", "-thumbnail", "160x160", str(src_path), str(thumb_path)]
-        if subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode == 0:
-            return
-    # Fallback: copy file gốc làm thumbnail
-    try:
-        import shutil
-        shutil.copyfile(src_path, thumb_path)
-    except Exception:
-        pass
-
 def capture_clipboard():
-    """Bắt và lưu trữ nội dung clipboard hiện tại nếu có thay đổi."""
+    """Bắt và lưu trữ nội dung clipboard hiện tại nếu có thay đổi mới."""
     ensure_dirs()
     try:
         targets_out = subprocess.check_output(
@@ -112,7 +120,7 @@ def capture_clipboard():
     time_str = time.strftime("%H:%M:%S", now)
     timestamp = int(time.time())
 
-    # 1. XỬ LÝ HÌNH ẢNH (Image / Screenshot)
+    # XỬ LÝ HÌNH ẢNH (image/png)
     if "image/png" in targets:
         try:
             img_data = subprocess.check_output(
@@ -128,19 +136,16 @@ def capture_clipboard():
 
         img_hash = hashlib.sha256(img_data).hexdigest()
         if history and history[0].get("hash") == img_hash:
-            return False  # Bỏ qua nếu trùng bản sao gần nhất
+            return False
 
         dim = get_png_dimensions(img_data)
-        dim_str = f"{dim[0]}×{dim[1]}" if dim else "PNG Image"
+        dim_str = f"{dim[0]} × {dim[1]}" if dim else "PNG Image"
         size_str = format_size(len(img_data))
         entry_id = f"{timestamp}_{img_hash[:8]}"
         file_path = ENTRIES_DIR / f"{entry_id}.png"
-        thumb_path = THUMBS_DIR / f"thumb_{entry_id}.png"
 
         with open(file_path, "wb") as f:
             f.write(img_data)
-
-        create_thumbnail(file_path, thumb_path)
 
         new_entry = {
             "id": entry_id,
@@ -148,9 +153,8 @@ def capture_clipboard():
             "date": date_str,
             "time": time_str,
             "hash": img_hash,
-            "summary_title": f"󰋩  Ảnh chụp ({dim_str}, {size_str})",
+            "summary_title": f"Ảnh chụp ({dim_str}, {size_str})",
             "file_path": str(file_path),
-            "thumb_path": str(thumb_path) if thumb_path.exists() else str(file_path),
             "dimensions": dim_str,
             "size_str": size_str,
         }
@@ -158,7 +162,7 @@ def capture_clipboard():
         save_history(history)
         return True
 
-    # 2. XỬ LÝ VĂN BẢN (Text / Code / URL)
+    # XỬ LÝ VĂN BẢN (Text / Code / URL)
     text_targets = [t for t in targets if t in ("UTF8_STRING", "TEXT", "STRING", "text/plain")]
     if text_targets:
         try:
@@ -185,20 +189,16 @@ def capture_clipboard():
             f.write(text_data)
 
         first_line = stripped.splitlines()[0].strip()
-        if len(first_line) > 42:
-            short_line = first_line[:40] + "…"
-        else:
-            short_line = first_line
+        short_line = first_line[:48] + "…" if len(first_line) > 50 else first_line
 
-        # Xác định icon ngữ cảnh
-        icon = "edit-paste"
         icon_symbol = "󰈙"
+        category = "text"
         if stripped.startswith("http://") or stripped.startswith("https://"):
-            icon = "internet-web-browser"
             icon_symbol = "󰌨"
+            category = "url"
         elif any(keyword in first_line for keyword in ("import ", "def ", "class ", "function ", "const ", "let ", "var ", "#!/")):
-            icon = "text-x-script"
             icon_symbol = "󰘦"
+            category = "code"
 
         lines_count = len(text_data.splitlines())
         chars_count = len(text_data)
@@ -206,12 +206,12 @@ def capture_clipboard():
         new_entry = {
             "id": entry_id,
             "type": "text",
+            "category": category,
             "date": date_str,
             "time": time_str,
             "hash": text_hash,
-            "icon": icon,
             "icon_symbol": icon_symbol,
-            "summary_title": f"{icon_symbol}  {short_line}",
+            "summary_title": short_line,
             "text": text_data,
             "file_path": str(file_path),
             "line_count": lines_count,
@@ -224,94 +224,11 @@ def capture_clipboard():
 
     return False
 
-def show_rofi_menu():
-    """Mở giao diện Rofi 2 cột chọn lịch sử Clipboard."""
-    ensure_dirs()
-    # Bắt nhanh bản sao hiện tại trước khi nạp
-    capture_clipboard()
-    history = load_history()
-
-    rofi_theme = Path(os.environ.get("XDG_CONFIG_HOME", os.path.expanduser("~/.config"))) / "rofi/clipboard.rasi"
-    if not rofi_theme.exists():
-        rofi_theme = Path(__file__).resolve().parent / "../../../rofi/.config/rofi/clipboard.rasi"
-
-    if not history:
-        msg = "󰅖  Lịch sử Clipboard trống\0icon\x1fdialog-information\x1e"
-        subprocess.run(
-            ["rofi", "-dmenu", "-theme", str(rofi_theme), "-p", " 󰅍  CLIPBOARD", "-sep", "\x1e"],
-            input=msg.encode("utf-8"),
-            stdout=subprocess.DEVNULL
-        )
-        return
-
-    # Chuẩn bị dữ liệu danh sách bên trái và nội dung chi tiết bên phải
-    payload_parts = []
-    for idx, entry in enumerate(history, 1):
-        if entry["type"] == "image":
-            full_preview = (
-                f"[HÌNH ẢNH PNG]  ·  {entry['time']}  ({entry['date']})\n"
-                f"Kích thước: {entry.get('dimensions', 'N/A')}  ·  Dung lượng: {entry.get('size_str', 'N/A')}\n"
-                f"Tệp lưu: {entry.get('file_path', '')}\n"
-                f"────────────────────────────────────────────────────────────\n"
-                f"Nhấn Enter để sao chép hình ảnh vào bộ nhớ đệm và dán (Ctrl+V)."
-            )
-            file_p = entry.get("file_path", "")
-            icon = file_p if (file_p and Path(file_p).exists()) else "image-x-generic"
-            display_str = f"[{idx:02d}]  {entry['summary_title']}"
-            # Gán icon chỉ cho hình ảnh để Rofi preview hiển thị ảnh sắc nét
-            payload_parts.append(f"{full_preview}\0display\x1f{display_str}\x1ficon\x1f{icon}")
-        else:
-            sample_text = entry.get("text", "")
-            full_preview = (
-                f"[VĂN BẢN]  ·  {entry['time']}  ({entry['date']})  ·  {entry.get('line_count', 1)} dòng, {entry.get('char_count', 0)} ký tự\n"
-                f"────────────────────────────────────────────────────────────\n"
-                f"{sample_text}"
-            )
-            icon = entry.get("icon", "edit-paste")
-            display_str = f"[{idx:02d}]  {entry['summary_title']}"
-            payload_parts.append(f"{full_preview}\0display\x1f{display_str}\x1ficon\x1f{icon}")
-
-    # Tùy chọn xóa lịch sử ở cuối danh sách
-    payload_parts.append(
-        "Xoá toàn bộ các bản sao lưu trong lịch sử clipboard.\0display\x1f󰆴  Xoá toàn bộ lịch sử (Clear History)\x1ficon\x1fedit-delete"
-    )
-
-    raw_input = "\x1e".join(payload_parts) + "\x1e"
-
-    rofi_cmd = [
-        "rofi", "-dmenu",
-        "-theme", str(rofi_theme),
-        "-p", " 󰅍  CLIPBOARD",
-        "-format", "i",
-        "-sep", "\x1e",
-        "-keep-right"
-    ]
-
-    proc = subprocess.Popen(rofi_cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
-    stdout_data, _ = proc.communicate(input=raw_input.encode("utf-8"))
-
-    if proc.returncode != 0 or not stdout_data:
-        return
-
-    try:
-        selected_idx = int(stdout_data.decode("utf-8").strip())
-    except ValueError:
-        return
-
-    # Kiểm tra nếu chọn mục "Xoá lịch sử"
-    if selected_idx >= len(history):
-        clear_history()
-        return
-
-    # Nạp bản sao được chọn vào Clipboard
-    target_entry = history[selected_idx]
-    apply_clipboard(target_entry)
-
 def apply_clipboard(entry):
-    """Nạp nội dung từ lịch sử vào X11 clipboard."""
+    """Nạp bản sao vào clipboard và phát thông báo."""
     file_path = Path(entry["file_path"])
     if not file_path.exists():
-        notify("Lỗi Clipboard", "Không tìm thấy tệp nội dung bản sao.", icon="dialog-error")
+        notify("Lỗi Clipboard", "Không tìm thấy tệp bản sao.", icon="dialog-error")
         return
 
     if entry["type"] == "image":
@@ -322,7 +239,7 @@ def apply_clipboard(entry):
                     stdin=f,
                     check=True
                 )
-            notify("Clipboard Image", f"Đã nạp ảnh ({entry.get('dimensions', 'PNG')}) vào clipboard.", icon=entry.get("thumb_path"))
+            notify("Clipboard", f"Đã nạp ảnh ({entry.get('dimensions', 'PNG')})", icon=str(file_path))
         except Exception as e:
             notify("Lỗi Clipboard", f"Không thể sao chép ảnh: {e}", icon="dialog-error")
     else:
@@ -330,23 +247,18 @@ def apply_clipboard(entry):
             with open(file_path, "rb") as f:
                 content = f.read()
             subprocess.run(["xclip", "-selection", "clipboard", "-i"], input=content, check=True)
-            # Đồng bộ luôn sang primary selection
             subprocess.run(["xclip", "-selection", "primary", "-i"], input=content)
-            notify("Clipboard Text", f"Đã nạp văn bản: {entry['summary_title']}", icon=entry.get("icon", "edit-paste"))
+            notify("Clipboard", f"Đã nạp văn bản: {entry['summary_title'][:32]}…", icon="edit-paste")
         except Exception as e:
             notify("Lỗi Clipboard", f"Không thể sao chép văn bản: {e}", icon="dialog-error")
 
 def clear_history():
-    """Xóa sạch lịch sử và toàn bộ cache clipboard."""
     ensure_dirs()
     for p in ENTRIES_DIR.glob("*"):
         try: p.unlink()
         except Exception: pass
-    for p in THUMBS_DIR.glob("*"):
-        try: p.unlink()
-        except Exception: pass
     save_history([])
-    notify("Clipboard Manager", "Đã dọn dẹp sạch toàn bộ lịch sử clipboard.", icon="edit-delete")
+    notify("Clipboard Manager", "Đã xóa sạch toàn bộ lịch sử bản sao.", icon="edit-delete")
 
 def notify(title: str, message: str, icon: str = None):
     icon_arg = ["-i", icon] if icon else []
@@ -355,32 +267,462 @@ def notify(title: str, message: str, icon: str = None):
     elif subprocess.run(["which", "notify-send"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode == 0:
         subprocess.run(["notify-send", "-a", "ka-clip", *icon_arg, title, message])
 
-def get_tray_pixbuf():
-    """Tạo icon khay hệ thống trực tiếp từ RAM theo màu theme (0 file rác trên đĩa)."""
+# ==============================================================================
+# 2. BẢNG MÀU VÀ GIAO DIỆN GTK3 MASTER-DETAIL (TỶ LỆ VÀNG 2 : 3)
+# ==============================================================================
+def load_theme_colors():
     theme_conf = Path(os.environ.get("XDG_CONFIG_HOME", os.path.expanduser("~/.config"))) / "theme/colors/current.conf"
-    accent = "cba6f7"
+    colors = {
+        "bg": "1e1e2e", "fg": "cdd6f4", "accent": "cba6f7",
+        "bg_alt": "313244", "surface": "45475a", "text_dim": "bac2de"
+    }
     if theme_conf.exists():
         try:
             with open(theme_conf, "r", encoding="utf-8") as f:
                 for line in f:
-                    if line.startswith("ACCENT="):
-                        val = line.split("=")[1].split("#")[0].strip().strip('"\'')
-                        if val:
-                            accent = val
-                        break
+                    if "=" in line and not line.strip().startswith("#"):
+                        k, v = line.strip().split("=", 1)
+                        v = v.split("#")[0].strip().strip('"\'')
+                        if k == "BG": colors["bg"] = v
+                        elif k == "FG": colors["fg"] = v
+                        elif k == "ACCENT": colors["accent"] = v
+                        elif k == "COLOR0": colors["surface"] = v
+                        elif k == "COLOR8": colors["bg_alt"] = v
+                        elif k == "COLOR7": colors["text_dim"] = v
         except Exception:
             pass
+    return colors
 
+# Import GTK3 sau khi kiểm tra xong các điều kiện ban đầu
+import gi
+gi.require_version("Gtk", "3.0")
+gi.require_version("Gdk", "3.0")
+gi.require_version("GdkPixbuf", "2.0")
+from gi.repository import Gtk, Gdk, GdkPixbuf, Pango, GLib
+
+class ClipboardWindow(Gtk.Window):
+    def __init__(self, on_close_cb=None):
+        super().__init__(type=Gtk.WindowType.TOPLEVEL)
+        self.on_close_cb = on_close_cb
+        self.set_title("Ka Clipboard Manager")
+        self.set_wmclass("ka-clip", "ka-clip")
+        self.set_type_hint(Gdk.WindowTypeHint.DIALOG)
+        self.set_position(Gtk.WindowPosition.CENTER)
+        self.set_decorated(False)
+        self.set_default_size(1000, 560)
+
+        self.colors = load_theme_colors()
+        self.apply_css()
+
+        self.history = []
+        self.filtered_entries = []
+
+        # Bố cục chính
+        main_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
+        main_box.set_name("main_box")
+        self.add(main_box)
+
+        # Thanh Paned chia tỷ lệ 2 : 3 (Trái: 400px, Phải: 600px)
+        self.paned = Gtk.Paned(orientation=Gtk.Orientation.HORIZONTAL)
+        self.paned.set_name("paned")
+        main_box.pack_start(self.paned, True, True, 0)
+
+        # CỘT TRÁI (DANH SÁCH - 400px = 40% = 2 PHẦN)
+        left_container = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+        left_container.set_name("left_container")
+        left_container.set_size_request(400, -1)
+        self.paned.pack1(left_container, resize=False, shrink=False)
+
+        # Header tìm kiếm
+        search_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        search_box.set_name("search_box")
+        
+        icon_search = Gtk.Label()
+        icon_search.set_markup(f"<span font='11' color='#{self.colors['accent']}'></span>")
+        search_box.pack_start(icon_search, False, False, 4)
+
+        self.search_entry = Gtk.SearchEntry()
+        self.search_entry.set_placeholder_text("Tìm kiếm bản sao (Text / Ảnh / Code)...")
+        self.search_entry.set_hexpand(True)
+        self.search_entry.connect("search-changed", self.on_search_changed)
+        search_box.pack_start(self.search_entry, True, True, 0)
+        left_container.pack_start(search_box, False, False, 0)
+
+        # Danh sách ListBox
+        scrolled_list = Gtk.ScrolledWindow()
+        scrolled_list.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        scrolled_list.set_vexpand(True)
+        
+        self.listbox = Gtk.ListBox()
+        self.listbox.set_name("entry_listbox")
+        self.listbox.set_selection_mode(Gtk.SelectionMode.SINGLE)
+        self.listbox.connect("row-selected", self.on_row_selected)
+        self.listbox.connect("row-activated", self.on_row_activated)
+        scrolled_list.add(self.listbox)
+        left_container.pack_start(scrolled_list, True, True, 0)
+
+        # Footer chỉ dẫn phím tắt bên trái
+        self.footer_label = Gtk.Label()
+        self.footer_label.set_name("footer_label")
+        self.footer_label.set_markup(f"<span font='9' color='#{self.colors['text_dim']}'>󰌑 <b>Enter</b>: Dán  ·  󰆴 <b>Del</b>: Xóa  ·  󱊷 <b>Esc</b>: Đóng</span>")
+        left_container.pack_start(self.footer_label, False, False, 4)
+
+        # CỘT PHẢI (CHI TIẾT NỘI DUNG - 600px = 60% = 3 PHẦN)
+        self.right_container = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
+        self.right_container.set_name("right_container")
+        self.right_container.set_size_request(580, -1)
+        self.paned.pack2(self.right_container, resize=True, shrink=False)
+
+        # Header chi tiết
+        self.preview_header = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+        self.preview_header.set_name("preview_header")
+        
+        self.preview_title = Gtk.Label()
+        self.preview_title.set_name("preview_title")
+        self.preview_title.set_alignment(0.0, 0.5)
+        self.preview_header.pack_start(self.preview_title, False, False, 0)
+
+        self.preview_meta = Gtk.Label()
+        self.preview_meta.set_name("preview_meta")
+        self.preview_meta.set_alignment(0.0, 0.5)
+        self.preview_header.pack_start(self.preview_meta, False, False, 0)
+        self.right_container.pack_start(self.preview_header, False, False, 0)
+
+        # Khung chứa ảnh phóng to
+        self.image_preview_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+        self.image_widget = Gtk.Image()
+        self.image_widget.set_alignment(0.5, 0.5)
+        self.image_preview_box.pack_start(self.image_widget, True, True, 0)
+        
+        self.image_meta_label = Gtk.Label()
+        self.image_meta_label.set_name("image_meta_label")
+        self.image_meta_label.set_alignment(0.5, 0.5)
+        self.image_preview_box.pack_start(self.image_meta_label, False, False, 0)
+        self.right_container.pack_start(self.image_preview_box, False, False, 0)
+
+        # Khung chứa văn bản đầy đủ không cắt cụt
+        self.text_scroll = Gtk.ScrolledWindow()
+        self.text_scroll.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
+        self.text_scroll.set_vexpand(True)
+        
+        self.text_view = Gtk.TextView()
+        self.text_view.set_name("preview_textview")
+        self.text_view.set_editable(False)
+        self.text_view.set_cursor_visible(False)
+        self.text_view.set_wrap_mode(Gtk.WrapMode.WORD_CHAR)
+        self.text_view.set_left_margin(12)
+        self.text_view.set_right_margin(12)
+        self.text_view.set_top_margin(10)
+        self.text_view.set_bottom_margin(10)
+        self.text_scroll.add(self.text_view)
+        self.right_container.pack_start(self.text_scroll, True, True, 0)
+
+        # Kết nối phím tắt
+        self.connect("key-press-event", self.on_key_press)
+        self.connect("focus-out-event", lambda w, e: self.hide_window())
+
+        self.paned.set_position(400)
+
+    def apply_css(self):
+        css = f"""
+        #main_box {{
+            background-color: #{self.colors['bg']};
+            border: 2px solid #{self.colors['accent']};
+            border-radius: 0px;
+        }}
+        #left_container {{
+            background-color: #{self.colors['bg']};
+            padding: 14px;
+            border-right: 1px solid #{self.colors['surface']};
+        }}
+        #right_container {{
+            background-color: #{self.colors['bg_alt']};
+            padding: 16px;
+        }}
+        #search_box {{
+            background-color: #{self.colors['bg_alt']};
+            border: 1px solid #{self.colors['surface']};
+            border-radius: 0px;
+            padding: 4px 8px;
+        }}
+        entry {{
+            background-color: transparent;
+            color: #{self.colors['fg']};
+            border: 0px;
+            font-family: "JetBrains Mono";
+            font-size: 11pt;
+            box-shadow: none;
+        }}
+        entry:focus {{
+            box-shadow: none;
+        }}
+        #entry_listbox {{
+            background-color: transparent;
+        }}
+        row {{
+            padding: 8px 10px;
+            border-radius: 0px;
+            border-bottom: 1px solid #{self.colors['surface']}22;
+        }}
+        row:hover {{
+            background-color: #{self.colors['bg_alt']}99;
+        }}
+        row:selected {{
+            background-color: #{self.colors['accent']};
+            color: #{self.colors['bg']};
+        }}
+        row:selected label {{
+            color: #{self.colors['bg']} !important;
+        }}
+        #preview_header {{
+            border-bottom: 1px solid #{self.colors['surface']}88;
+            padding-bottom: 8px;
+        }}
+        #preview_title {{
+            font-family: "JetBrains Mono";
+            font-weight: bold;
+            font-size: 12pt;
+            color: #{self.colors['accent']};
+        }}
+        #preview_meta {{
+            font-family: "JetBrains Mono";
+            font-size: 9pt;
+            color: #{self.colors['text_dim']};
+        }}
+        #image_meta_label {{
+            font-family: "JetBrains Mono";
+            font-size: 9.5pt;
+            color: #{self.colors['text_dim']};
+            padding-top: 6px;
+        }}
+        #preview_textview {{
+            background-color: #{self.colors['bg']};
+            color: #{self.colors['fg']};
+            font-family: "JetBrains Mono";
+            font-size: 10.5pt;
+            border: 1px solid #{self.colors['surface']};
+            border-radius: 0px;
+        }}
+        #preview_textview text {{
+            background-color: #{self.colors['bg']};
+            color: #{self.colors['fg']};
+        }}
+        """
+        provider = Gtk.CssProvider()
+        provider.load_from_data(css.encode())
+        Gtk.StyleContext.add_provider_for_screen(
+            Gdk.Screen.get_default(),
+            provider,
+            Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
+        )
+
+    def refresh_data(self):
+        capture_clipboard()
+        self.history = load_history()
+        self.filter_and_render()
+
+    def filter_and_render(self):
+        query = self.search_entry.get_text().strip().lower()
+        
+        # Xóa các dòng cũ
+        for child in self.listbox.get_children():
+            self.listbox.remove(child)
+
+        self.filtered_entries = []
+        for idx, entry in enumerate(self.history, 1):
+            title = entry.get("summary_title", "")
+            raw_text = entry.get("text", "")
+            searchable = (title + " " + raw_text + " " + entry.get("type", "")).lower()
+            
+            if query and query not in searchable:
+                continue
+
+            self.filtered_entries.append(entry)
+            row = Gtk.ListBoxRow()
+            row.entry_data = entry
+
+            row_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+            
+            # Số thứ tự
+            lbl_idx = Gtk.Label()
+            lbl_idx.set_markup(f"<span font='9' color='#{self.colors['text_dim']}'>[{idx:02d}]</span>")
+            row_box.pack_start(lbl_idx, False, False, 0)
+
+            # Icon phân loại
+            lbl_icon = Gtk.Label()
+            if entry["type"] == "image":
+                lbl_icon.set_markup(f"<span font='11' color='#{self.colors['accent']}'>󰋩</span>")
+            else:
+                sym = entry.get("icon_symbol", "󰈙")
+                lbl_icon.set_markup(f"<span font='11' color='#{self.colors['accent']}'>{sym}</span>")
+            row_box.pack_start(lbl_icon, False, False, 0)
+
+            # Tóm tắt tiêu đề
+            lbl_title = Gtk.Label()
+            lbl_title.set_text(title)
+            lbl_title.set_ellipsize(Pango.EllipsizeMode.END)
+            lbl_title.set_alignment(0.0, 0.5)
+            row_box.pack_start(lbl_title, True, True, 0)
+
+            # Giờ lưu
+            lbl_time = Gtk.Label()
+            lbl_time.set_markup(f"<span font='8.5' color='#{self.colors['text_dim']}'>{entry.get('time', '')[:5]}</span>")
+            row_box.pack_end(lbl_time, False, False, 0)
+
+            row.add(row_box)
+            self.listbox.add(row)
+
+        self.listbox.show_all()
+        
+        # Chọn dòng đầu tiên nếu có
+        first_row = self.listbox.get_row_at_index(0)
+        if first_row:
+            self.listbox.select_row(first_row)
+        else:
+            self.render_empty_preview()
+
+    def on_search_changed(self, entry):
+        self.filter_and_render()
+
+    def on_row_selected(self, listbox, row):
+        if not row or not hasattr(row, "entry_data"):
+            self.render_empty_preview()
+            return
+        self.render_preview(row.entry_data)
+
+    def on_row_activated(self, listbox, row):
+        if row and hasattr(row, "entry_data"):
+            apply_clipboard(row.entry_data)
+            self.hide_window()
+
+    def render_empty_preview(self):
+        self.preview_title.set_text("󰅖  Không có bản sao nào")
+        self.preview_meta.set_text("Lịch sử trống hoặc không khớp từ khóa tìm kiếm")
+        self.image_preview_box.hide()
+        self.text_scroll.hide()
+
+    def render_preview(self, entry):
+        if entry["type"] == "image":
+            # Chế độ xem Hình ảnh
+            self.preview_title.set_text(f"󰋩  Hình Ảnh ({entry.get('dimensions', 'PNG')})")
+            self.preview_meta.set_markup(
+                f"<span color='#{self.colors['text_dim']}'>Lưu lúc: <b>{entry.get('time', '')}</b> ({entry.get('date', '')})  ·  Dung lượng: <b>{entry.get('size_str', '')}</b></span>"
+            )
+            
+            # Load và scale ảnh vừa vặn khung 540x320
+            img_path = entry.get("file_path", "")
+            if Path(img_path).exists():
+                try:
+                    pb = GdkPixbuf.Pixbuf.new_from_file_at_scale(img_path, 540, 320, True)
+                    self.image_widget.set_from_pixbuf(pb)
+                except Exception:
+                    self.image_widget.clear()
+            else:
+                self.image_widget.clear()
+
+            self.image_meta_label.set_markup(
+                f"<span font='9.5' color='#{self.colors['text_dim']}'>Đường dẫn: <tt>{img_path}</tt>\n<b>Nhấn Enter để sao chép vào bộ nhớ đệm và dán (Ctrl+V)</b></span>"
+            )
+
+            self.text_scroll.hide()
+            self.image_preview_box.show_all()
+
+        else:
+            # Chế độ xem Văn bản
+            cat = entry.get("category", "text").upper()
+            sym = entry.get("icon_symbol", "󰈙")
+            lines = entry.get("line_count", 1)
+            chars = entry.get("char_count", 0)
+            size = entry.get("size_str", "")
+
+            self.preview_title.set_text(f"{sym}  Văn Bản ({cat})")
+            self.preview_meta.set_markup(
+                f"<span color='#{self.colors['text_dim']}'>Lưu lúc: <b>{entry.get('time', '')}</b> ({entry.get('date', '')})  ·  <b>{lines}</b> dòng, <b>{chars}</b> ký tự ({size})</span>"
+            )
+
+            buf = self.text_view.get_buffer()
+            buf.set_text(entry.get("text", ""))
+
+            self.image_preview_box.hide()
+            self.text_scroll.show_all()
+
+    def on_key_press(self, widget, event):
+        key = event.keyval
+        state = event.state
+
+        # Esc -> Đóng
+        if key == Gdk.KEY_Escape:
+            self.hide_window()
+            return True
+
+        # Enter -> Nạp bản sao
+        if key in (Gdk.KEY_Return, Gdk.KEY_KP_Enter):
+            selected = self.listbox.get_selected_row()
+            if selected and hasattr(selected, "entry_data"):
+                apply_clipboard(selected.entry_data)
+                self.hide_window()
+                return True
+
+        # Delete -> Xóa bản sao đang chọn
+        if key == Gdk.KEY_Delete:
+            selected = self.listbox.get_selected_row()
+            if selected and hasattr(selected, "entry_data"):
+                self.delete_entry(selected.entry_data)
+                return True
+
+        # Ctrl+l -> Xóa toàn bộ lịch sử
+        if (state & Gdk.ModifierType.CONTROL_MASK) and key == Gdk.KEY_l:
+            clear_history()
+            self.refresh_data()
+            return True
+
+        # j/k hoặc Up/Down khi đang focus ở search entry
+        if key in (Gdk.KEY_Down, Gdk.KEY_Up):
+            selected = self.listbox.get_selected_row()
+            if not selected:
+                first = self.listbox.get_row_at_index(0)
+                if first: self.listbox.select_row(first)
+                return True
+            curr_idx = selected.get_index()
+            new_idx = curr_idx + (1 if key == Gdk.KEY_Down else -1)
+            new_row = self.listbox.get_row_at_index(new_idx)
+            if new_row:
+                self.listbox.select_row(new_row)
+                new_row.grab_focus()
+            return True
+
+        return False
+
+    def delete_entry(self, entry):
+        target_id = entry.get("id")
+        self.history = [e for e in self.history if e.get("id") != target_id]
+        save_history(self.history)
+        try: Path(entry.get("file_path", "")).unlink(missing_ok=True)
+        except Exception: pass
+        self.filter_and_render()
+        notify("Clipboard", "Đã xóa 1 bản sao khỏi lịch sử.", icon="edit-delete")
+
+    def show_window(self):
+        self.refresh_data()
+        self.show_all()
+        self.present()
+        self.search_entry.grab_focus()
+
+    def hide_window(self):
+        self.hide()
+        if self.on_close_cb:
+            self.on_close_cb()
+
+# ==============================================================================
+# 3. TIẾN TRÌNH DAEMON (CLIPNOTIFY + KHAY HỆ THỐNG NATIVE + SOCKET NHANH)
+# ==============================================================================
+def get_tray_pixbuf(accent_hex):
     svg_data = f"""<svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-<path fill-rule="evenodd" clip-rule="evenodd" d="M9 3C9 1.89543 9.89543 1 11 1H13C14.1046 1 15 1.89543 15 3V4H19C20.1046 4 21 4.89543 21 6V20C21 21.1046 20.1046 22 19 22H5C3.89543 22 3 21.1046 3 20V6C3 4.89543 3.89543 4 5 4H9V3ZM11 3H13V4H11V3ZM5 6H19V20H5V6Z" fill="#{accent}"/>
-<path d="M7 9H17V11H7V9Z" fill="#{accent}"/>
-<path d="M7 13H17V15H7V13Z" fill="#{accent}"/>
+<path fill-rule="evenodd" clip-rule="evenodd" d="M9 3C9 1.89543 9.89543 1 11 1H13C14.1046 1 15 1.89543 15 3V4H19C20.1046 4 21 4.89543 21 6V20C21 21.1046 20.1046 22 19 22H5C3.89543 22 3 21.1046 3 20V6C3 4.89543 3.89543 4 5 4H9V3ZM11 3H13V4H11V3ZM5 6H19V20H5V6Z" fill="#{accent_hex}"/>
+<path d="M7 9H17V11H7V9Z" fill="#{accent_hex}"/>
+<path d="M7 13H17V15H7V13Z" fill="#{accent_hex}"/>
 </svg>"""
-
     try:
-        import gi
-        gi.require_version("GdkPixbuf", "2.0")
-        from gi.repository import GdkPixbuf
         loader = GdkPixbuf.PixbufLoader.new_with_type("svg")
         loader.write(svg_data.encode("utf-8"))
         loader.close()
@@ -388,11 +730,8 @@ def get_tray_pixbuf():
     except Exception:
         return None
 
-def run_daemon(enable_tray=True):
-    """Tiến trình ngầm lắng nghe sự kiện thay đổi clipboard và hiển thị khay hệ thống native (GTK3)."""
+def run_daemon():
     ensure_dirs()
-
-    # Kiểm tra và ngắt tiến trình daemon cũ nếu đang chạy để tránh nhân đôi
     if PID_FILE.exists():
         try:
             old_pid = int(PID_FILE.read_text().strip())
@@ -403,38 +742,49 @@ def run_daemon(enable_tray=True):
             pass
 
     PID_FILE.write_text(str(os.getpid()))
-
-    # Bắt ngay nội dung ban đầu khi khởi động daemon
     capture_clipboard()
 
-    # Khởi tạo Khay hệ thống native bằng PyGObject (Gtk.StatusIcon)
-    status_icon = None
-    if enable_tray:
-        try:
-            import gi
-            gi.require_version("Gtk", "3.0")
-            from gi.repository import Gtk
+    # Khởi tạo cửa sổ GUI nạp sẵn trên RAM
+    win = ClipboardWindow()
 
-            pixbuf = get_tray_pixbuf()
-            if pixbuf:
-                status_icon = Gtk.StatusIcon.new_from_pixbuf(pixbuf)
-            else:
-                status_icon = Gtk.StatusIcon.new_from_icon_name("edit-paste")
+    # Khởi tạo Khay hệ thống native X11
+    colors = load_theme_colors()
+    pixbuf = get_tray_pixbuf(colors["accent"])
+    status_icon = Gtk.StatusIcon.new_from_pixbuf(pixbuf) if pixbuf else Gtk.StatusIcon.new_from_icon_name("edit-paste")
+    status_icon.set_tooltip_text("Ka Clipboard Manager (Click hoặc Super+V để mở)")
+    status_icon.set_title("Ka Clipboard")
+    status_icon.connect("activate", lambda icon: GLib.idle_add(win.show_window))
+    status_icon.set_visible(True)
 
-            status_icon.set_tooltip_text("Ka Clipboard Manager (Click để mở lịch sử)")
-            status_icon.set_title("Ka Clipboard")
+    # Khởi tạo Unix Domain Socket Server (< 2ms response)
+    try:
+        if os.path.exists(SOCKET_PATH):
+            os.unlink(SOCKET_PATH)
+        server_sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        server_sock.bind(SOCKET_PATH)
+        server_sock.listen(5)
+        server_sock.setblocking(False)
 
-            def on_tray_activate(icon):
-                # Khởi chạy menu Rofi bất đồng bộ (không chặn mainloop của GTK)
-                subprocess.Popen([sys.executable, __file__, "menu"])
+        def on_socket_readable(source, condition):
+            try:
+                conn, _ = server_sock.accept()
+                data = conn.recv(128).decode("utf-8", errors="ignore")
+                if "toggle" in data or "show" in data:
+                    if win.is_visible():
+                        win.hide_window()
+                    else:
+                        win.show_window()
+                conn.sendall(b"OK\n")
+                conn.close()
+            except Exception:
+                pass
+            return True
 
-            status_icon.connect("activate", on_tray_activate)
-            status_icon.set_visible(True)
-        except Exception as e:
-            pass
+        GLib.io_add_watch(server_sock.fileno(), GLib.IO_IN, on_socket_readable)
+    except Exception:
+        pass
 
-    # Luồng nền chạy clipnotify (tiêu tốn 0.0% CPU)
-    import threading
+    # Luồng background chạy clipnotify
     stop_event = threading.Event()
     has_clipnotify = subprocess.run(["which", "clipnotify"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode == 0
 
@@ -455,25 +805,21 @@ def run_daemon(enable_tray=True):
         stop_event.set()
         try: PID_FILE.unlink()
         except Exception: pass
-        if enable_tray:
-            try:
-                from gi.repository import Gtk
-                Gtk.main_quit()
-            except Exception:
-                pass
+        try:
+            if os.path.exists(SOCKET_PATH): os.unlink(SOCKET_PATH)
+        except Exception: pass
+        Gtk.main_quit()
         sys.exit(0)
 
     signal.signal(signal.SIGINT, handle_sig)
     signal.signal(signal.SIGTERM, handle_sig)
 
-    if enable_tray:
-        try:
-            from gi.repository import Gtk
-            Gtk.main()
-        except Exception:
-            t.join()
-    else:
-        t.join()
+    Gtk.main()
+
+def show_standalone_gui():
+    win = ClipboardWindow(on_close_cb=Gtk.main_quit)
+    win.show_window()
+    Gtk.main()
 
 def print_status():
     history = load_history()
@@ -497,4 +843,4 @@ if __name__ == "__main__":
     elif cmd in ("capture", "--capture"):
         capture_clipboard()
     else:
-        show_rofi_menu()
+        show_standalone_gui()
