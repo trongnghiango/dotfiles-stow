@@ -164,6 +164,7 @@ static const Rule rules[] = {
 	RULE(.instance = "webcam-pip", .title = "webcam-pip", .isfloating = 1, .isbottomright = 1)
 	RULE(.class = "dwm-dropdown", .isfloating = 1, .isdropdown = 1)
 	RULE(.instance = "dwm-dropdown", .isfloating = 1, .isdropdown = 1)
+	RULE(.title = "ka-clip", .isfloating = 1)
 	RULE(.class = "ka-clip", .isfloating = 1)
 	RULE(.instance = "ka-clip", .isfloating = 1)
 	RULE(.class = "Gimp", .tags = 1 << 4)

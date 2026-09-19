@@ -1671,6 +1671,14 @@ manage(Window w, XWindowAttributes *wa)
 	} else if (c->isbottomright || strstr(c->name, "webcam-pip")) {
 		c->x = c->mon->wx + c->mon->ww - WIDTH(c) - 15;
 		c->y = c->mon->wy + c->mon->wh - HEIGHT(c) - 15;
+	} else if (strstr(c->name, "ka-clip")) {
+		c->isfloating = 1;
+		int nw = MIN(1000, c->mon->ww - 40);
+		int nh = MIN(560, c->mon->wh - 40);
+		c->w = nw;
+		c->h = nh;
+		c->x = c->mon->wx + (c->mon->ww - nw) / 2;
+		c->y = c->mon->wy + (c->mon->wh - nh) / 2;
 	} else {
 		c->x = c->mon->wx + (c->mon->ww - WIDTH(c)) / 2;
 		c->y = c->mon->wy + (c->mon->wh - HEIGHT(c)) / 2;
@@ -1682,7 +1690,9 @@ manage(Window w, XWindowAttributes *wa)
 	XSelectInput(dpy, w, EnterWindowMask|FocusChangeMask|PropertyChangeMask|StructureNotifyMask);
 	grabbuttons(c, 0);
 
-	if (!c->isfloating)
+	if (strstr(c->name, "ka-clip"))
+		c->isfloating = 1;
+	else if (!c->isfloating)
 		c->isfloating = c->oldstate = trans != None || c->isfixed;
 	if (c->isfloating) {
 		XRaiseWindow(dpy, c->win);
