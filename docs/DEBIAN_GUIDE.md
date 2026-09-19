@@ -71,5 +71,6 @@ Lệnh này sẽ kiểm tra:
 - [ ] DWM 6.8 hiển thị đầy đủ tags, icon bàn tay tương tác `XC_hand2`.
 - [ ] Phím tắt mở cửa sổ nổi ở tâm `Super + Shift + Space` và Fullscreen `Super + F` hoạt động chuẩn xác.
 - [ ] Các thẻ popup `ka pop <module>` (volume, clock, battery, cpu, mem, net, forecast) phản hồi < 2ms qua socket daemon.
+- [ ] Trình chọn ứng dụng mặc định một chạm `ka default` (`Super + Ctrl + D`) mở giao diện Rofi mượt mà.
 - [ ] Bộ gõ tiếng Việt Fcitx5 hoạt động ổn định trên cả terminal `st` lẫn ứng dụng GTK.
 - [ ] Khi mọi thứ đã ổn định, merge `feature/debian-support` vào `main`.
