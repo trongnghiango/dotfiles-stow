@@ -89,7 +89,8 @@
 ### Bộ Lệnh Hợp Nhất Hệ Thống (`ka`) & Trích Xuất Chữ OCR (`ka-ocr`)
 - **Unified CLI (`ka`)**:
   - Quản lý toàn bộ cấu hình, theme, DNS, popover và chẩn đoán hệ thống thông qua 1 điểm vào duy nhất.
-  - Hỗ trợ `ka doctor` (quét kiểm tra toàn bộ 15 thành phần cốt lõi của máy), `ka dev [setup|status|update]` (quản lý Node, Python, Rust, Go, PNPM, Bun qua Mise).
+  - Hỗ trợ `ka doctor` (quét kiểm tra toàn bộ 16 thành phần cốt lõi của máy), `ka dev [setup|status|update]` (quản lý Node, Python, Rust, Go, PNPM, Bun qua Mise).
+  - Hỗ trợ `ka default [show|set]` và giao diện Rofi một chạm `Super + Ctrl + D` (học hỏi từ DHH & Chris Titus: chuyển đổi tức thì trình duyệt, trình soạn thảo, file manager, PDF, image, video, terminal mà không chạm vào cấu hình text).
 - **Instant In-Memory OCR (`ka-ocr`)**:
   - Kích hoạt qua phím tắt **`Super + Alt + T`** hoặc lệnh `ka ocr`.
   - Quét vùng màn hình qua `slop` $\rightarrow$ chụp ảnh raw stdout qua `maim` $\rightarrow$ bóc tách chữ qua `tesseract` (song ngữ Anh-Việt) $\rightarrow$ đưa thẳng vào Clipboard và phát thông báo qua `dunstify` (không ghi bất kỳ file rác nào ra đĩa SSD).
@@ -155,6 +156,7 @@
 | **`Super + Ctrl + T`** | Popover CPU | Bật/tắt thẻ CPU, nhiệt độ, quạt & top processes |
 | **`Super + Ctrl + M`** | Popover Memory | Bật/tắt thẻ RAM, Swap & top processes |
 | **`Super + Ctrl + F`** | Popover Forecast | Bật/tắt thẻ thời tiết khí quyển |
+| **`Super + Ctrl + D`** | Default Handlers | Bật/tắt menu chọn ứng dụng mặc định một chạm |
 | **`Super + Alt + T`** | Instant Screen OCR | Quét vùng màn hình bóc tách chữ vào Clipboard |
 | **`Super + Shift + Q`** | Đăng xuất DWM | Thoát về TTY1 |
 | **`Super + F5`** | Nạp lại Xresources | DWM reload bảng màu |

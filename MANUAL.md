@@ -177,7 +177,29 @@ Lấy cảm hứng từ tính năng `omarchy-capture-text` của DHH:
 
 ---
 
-## 9. BẢO TRÌ, CHẨN ĐOÁN & KHẮC PHỤC SỰ CỐ
+## 9. TRÌNH CHỌN ỨNG DỤNG MẶC ĐỊNH MỘT CHẠM (`ka default`)
+
+Được thiết kế dựa trên ý tưởng tâm đắc nhất mà **Chris Titus** học hỏi từ **Omarchy**:
+- **Khó khăn truyền thống**: Thay đổi ứng dụng mặc định trong Tiling Window Manager là một trải nghiệm phức tạp (phải sửa tay file `~/.config/mimeapps.list` hoặc nhớ các lệnh `xdg-mime` rườm rà).
+- **Trải nghiệm đỉnh cao của `ka default`**:
+  - Bấm phím tắt **`Super + Ctrl + D`** (hoặc gõ `ka default`): Một cửa sổ Rofi thanh mảnh tỉ lệ vàng 600px hiện lên ở tâm màn hình.
+  - Hiển thị danh mục trực quan kèm ứng dụng đang kích hoạt:
+    - 󰈹 **Web Browser**: Brave, Chromium, Firefox, Chrome...
+    - 󰈙 **Text Editor**: Neovim (Terminal st), VS Code, Gedit, Mousepad...
+    - 󰉋 **File Manager**: LF (Terminal st), Thunar, PCManFM, Nautilus...
+    - 󰈦 **PDF Document**: Zathura, Evince, MuPDF...
+    - 󰋩 **Image Viewer**: Nsxiv, Imv, Feh, Viewnior...
+    - 󰕼 **Video Player**: MPV, VLC, Celluloid...
+    - 󰎆 **Audio Player**: MPV, ncmpcpp, Audacious...
+    - 󰆍 **Terminal Emulator**: st (Native C), Alacritty, Foot, Kitty...
+  - **Click chọn ứng dụng**: Tự động cập nhật `mimeapps.list`, đồng bộ biến môi trường (`$BROWSER`, `$EDITOR`, `$TERMINAL`) và phát thông báo tức thì qua Dunst.
+  - **Hỗ trợ Dòng lệnh (CLI Automation)**:
+    - `ka default show` — Xem bảng tổng quan các ứng dụng mặc định hiện tại.
+    - `ka default set <phân_loại> <ứng_dụng>` — Gán nhanh bằng lệnh script (ví dụ: `ka default set browser brave`).
+
+---
+
+## 10. BẢO TRÌ, CHẨN ĐOÁN & KHẮC PHỤC SỰ CỐ
 
 ### A. Kiểm Tra Sức Khỏe Toàn Diện Hệ Thống
 Bất cứ khi nào bạn cảm thấy hệ thống có vấn đề, chỉ cần chạy:

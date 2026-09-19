@@ -1,0 +1,681 @@
+#!/usr/bin/env bash
+# ==============================================================================
+# ka-default — Unified Default Applications & Handlers Selector
+# Triết lý: Kết hợp sự tinh tế thẩm mỹ của DHH (Omarchy) và tốc độ thực dụng,
+# đa distro của Chris Titus (X11/DWM, Arch/Debian/Void/NixOS).
+#
+# Sử dụng:
+#   ka default                    Mở giao diện Rofi tương tác (Stage 1 & 2)
+#   ka default show               Hiển thị bảng ứng dụng mặc định hiện tại trên CLI
+#   ka default set <loại> <app>   Thiết lập ứng dụng mặc định bằng dòng lệnh
+#   ka default --help             Hiển thị hướng dẫn sử dụng
+# ==============================================================================
+
+set -euo pipefail
+
+ROFI_THEME="${XDG_CONFIG_HOME:-$HOME/.config}/rofi/handlers.rasi"
+[ ! -f "$ROFI_THEME" ] && ROFI_THEME="${XDG_CONFIG_HOME:-$HOME/.config}/rofi/launcher.rasi"
+PROFILE_LOCAL="${XDG_CONFIG_HOME:-$HOME/.config}/shell/profile.local"
+
+# Danh sách thư mục chứa .desktop chuẩn XDG
+DESKTOP_DIRS=(
+  "${XDG_DATA_HOME:-$HOME/.local/share}/applications"
+  "/usr/local/share/applications"
+  "/usr/share/applications"
+  "/var/lib/flatpak/exports/share/applications"
+  "${XDG_DATA_HOME:-$HOME/.local/share}/flatpak/exports/share/applications"
+)
+
+# ------------------------------------------------------------------------------
+# 1. METADATA VÀ ĐỊNH NGHĨA PHÂN LOẠI ỨNG DỤNG
+# ------------------------------------------------------------------------------
+CATEGORIES=(browser editor filemanager pdf image video audio terminal)
+
+category_label() {
+  case "$1" in
+    browser)     echo "Web Browser" ;;
+    editor)      echo "Text Editor" ;;
+    filemanager) echo "File Manager" ;;
+    pdf)         echo "PDF Document" ;;
+    image)       echo "Image Viewer" ;;
+    video)       echo "Video Player" ;;
+    audio)       echo "Audio Player" ;;
+    terminal)    echo "Terminal Emulator" ;;
+    *)           echo "$1" ;;
+  esac
+}
+
+category_icon() {
+  case "$1" in
+    browser)     echo "󰈹" ;;
+    editor)      echo "󰈙" ;;
+    filemanager) echo "󰉋" ;;
+    pdf)         echo "󰈦" ;;
+    image)       echo "󰋩" ;;
+    video)       echo "󰕼" ;;
+    audio)       echo "󰎆" ;;
+    terminal)    echo "󰆍" ;;
+    *)           echo "" ;;
+  esac
+}
+
+category_rofi_icon() {
+  case "$1" in
+    browser)     echo "internet-web-browser" ;;
+    editor)      echo "accessories-text-editor" ;;
+    filemanager) echo "system-file-manager" ;;
+    pdf)         echo "application-pdf" ;;
+    image)       echo "image-x-generic" ;;
+    video)       echo "video-x-generic" ;;
+    audio)       echo "audio-x-generic" ;;
+    terminal)    echo "utilities-terminal" ;;
+    *)           echo "preferences-desktop-default-applications" ;;
+  esac
+}
+
+category_mimes() {
+  case "$1" in
+    browser)
+      echo "x-scheme-handler/http x-scheme-handler/https text/html application/xhtml+xml application/x-extension-htm application/x-extension-html application/x-extension-shtml"
+      ;;
+    editor)
+      echo "text/plain text/markdown text/x-shellscript application/x-shellscript text/x-c text/x-c++ text/x-python application/json application/xml text/x-makefile"
+      ;;
+    filemanager)
+      echo "inode/directory"
+      ;;
+    pdf)
+      echo "application/pdf application/postscript"
+      ;;
+    image)
+      echo "image/png image/jpeg image/gif image/webp image/bmp image/svg+xml image/tiff"
+      ;;
+    video)
+      echo "video/mp4 video/x-matroska video/webm video/x-msvideo video/quicktime video/mpeg video/ogg"
+      ;;
+    audio)
+      echo "audio/mpeg audio/flac audio/ogg audio/wav audio/mp4"
+      ;;
+    *)
+      echo ""
+      ;;
+  esac
+}
+
+category_primary_mime() {
+  case "$1" in
+    browser)     echo "x-scheme-handler/https" ;;
+    editor)      echo "text/plain" ;;
+    filemanager) echo "inode/directory" ;;
+    pdf)         echo "application/pdf" ;;
+    image)       echo "image/png" ;;
+    video)       echo "video/mp4" ;;
+    audio)       echo "audio/mpeg" ;;
+    *)           echo "" ;;
+  esac
+}
+
+# ------------------------------------------------------------------------------
+# 2. HÀM TÌM KIẾM VÀ TRÍCH XUẤT THÔNG TIN .DESKTOP
+# ------------------------------------------------------------------------------
+find_desktop_file() {
+  local target="$1"
+  for dir in "${DESKTOP_DIRS[@]}"; do
+    if [ -f "$dir/$target" ]; then
+      echo "$dir/$target"
+      return 0
+    fi
+  done
+  return 1
+}
+
+get_desktop_name() {
+  local file_or_name="$1"
+  local filepath=""
+  if [ -f "$file_or_name" ]; then
+    filepath="$file_or_name"
+  else
+    filepath="$(find_desktop_file "$file_or_name" || true)"
+  fi
+
+  if [ -n "$filepath" ] && [ -f "$filepath" ]; then
+    local basename
+    basename="$(basename "$filepath")"
+    case "$basename" in
+      text.desktop)  echo "Neovim (Terminal st)" ; return 0 ;;
+      file.desktop)  echo "LF File Manager (Terminal st)" ; return 0 ;;
+      img.desktop)   echo "Nsxiv (Native Viewer)" ; return 0 ;;
+      pdf.desktop)   echo "Zathura (Native Reader)" ; return 0 ;;
+      video.desktop) echo "MPV (Native Player)" ; return 0 ;;
+    esac
+
+    local name
+    name="$(grep -m1 '^Name=' "$filepath" 2>/dev/null | cut -d= -f2- || true)"
+    if [ -n "$name" ]; then
+      echo "$name"
+      return 0
+    fi
+  fi
+
+  # Fallback
+  echo "$file_or_name"
+}
+
+get_desktop_icon() {
+  local file_or_name="$1"
+  local fallback="$2"
+  local filepath=""
+  if [ -f "$file_or_name" ]; then
+    filepath="$file_or_name"
+  else
+    filepath="$(find_desktop_file "$file_or_name" || true)"
+  fi
+
+  if [ -n "$filepath" ] && [ -f "$filepath" ]; then
+    local icon
+    icon="$(grep -m1 '^Icon=' "$filepath" 2>/dev/null | cut -d= -f2- || true)"
+    [ -n "$icon" ] && echo "$icon" && return 0
+  fi
+  echo "$fallback"
+}
+
+get_current_handler() {
+  local cat="$1"
+  if [ "$cat" = "terminal" ]; then
+    local term="${TERMINAL:-}"
+    if [ -z "$term" ] && [ -f "$PROFILE_LOCAL" ]; then
+      term="$(grep -E '^export TERMINAL=' "$PROFILE_LOCAL" 2>/dev/null | cut -d= -f2 | tr -d '"'\'' ' || true)"
+    fi
+    [ -z "$term" ] && term="st"
+    echo "$term"
+    return 0
+  fi
+
+  local primary_mime
+  primary_mime="$(category_primary_mime "$cat")"
+  if [ -z "$primary_mime" ]; then
+    echo "unknown"
+    return 0
+  fi
+
+  local default_app
+  default_app="$(xdg-mime query default "$primary_mime" 2>/dev/null || true)"
+  echo "${default_app:-unassigned}"
+}
+
+# ------------------------------------------------------------------------------
+# 3. QUÉT VÀ THU THẬP DANH SÁCH ỨNG DỤNG CÓ SẴN CHO TỪNG PHÂN LOẠI
+# ------------------------------------------------------------------------------
+get_candidates() {
+  local cat="$1"
+  local candidates=()
+
+  case "$cat" in
+    browser)
+      local known=(
+        "brave-browser.desktop"
+        "chromium.desktop"
+        "firefox.desktop"
+        "firefox-esr.desktop"
+        "google-chrome.desktop"
+        "zen-browser.desktop"
+        "microsoft-edge.desktop"
+        "opera.desktop"
+        "vivaldi-stable.desktop"
+      )
+      for d in "${known[@]}"; do
+        [ -n "$(find_desktop_file "$d")" ] && candidates+=("$d")
+      done
+
+      # Dynamic search for other web browsers
+      for dir in "${DESKTOP_DIRS[@]}"; do
+        [ ! -d "$dir" ] && continue
+        for f in "$dir"/*.desktop; do
+          [ ! -f "$f" ] && continue
+          local bn="$(basename "$f")"
+          [[ " ${candidates[*]} " =~ " ${bn} " ]] && continue
+          if grep -q "Categories=.*WebBrowser" "$f" 2>/dev/null; then
+            candidates+=("$bn")
+          fi
+        done
+      done
+      ;;
+
+    editor)
+      local known=(
+        "text.desktop"
+        "nvim.desktop"
+        "code.desktop"
+        "code-oss.desktop"
+        "codium.desktop"
+        "sublime_text.desktop"
+        "org.gnome.gedit.desktop"
+        "gedit.desktop"
+        "mousepad.desktop"
+        "emacs.desktop"
+        "kate.desktop"
+      )
+      for d in "${known[@]}"; do
+        [ -n "$(find_desktop_file "$d")" ] && candidates+=("$d")
+      done
+
+      for dir in "${DESKTOP_DIRS[@]}"; do
+        [ ! -d "$dir" ] && continue
+        for f in "$dir"/*.desktop; do
+          [ ! -f "$f" ] && continue
+          local bn="$(basename "$f")"
+          [[ " ${candidates[*]} " =~ " ${bn} " ]] && continue
+          if grep -q "Categories=.*TextEditor" "$f" 2>/dev/null; then
+            candidates+=("$bn")
+          fi
+        done
+      done
+      ;;
+
+    filemanager)
+      local known=(
+        "file.desktop"
+        "thunar.desktop"
+        "pcmanfm.desktop"
+        "org.gnome.Nautilus.desktop"
+        "nautilus.desktop"
+        "nemo.desktop"
+        "org.kde.dolphin.desktop"
+        "dolphin.desktop"
+        "ranger.desktop"
+      )
+      for d in "${known[@]}"; do
+        [ -n "$(find_desktop_file "$d")" ] && candidates+=("$d")
+      done
+
+      for dir in "${DESKTOP_DIRS[@]}"; do
+        [ ! -d "$dir" ] && continue
+        for f in "$dir"/*.desktop; do
+          [ ! -f "$f" ] && continue
+          local bn="$(basename "$f")"
+          [[ " ${candidates[*]} " =~ " ${bn} " ]] && continue
+          if grep -q "Categories=.*FileManager" "$f" 2>/dev/null; then
+            candidates+=("$bn")
+          fi
+        done
+      done
+      ;;
+
+    pdf)
+      local known=(
+        "pdf.desktop"
+        "org.pwmt.zathura.desktop"
+        "zathura.desktop"
+        "evince.desktop"
+        "org.gnome.Evince.desktop"
+        "mupdf.desktop"
+        "okularApplication_pdf.desktop"
+        "org.kde.okular.desktop"
+        "xreader.desktop"
+      )
+      for d in "${known[@]}"; do
+        [ -n "$(find_desktop_file "$d")" ] && candidates+=("$d")
+      done
+
+      for dir in "${DESKTOP_DIRS[@]}"; do
+        [ ! -d "$dir" ] && continue
+        for f in "$dir"/*.desktop; do
+          [ ! -f "$f" ] && continue
+          local bn="$(basename "$f")"
+          [[ " ${candidates[*]} " =~ " ${bn} " ]] && continue
+          if grep -q "MimeType=.*application/pdf" "$f" 2>/dev/null; then
+            candidates+=("$bn")
+          fi
+        done
+      done
+      ;;
+
+    image)
+      local known=(
+        "img.desktop"
+        "nsxiv.desktop"
+        "imv.desktop"
+        "imv-folder.desktop"
+        "feh.desktop"
+        "sxiv.desktop"
+        "ristretto.desktop"
+        "org.gnome.eog.desktop"
+        "eog.desktop"
+        "viewnior.desktop"
+      )
+      for d in "${known[@]}"; do
+        [ -n "$(find_desktop_file "$d")" ] && candidates+=("$d")
+      done
+
+      for dir in "${DESKTOP_DIRS[@]}"; do
+        [ ! -d "$dir" ] && continue
+        for f in "$dir"/*.desktop; do
+          [ ! -f "$f" ] && continue
+          local bn="$(basename "$f")"
+          [[ " ${candidates[*]} " =~ " ${bn} " ]] && continue
+          if grep -q "MimeType=.*image/png" "$f" 2>/dev/null; then
+            candidates+=("$bn")
+          fi
+        done
+      done
+      ;;
+
+    video)
+      local known=(
+        "video.desktop"
+        "mpv.desktop"
+        "vlc.desktop"
+        "io.github.celluloid_player.Celluloid.desktop"
+        "celluloid.desktop"
+        "smplayer.desktop"
+      )
+      for d in "${known[@]}"; do
+        [ -n "$(find_desktop_file "$d")" ] && candidates+=("$d")
+      done
+
+      for dir in "${DESKTOP_DIRS[@]}"; do
+        [ ! -d "$dir" ] && continue
+        for f in "$dir"/*.desktop; do
+          [ ! -f "$f" ] && continue
+          local bn="$(basename "$f")"
+          [[ " ${candidates[*]} " =~ " ${bn} " ]] && continue
+          if grep -q "MimeType=.*video/mp4" "$f" 2>/dev/null; then
+            candidates+=("$bn")
+          fi
+        done
+      done
+      ;;
+
+    audio)
+      local known=(
+        "mpv.desktop"
+        "vlc.desktop"
+        "audacious.desktop"
+        "rhythmbox.desktop"
+        "org.gnome.Music.desktop"
+      )
+      for d in "${known[@]}"; do
+        [ -n "$(find_desktop_file "$d")" ] && candidates+=("$d")
+      done
+      ;;
+
+    terminal)
+      local terms=(st alacritty foot kitty wezterm xterm)
+      for t in "${terms[@]}"; do
+        command -v "$t" &>/dev/null && candidates+=("$t")
+      done
+      ;;
+  esac
+
+  echo "${candidates[@]}"
+}
+
+# ------------------------------------------------------------------------------
+# 4. THIẾT LẬP ỨNG DỤNG MẶC ĐỊNH (APPLY HANDLER)
+# ------------------------------------------------------------------------------
+apply_handler() {
+  local cat="$1"
+  local app="$2"
+  local cat_name
+  cat_name="$(category_label "$cat")"
+
+  if [ "$cat" = "terminal" ]; then
+    mkdir -p "$(dirname "$PROFILE_LOCAL")"
+    touch "$PROFILE_LOCAL"
+    sed -i '/export TERMINAL=/d;/export TERMINAL_PROG=/d' "$PROFILE_LOCAL"
+    echo "export TERMINAL=\"$app\"" >> "$PROFILE_LOCAL"
+    echo "export TERMINAL_PROG=\"$app\"" >> "$PROFILE_LOCAL"
+    export TERMINAL="$app"
+    export TERMINAL_PROG="$app"
+
+    # Gửi thông báo
+    local notif_icon="utilities-terminal"
+    if command -v dunstify &>/dev/null; then
+      dunstify -a "ka-default" -i "$notif_icon" -r 9942 \
+        "Default Applications" "<b>$cat_name</b>: Đã đặt <b>$app</b> làm mặc định"
+    elif command -v notify-send &>/dev/null; then
+      notify-send -a "ka-default" -i "$notif_icon" \
+        "Default Applications" "$cat_name: Đã đặt $app làm mặc định"
+    fi
+    return 0
+  fi
+
+  # Cập nhật MIME types qua xdg-mime
+  local mimes
+  mimes="$(category_mimes "$cat")"
+  for m in $mimes; do
+    xdg-mime default "$app" "$m" 2>/dev/null || true
+  done
+
+  # Đồng bộ biến môi trường tương ứng trong profile.local
+  mkdir -p "$(dirname "$PROFILE_LOCAL")"
+  touch "$PROFILE_LOCAL"
+  if [ "$cat" = "browser" ]; then
+    local bin_hint="${app%%.*}"
+    bin_hint="${bin_hint%%-browser}"
+    sed -i '/export BROWSER=/d' "$PROFILE_LOCAL"
+    echo "export BROWSER=\"$bin_hint\"" >> "$PROFILE_LOCAL"
+  elif [ "$cat" = "editor" ]; then
+    if [[ "$app" =~ ^(text\.desktop|nvim\.desktop)$ ]]; then
+      sed -i '/export EDITOR=/d;/export VISUAL=/d' "$PROFILE_LOCAL"
+      echo "export EDITOR=\"nvim\"" >> "$PROFILE_LOCAL"
+      echo "export VISUAL=\"nvim\"" >> "$PROFILE_LOCAL"
+    elif [[ "$app" =~ ^(code\.desktop|code-oss\.desktop|codium\.desktop)$ ]]; then
+      sed -i '/export EDITOR=/d;/export VISUAL=/d' "$PROFILE_LOCAL"
+      echo "export EDITOR=\"code\"" >> "$PROFILE_LOCAL"
+      echo "export VISUAL=\"code\"" >> "$PROFILE_LOCAL"
+    fi
+  fi
+
+  local app_display
+  app_display="$(get_desktop_name "$app")"
+  local notif_icon
+  notif_icon="$(get_desktop_icon "$app" "$(category_rofi_icon "$cat")")"
+
+  if command -v dunstify &>/dev/null; then
+    dunstify -a "ka-default" -i "$notif_icon" -r 9942 \
+      "Default Applications" "<b>$cat_name</b>: Đã đặt <b>$app_display</b> làm mặc định"
+  elif command -v notify-send &>/dev/null; then
+    notify-send -a "ka-default" -i "$notif_icon" \
+      "Default Applications" "$cat_name: Đã đặt $app_display làm mặc định"
+  fi
+}
+
+# ------------------------------------------------------------------------------
+# 5. GIAO DIỆN ROFI (STAGE 1: CATEGORY SELECTION & STAGE 2: APP SELECTION)
+# ------------------------------------------------------------------------------
+rofi_stage2_app() {
+  local cat="$1"
+  local cat_name
+  cat_name="$(category_label "$cat")"
+  local current_app
+  current_app="$(get_current_handler "$cat")"
+
+  local raw_candidates
+  raw_candidates="$(get_candidates "$cat")"
+  local candidates=($raw_candidates)
+
+  if [ ${#candidates[@]} -eq 0 ]; then
+    printf "󰅖  Không tìm thấy ứng dụng nào cho %s\0icon\x1fdialog-warning\n󰁞  Quay lại (Back)\0icon\x1fgo-previous\n" | \
+      rofi -dmenu -theme "$ROFI_THEME" -p " $(category_icon "$cat")  $cat_name" >/dev/null || true
+    return 0
+  fi
+
+  local menu_items=""
+  for app in "${candidates[@]}"; do
+    local disp_name
+    if [ "$cat" = "terminal" ]; then
+      disp_name="$app"
+      [ "$app" = "st" ] && disp_name="Simple Terminal (st - Native C)"
+      [ "$app" = "alacritty" ] && disp_name="Alacritty (GPU Accelerated)"
+      [ "$app" = "foot" ] && disp_name="Foot Terminal"
+      [ "$app" = "kitty" ] && disp_name="Kitty Terminal"
+    else
+      disp_name="$(get_desktop_name "$app")"
+    fi
+
+    local icon
+    icon="$(get_desktop_icon "$app" "$(category_rofi_icon "$cat")")"
+
+    local prefix="[ ]"
+    if [ "$app" = "$current_app" ]; then
+      prefix="[✓]"
+    fi
+
+    menu_items+="${prefix}  ${disp_name}  <!-- ${app} -->\0icon\x1f${icon}\n"
+  done
+  menu_items+="───────────────────────────────────────────────\0nonselectable\x1ftrue\n"
+  menu_items+="󰁞  Quay lại (Back)\0icon\x1fgo-previous\n"
+
+  local chosen
+  chosen="$(printf "%b" "$menu_items" | rofi -dmenu -theme "$ROFI_THEME" -p " $(category_icon "$cat")  $cat_name" || true)"
+
+  [ -z "$chosen" ] && return 0
+  [[ "$chosen" =~ "Quay lại" ]] && return 0
+
+  if [[ "$chosen" =~ \<\!--\ ([^>]+)\ --\> ]]; then
+    local selected_app="${BASH_REMATCH[1]}"
+    apply_handler "$cat" "$selected_app"
+  fi
+}
+
+rofi_stage1_main() {
+  while true; do
+    local menu_items=""
+    for cat in "${CATEGORIES[@]}"; do
+      local label
+      label="$(category_label "$cat")"
+      local icon
+      icon="$(category_icon "$cat")"
+      local rofi_icon
+      rofi_icon="$(category_rofi_icon "$cat")"
+      local current_raw
+      current_raw="$(get_current_handler "$cat")"
+      local current_disp
+      if [ "$cat" = "terminal" ]; then
+        current_disp="$current_raw"
+      else
+        current_disp="$(get_desktop_name "$current_raw")"
+      fi
+
+      # Format cột căn đều
+      local item_line
+      item_line="$(printf "%-2s  %-20s →  %s  <!-- %s -->" "$icon" "$label" "$current_disp" "$cat")"
+      menu_items+="${item_line}\0icon\x1f${rofi_icon}\n"
+    done
+    menu_items+="───────────────────────────────────────────────\0nonselectable\x1ftrue\n"
+    menu_items+="󰅖  Thoát (Exit)\0icon\x1fapplication-exit\n"
+
+    local selected
+    selected="$(printf "%b" "$menu_items" | rofi -dmenu -theme "$ROFI_THEME" -p " 󰀻  DEFAULT APPS" || true)"
+
+    [ -z "$selected" ] && break
+    [[ "$selected" =~ "Thoát" ]] && break
+
+    if [[ "$selected" =~ \<\!--\ ([^>]+)\ --\> ]]; then
+      local cat_selected="${BASH_REMATCH[1]}"
+      rofi_stage2_app "$cat_selected"
+    else
+      break
+    fi
+  done
+}
+
+# ------------------------------------------------------------------------------
+# 6. CHẾ ĐỘ DÒNG LỆNH (CLI TABLE & SCRIPTABLE SET)
+# ------------------------------------------------------------------------------
+cli_show() {
+  echo -e "\033[1m\033[36mDANH SÁCH ỨNG DỤNG MẶC ĐỊNH HIỆN TẠI (XDG DEFAULT HANDLERS)\033[0m"
+  echo "┌─────────────────────┬──────────────────────────────┬──────────────────────────────────┐"
+  printf "│ %-19s │ %-28s │ %-32s │\n" "Phân loại" "Ứng dụng mặc định" "Desktop File / Lệnh"
+  echo "├─────────────────────┼──────────────────────────────┼──────────────────────────────────┤"
+
+  for cat in "${CATEGORIES[@]}"; do
+    local label
+    label="$(category_label "$cat")"
+    local current_raw
+    current_raw="$(get_current_handler "$cat")"
+    local current_disp
+    if [ "$cat" = "terminal" ]; then
+      current_disp="$current_raw"
+    else
+      current_disp="$(get_desktop_name "$current_raw")"
+    fi
+    printf "│ %-19s │ %-28s │ %-32s │\n" "$label" "$current_disp" "$current_raw"
+  done
+  echo "└─────────────────────┴──────────────────────────────┴──────────────────────────────────┘"
+}
+
+cli_set() {
+  local cat="${1:-}"
+  local app="${2:-}"
+
+  if [ -z "$cat" ] || [ -z "$app" ]; then
+    echo "Lỗi: Thiếu tham số." >&2
+    echo "Sử dụng: ka default set <browser|editor|filemanager|pdf|image|video|audio|terminal> <app_id>" >&2
+    exit 1
+  fi
+
+  # Normalize alias
+  case "$cat" in
+    web|browser)   cat="browser" ;;
+    edit|editor)   cat="editor" ;;
+    file|files)    cat="filemanager" ;;
+    pdf|document)  cat="pdf" ;;
+    img|image)     cat="image" ;;
+    vid|video)     cat="video" ;;
+    sound|audio)   cat="audio" ;;
+    term|terminal) cat="terminal" ;;
+  esac
+
+  # Normalize common app shortcuts
+  if [ "$cat" = "browser" ]; then
+    [ "$app" = "brave" ] && app="brave-browser.desktop"
+    [ "$app" = "chrome" ] && app="google-chrome.desktop"
+    [ "$app" = "firefox" ] && app="firefox.desktop"
+  elif [ "$cat" = "editor" ]; then
+    [ "$app" = "nvim" ] && app="text.desktop"
+    [ "$app" = "code" ] && app="code.desktop"
+  elif [ "$cat" = "filemanager" ]; then
+    [ "$app" = "lf" ] && app="file.desktop"
+    [ "$app" = "thunar" ] && app="thunar.desktop"
+  elif [ "$cat" = "pdf" ]; then
+    [ "$app" = "zathura" ] && app="pdf.desktop"
+  elif [ "$cat" = "image" ]; then
+    [ "$app" = "nsxiv" ] && app="img.desktop"
+  elif [ "$cat" = "video" ]; then
+    [ "$app" = "mpv" ] && app="video.desktop"
+  fi
+
+  apply_handler "$cat" "$app"
+  local disp_name="$app"
+  [ "$cat" != "terminal" ] && disp_name="$(get_desktop_name "$app")"
+  echo -e "\033[0;32m[OK]\033[0m Đã đặt '$disp_name' làm mặc định cho $(category_label "$cat")."
+}
+
+# ------------------------------------------------------------------------------
+# 7. MAIN DISPATCHER
+# ------------------------------------------------------------------------------
+SUBCMD="${1:-}"
+case "$SUBCMD" in
+  show|status|list)
+    cli_show
+    ;;
+  set)
+    shift
+    cli_set "$@"
+    ;;
+  -h|--help|help)
+    echo "ka default — Trình quản lý và lựa chọn ứng dụng mặc định hệ thống"
+    echo ""
+    echo "CÁCH SỬ DỤNG:"
+    echo "  ka default                    Mở giao diện Rofi tương tác"
+    echo "  ka default show               Xem danh sách ứng dụng mặc định hiện tại"
+    echo "  ka default set <loại> <app>   Thiết lập bằng CLI (ví dụ: ka default set browser brave)"
+    echo ""
+    echo "PHÂN LOẠI HỖ TRỢ: browser, editor, filemanager, pdf, image, video, audio, terminal"
+    ;;
+  *)
+    rofi_stage1_main
+    ;;
+esac

@@ -78,6 +78,7 @@ Tài liệu hướng dẫn toàn bộ tổ hợp phím tắt trên hệ thống 
 | **`Super + Ctrl + T`** | **CPU & Thermals** | Tải CPU live, cảm biến nhiệt độ phần cứng, tốc độ quạt, Top 4 tiến trình |
 | **`Super + Ctrl + M`** | **Memory & RAM** | Thanh tải RAM, Swap, bộ nhớ cache, Top 4 tiến trình ngốn RAM |
 | **`Super + Ctrl + F`** | **Weather Forecast**| Thẻ thời tiết trực quan: nhiệt độ, cảm nhận, độ ẩm, gió, áp suất |
+| **`Super + Ctrl + D`** | **Default Handlers**| Trình chọn ứng dụng mặc định một chạm (Browser, Editor, File, PDF, Image, Video, Term) |
 
 ---
 

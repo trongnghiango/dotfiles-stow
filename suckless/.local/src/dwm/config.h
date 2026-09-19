@@ -353,6 +353,7 @@ static const Key keys[] = {
 	{ MODKEY|ControlMask,           XK_t,          spawn,                  SHCMD("dwm-dropdown cpu") },
 	{ MODKEY|ControlMask,           XK_m,          spawn,                  SHCMD("dwm-dropdown memory") },
 	{ MODKEY|ControlMask,           XK_f,          spawn,                  SHCMD("dwm-dropdown forecast") },
+	{ MODKEY|ControlMask,           XK_d,          spawn,                  SHCMD("ka default") },
 	{ MODKEY|Mod1Mask,              XK_t,          spawn,                  SHCMD("ka-ocr") },
 	{ MODKEY,                       XK_n,	       spawn,                  {.v = themesetcmd } },
 	{ MODKEY,			XK_x,	       togglescratch,	       {.ui = 0 } },
