@@ -38,24 +38,23 @@ Each top-level directory is a Stow package containing `$HOME`-relative paths (23
 
 ## Key commands / workflow
 
-- **Autoconfig & Package Deploy:**
-  - `./scripts/.local/bin/ka-setup all [profile]` — Chạy toàn bộ cấu hình (mặc định: `core`)
-  - `ka-setup pkgs [core|dev|media|tools|virt|sys|all]` — Cài đặt gói từ `progs.csv` theo profile hoặc tier
-  - `ka-setup suckless` — Biên dịch và cài đặt DWM, ST, Dmenu, Dwmblocks từ mã nguồn local
-  - `ka-setup stow` — Deploy tất cả 23 dotfiles packages qua `stow-safe`
-- **Dynamic Theming:**
-  - `theme-set` — Xem theme hiện tại và danh sách theme có sẵn
-  - `theme-set <nord|gruvbox-dark|catppuccin-mocha>` — Đổi theme tức thì, hot-reload DWM via SIGHUP
-- **Deploy (Safe):** `stow-safe <package>` (auto-backs up conflicting files to `~/.local/share/dotfiles/backups/`)
-- **Deploy (Native):** `stow -vt ~ <package>` (repeat for each package)
-- **Undeploy:** `stow -Dvt ~ <package>` or `stow-safe --unstow <package>`
-- **Session start:** auto via `zsh/.config/zsh/.zprofile` — khi login tty1, gọi `startx "$XINITRC"` → `xinitrc` → `exec ssh-agent dwm`
-- **Web App Mini:** `brave-app <url>` — Mở webapp nổi ở trung tâm màn hình không thanh tab/url
-- **Statusbar Dropdown Popovers:** `dwm-dropdown <volume|clock|battery|cpu|memory|network|forecast>` — Thẻ popup GUI phong cách Omarchy (0px border-radius, viền 2px accent, auto-dismiss, toggle)
-- **Shortcuts:** `shortcuts` regenerates `shortcutrc`/`shortcutenvrc`/`zshnameddirrc` from `bm-dirs`/`bm-files`
-- **Git Manager:** `gm` — multi-account git tool under `~/Repos/`, uses git `includeIf`
-- **Wallpapers:** `setbg` — handles WebP, pywal, xwallpaper; runs at X startup
-- **Cron:** `cron/crontog` toggles all cron jobs; `cron/checkup` (pacman), `cron/newsup` (RSS)
+- **Unified System CLI (`ka`):**
+  - `ka doctor` — Chẩn đoán toàn diện sức khỏe, binary, audio, theming và dev runtimes
+  - `ka dev [setup|status|update]` — Quản lý toàn bộ dev SDKs (Node, Python, Go, Rust, Bun, PNPM) qua Mise
+  - `ka ocr` — Bóc tách chữ trên màn hình (In-memory OCR, song ngữ Anh-Việt) vào Clipboard
+  - `ka theme [nord|gruvbox-dark|catppuccin-mocha]` — Đổi theme toàn diện, hot-reload tức thì
+  - `ka pop <module>` — Bật/Tắt thẻ popup Omarchy (volume, clock, battery, cpu, mem, net, forecast)
+  - `ka dns [dhcp|cloudflare|google|custom <ip>]` — Chuyển đổi DNS server 1 chạm
+  - `ka record [toggle|status]` — Quay video màn hình
+  - `ka setup [all|suckless|stow|pkgs]` — Tự động hóa triển khai hệ thống
+- **DWM 6.8 Native C Core:**
+  - Nâng cấp lên DWM 6.8 với các bản vá bảo mật upstream (heap overflow, EWMH focus, format 32 check, underflow guard)
+  - Tự động đổi con trỏ chuột thành hình bàn tay chỉ (`XC_hand2`) khi rê vào Tags (1-9) và các blocks thanh trạng thái
+  - Bộ đệm Pre-Warmed Socket Daemon (`dwm-dropdown --daemon`) giảm độ trễ mở popup từ 85ms xuống < 2ms
+- **Deploy & Management:**
+  - `stow-safe <package>` — Deploy an toàn (tự động backup vào `~/.local/share/dotfiles/backups/`)
+  - `ka-setup suckless` — Biên dịch và cài đặt DWM 6.8, ST, Dmenu, Dwmblocks
+  - Session start: auto via `zsh/.config/zsh/.zprofile` → `startx "$XINITRC"` → `exec ssh-agent dwm`
 
 ## Essential Ergonomic Hotkeys
 
@@ -71,6 +70,14 @@ Each top-level directory is a Stow package containing `$HOME`-relative paths (23
 | `Super + Shift + Space` | Centered Floating | Cửa sổ nổi tự căn giữa tỉ lệ vàng 75% $\times$ 80% |
 | `Super + [1 - 9]` | Switch Tag | Chuyển tag làm việc |
 | `Super + Shift + [1 - 9]` | Move to Tag | Di chuyển cửa sổ sang tag |
+| `Super + Ctrl + A` | Popover Audio | Bật/tắt thẻ âm lượng & output |
+| `Super + Ctrl + W` | Popover Network | Bật/tắt thẻ Wi-Fi, IP & DNS switcher |
+| `Super + Ctrl + B` | Popover Battery | Bật/tắt thẻ pin, công suất & độ sáng |
+| `Super + Ctrl + C` | Popover Clock | Bật/tắt thẻ đồng hồ & lịch tương tác |
+| `Super + Ctrl + T` | Popover CPU | Bật/tắt thẻ CPU, nhiệt độ, quạt & top processes |
+| `Super + Ctrl + M` | Popover Memory | Bật/tắt thẻ RAM, Swap & top processes |
+| `Super + Ctrl + F` | Popover Forecast | Bật/tắt thẻ thời tiết khí quyển |
+| `Super + Alt + T` | Instant Screen OCR | Quét chọn vùng màn hình bóc tách chữ vào Clipboard |
 | `Super + Shift + Q` | Logout DWM | Thoát về TTY1 |
 | `Super + F5` | Reload Xresources | DWM nạp lại màu Xresources |
 
