@@ -1,0 +1,79 @@
+#!/usr/bin/env bash
+# ==============================================================================
+# ka-ocr — Instant In-Memory Screen Text Extraction (Omarchy X11 Style)
+# ==============================================================================
+# ka:summary=Extract text from screen selection via OCR and copy to clipboard
+# ka:args=[--lang <eng|vie|eng+vie>] [--stdout]
+# ka:examples=ka-ocr | ka-ocr --lang vie | ka-ocr --stdout
+# ==============================================================================
+
+set -eo pipefail
+
+LANGS="eng+vie"
+OUTPUT_STDOUT=false
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --lang)
+      LANGS="$2"
+      shift 2
+      ;;
+    --stdout)
+      OUTPUT_STDOUT=true
+      shift
+      ;;
+    -h|--help)
+      echo "Sử dụng: ka-ocr [tuỳ chọn]"
+      echo "  --lang <lang>   Ngôn ngữ OCR (mặc định: eng+vie, hỗ trợ: eng, vie)"
+      echo "  --stdout        In kết quả ra terminal ngoài việc lưu vào clipboard"
+      echo "  -h, --help      Hiển thị hướng dẫn này"
+      exit 0
+      ;;
+    *)
+      shift
+      ;;
+  esac
+done
+
+# Kiểm tra công cụ cần thiết
+for cmd in slop maim tesseract xclip; do
+  if ! command -v "$cmd" >/dev/null 2>&1; then
+    command -v dunstify >/dev/null 2>&1 && \
+      dunstify -a "ka-ocr" -u critical "Thiếu công cụ" "Cần cài đặt: $cmd"
+    echo "Lỗi: Không tìm thấy lệnh '$cmd'" >&2
+    exit 1
+  fi
+done
+
+# Chọn vùng màn hình bằng slop (thoát an toàn nếu người dùng bấm ESC)
+GEOM=$(slop -b 2 -f "%g" 2>/dev/null) || exit 0
+[[ -z "$GEOM" ]] && exit 0
+
+# Pipe in-memory từ maim -> tesseract (không ghi file tạm ra đĩa)
+TEXT=$(maim -u -g "$GEOM" -f png 2>/dev/null | \
+  tesseract stdin stdout -l "$LANGS" --oem 1 --psm 6 2>/dev/null) || true
+
+# Gọt khoảng trắng đầu cuối
+TRIMMED_TEXT=$(echo -n "$TEXT" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+
+if [[ -z "$TRIMMED_TEXT" ]]; then
+  command -v dunstify >/dev/null 2>&1 && \
+    dunstify -a "ka-ocr" -u low -t 2500 -i "dialog-information" "OCR Trống" "Không nhận diện được ký tự nào trong vùng đã chọn"
+  exit 0
+fi
+
+# Lưu vào X11 Clipboard
+printf "%s" "$TRIMMED_TEXT" | xclip -selection clipboard -i
+printf "%s" "$TRIMMED_TEXT" | xclip -selection primary -i
+
+# Rút gọn 2 dòng đầu để hiển thị thông báo
+PREVIEW=$(echo "$TRIMMED_TEXT" | head -n 2 | cut -c 1-80)
+[[ $(echo "$TRIMMED_TEXT" | wc -l) -gt 2 ]] && PREVIEW="$PREVIEW..."
+
+if command -v dunstify >/dev/null 2>&1; then
+  dunstify -a "ka-ocr" -u normal -t 3000 -i "edit-copy" "Đã sao chép văn bản" "$PREVIEW"
+fi
+
+if [[ "$OUTPUT_STDOUT" == true ]]; then
+  echo "$TRIMMED_TEXT"
+fi

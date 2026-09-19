@@ -1,0 +1,247 @@
+#!/usr/bin/env bash
+# ==============================================================================
+# ka — Unified System Manager & CLI Orchestrator (Omarchy-X11 Architecture)
+# ==============================================================================
+# ka:summary=Single entrypoint CLI for system control, theming, popovers & diagnostics
+# ka:args=[theme|dns|pop|ocr|record|setup|stow|doctor|version]
+# ka:examples=ka theme nord | ka pop volume | ka dns cloudflare | ka ocr | ka doctor
+# ==============================================================================
+
+set -eo pipefail
+
+VERSION="1.0.0"
+DWM_VER="6.8"
+
+# Colors & Formatting
+BOLD="\033[1m"
+DIM="\033[2m"
+CYAN="\033[36m"
+GREEN="\033[32m"
+YELLOW="\033[33m"
+RED="\033[31m"
+RESET="\033[0m"
+
+print_banner() {
+  echo -e "${BOLD}${CYAN}ka${RESET} — ${DIM}Unified System CLI (Omarchy-X11 Architecture, DWM ${DWM_VER})${RESET}"
+}
+
+usage() {
+  print_banner
+  echo ""
+  echo -e "${BOLD}CÁCH SỬ DỤNG:${RESET}"
+  echo -e "  ${CYAN}ka${RESET} <lệnh> [tham số...]"
+  echo ""
+  echo -e "${BOLD}DANH SÁCH LỆNH CỐT LÕI:${RESET}"
+  echo -e "  ${GREEN}theme${RESET}  [nord|gruvbox-dark|catppuccin-mocha]   Đổi theme giao diện toàn hệ thống tức thì"
+  echo -e "  ${GREEN}pop${RESET}    <module>                              Bật/Tắt thẻ popup Omarchy (volume, clock, battery, cpu, mem, net, weather)"
+  echo -e "  ${GREEN}dns${RESET}    [dhcp|cloudflare|google|custom <ip>]  Chuyển đổi máy chủ phân giải DNS nhanh"
+  echo -e "  ${GREEN}dev${RESET}    [setup|status|update]                 Quản lý toàn bộ dev runtimes (Node, Python, Go, Rust, Bun, PNPM) qua Mise"
+  echo -e "  ${GREEN}ocr${RESET}    [--lang eng|vie] [--stdout]           Bóc tách chữ trên màn hình bằng OCR vào Clipboard"
+  echo -e "  ${GREEN}record${RESET} [toggle|status]                      Bật/Tắt quay video màn hình"
+  echo -e "  ${GREEN}setup${RESET}  [all|suckless|stow|pkgs]              Tự động hóa triển khai gói và dotfiles"
+  echo -e "  ${GREEN}stow${RESET}   <package>                             Triển khai an toàn gói cấu hình qua stow-safe"
+  echo -e "  ${GREEN}doctor${RESET}                                       Chẩn đoán sức khỏe, công cụ và tính toàn vẹn hệ thống"
+  echo -e "  ${GREEN}version${RESET}                                      Hiển thị thông tin phiên bản"
+  echo ""
+}
+
+# --- SUBCOMMANDS ---
+
+cmd_theme() {
+  local target="${1:-}"
+  if [[ -z "$target" ]]; then
+    theme-set
+  else
+    theme-set "$target"
+  fi
+}
+
+cmd_pop() {
+  local module="${1:-volume}"
+  dwm-dropdown "$module"
+}
+
+cmd_dns() {
+  set-dns "$@"
+}
+
+cmd_ocr() {
+  ka-ocr "$@"
+}
+
+cmd_record() {
+  record "$@"
+}
+
+cmd_dev() {
+  local sub="${1:-status}"
+  shift || true
+  case "$sub" in
+    setup|install)
+      echo -e "${BOLD}${CYAN}Thiết lập toàn bộ Dev Runtimes qua Mise (~/.config/mise/config.toml)...${RESET}"
+      if ! command -v mise >/dev/null 2>&1; then
+        echo -e "${YELLOW}Chưa phát hiện mise. Vui lòng cài đặt mise bằng một trong hai cách:${RESET}"
+        echo -e "  Cách 1 (Khuyên dùng): ${GREEN}sudo pacman -S mise${RESET}"
+        echo -e "  Cách 2 (User space):  ${GREEN}curl https://mise.run | sh${RESET}"
+        return 1
+      fi
+      echo -e "${GREEN}Mise đã sẵn sàng. Đang tiến hành tải và cấu hình các runtimes (node, python, rust, go, pnpm, bun)...${RESET}"
+      mise install "$@"
+      echo -e "${GREEN}✔ Hoàn tất cài đặt toàn bộ dev runtimes qua Mise!${RESET}"
+      ;;
+    status|ls|list)
+      if command -v mise >/dev/null 2>&1; then
+        echo -e "${BOLD}Các Dev Runtimes đang được quản lý bởi Mise (~/.config/mise/config.toml):${RESET}"
+        mise ls "$@"
+      else
+        echo -e "${RED}Chưa cài đặt Mise. Chạy 'sudo pacman -S mise' sau đó chạy 'ka dev setup' để bắt đầu.${RESET}"
+      fi
+      ;;
+    update|upgrade)
+      if command -v mise >/dev/null 2>&1; then
+        echo -e "${BOLD}${CYAN}Nâng cấp toàn bộ Dev Runtimes lên phiên bản mới nhất...${RESET}"
+        mise upgrade "$@"
+      else
+        echo -e "${RED}Chưa cài đặt Mise.${RESET}"
+      fi
+      ;;
+    *)
+      if command -v mise >/dev/null 2>&1; then
+        mise "$sub" "$@"
+      else
+        echo -e "${BOLD}CÁC LỆNH QUẢN LÝ DEV RUNTIME (MISE):${RESET}"
+        echo "  ka dev setup    - Tải và cài đặt toàn bộ SDKs (Node LTS, Python, Rust, Go, PNPM, Bun)"
+        echo "  ka dev status   - Xem danh sách và phiên bản các runtimes đang hoạt động"
+        echo "  ka dev update   - Cập nhật tất cả các runtimes lên bản mới nhất"
+      fi
+      ;;
+  esac
+}
+
+cmd_setup() {
+  ka-setup "$@"
+}
+
+cmd_stow() {
+  stow-safe "$@"
+}
+
+cmd_doctor() {
+  print_banner
+  echo -e "${BOLD}BẮT ĐẦU CHẨN ĐOÁN HỆ THỐNG (SYSTEM INTEGRITY CHECK)...${RESET}\n"
+
+  local all_pass=true
+
+  check_item() {
+    local label="$1"
+    local check_cmd="$2"
+    if eval "$check_cmd" >/dev/null 2>&1; then
+      echo -e "  [${GREEN}PASS${RESET}] $label"
+    else
+      echo -e "  [${RED}FAIL${RESET}] $label"
+      all_pass=false
+    fi
+  }
+
+  echo -e "${BOLD}1. Window Manager & Suckless Binaries:${RESET}"
+  check_item "DWM binary (/usr/local/bin/dwm)" "test -x /usr/local/bin/dwm"
+  check_item "ST terminal (/usr/local/bin/st)" "test -x /usr/local/bin/st"
+  check_item "Dmenu (/usr/local/bin/dmenu)" "test -x /usr/local/bin/dmenu"
+  check_item "Dwmblocks (/usr/local/bin/dwmblocks)" "test -x /usr/local/bin/dwmblocks"
+
+  echo -e "\n${BOLD}2. X11 Core & Visual Tools:${RESET}"
+  check_item "Xorg Server" "command -v Xorg"
+  check_item "Picom Compositor" "command -v picom"
+  check_item "Maim Screenshot" "command -v maim"
+  check_item "Slop Region Selector" "command -v slop"
+  check_item "Xclip Clipboard" "command -v xclip"
+  check_item "Tesseract OCR" "command -v tesseract"
+
+  echo -e "\n${BOLD}3. Audio & Network Stack:${RESET}"
+  check_item "PipeWire Audio Server" "command -v pipewire"
+  check_item "WirePlumber Session Manager" "command -v wireplumber"
+  check_item "NetworkManager (nmcli)" "command -v nmcli"
+
+  echo -e "\n${BOLD}4. Theming & Dropdown Popovers:${RESET}"
+  check_item "Current Theme Config (~/.config/theme/colors/current.conf)" "test -f \$HOME/.config/theme/colors/current.conf"
+  check_item "Dropdown Script (dwm-dropdown)" "command -v dwm-dropdown"
+  local sock_path="${XDG_RUNTIME_DIR:-/tmp}/dwm-dropdown-$(id -u).sock"
+  if [[ -S "$sock_path" ]]; then
+    echo -e "  [${GREEN}PASS${RESET}] Dropdown Socket Daemon is ACTIVE (${sock_path})"
+  else
+    echo -e "  [${YELLOW}INFO${RESET}] Dropdown Socket Daemon is IDLE (falls back to standalone GTK3 smoothly)"
+  fi
+
+  echo -e "\n${BOLD}5. Developer Runtimes:${RESET}"
+  if command -v mise >/dev/null 2>&1; then
+    local mise_ver
+    mise_ver=$(mise --version 2>/dev/null | awk '{print $1}')
+    echo -e "  [${GREEN}PASS${RESET}] Mise Runtime Manager (${mise_ver})"
+  else
+    echo -e "  [${RED}FAIL${RESET}] Mise Runtime Manager (${YELLOW}Chưa cài đặt. Chạy 'sudo pacman -S mise' hoặc 'curl https://mise.run | sh'${RESET})"
+    all_pass=false
+  fi
+  check_item "Neovim (nvim)" "command -v nvim"
+  check_item "Tmux Multiplexer" "command -v tmux"
+  check_item "Zsh Shell" "command -v zsh"
+
+  echo ""
+  if [[ "$all_pass" == true ]]; then
+    echo -e "${BOLD}${GREEN}✔ HỆ THỐNG HOÀN TOÀN KHỎE MẠNH VÀ SẴN SÀNG!${RESET}\n"
+  else
+    echo -e "${BOLD}${YELLOW}⚠ Phát hiện một số công cụ chưa hoàn thiện. Chạy 'ka setup all' để hoàn tất cấu hình.${RESET}\n"
+  fi
+}
+
+cmd_version() {
+  print_banner
+  echo "CLI Version: ${VERSION}"
+  echo "DWM Core:    ${DWM_VER}"
+  echo "Arch Base:   Rolling Release (X11 Native Architecture)"
+}
+
+# --- MAIN DISPATCHER ---
+
+SUBCMD="${1:-}"
+shift || true
+
+case "$SUBCMD" in
+  theme)
+    cmd_theme "$@"
+    ;;
+  pop|dropdown)
+    cmd_pop "$@"
+    ;;
+  dns)
+    cmd_dns "$@"
+    ;;
+  ocr)
+    cmd_ocr "$@"
+    ;;
+  record)
+    cmd_record "$@"
+    ;;
+  setup)
+    cmd_setup "$@"
+    ;;
+  dev|mise)
+    cmd_dev "$@"
+    ;;
+  stow)
+    cmd_stow "$@"
+    ;;
+  doctor)
+    cmd_doctor
+    ;;
+  -v|--version|version)
+    cmd_version
+    ;;
+  -h|--help|help|"")
+    usage
+    ;;
+  *)
+    echo -e "${RED}Lỗi: Không nhận diện được lệnh '${SUBCMD}'${RESET}" >&2
+    usage >&2
+    exit 1
+    ;;
+esac

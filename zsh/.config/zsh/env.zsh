@@ -15,16 +15,9 @@ export FZF_DEFAULT_OPTS="
   --info=inline
 "
 
-# Go — chỉ cần GOPATH, GOROOT không cần set thủ công khi cài qua pacman
-export GOPATH="$HOME/go"
+# Go workspace bin for go install binaries
+export GOPATH="${GOPATH:-$HOME/go}"
 [ -d "$GOPATH/bin" ] && export PATH="$PATH:$GOPATH/bin"
-
-# Bun — JavaScript runtime
-export BUN_INSTALL="$HOME/.bun"
-if [ -d "$BUN_INSTALL/bin" ]; then
-  export PATH="$BUN_INSTALL/bin:$PATH"
-fi
-[ -s "$BUN_INSTALL/_bun" ] && source "$BUN_INSTALL/_bun" 2>/dev/null
 
 # Direnv — per-directory environment
 if command -v direnv &>/dev/null; then
@@ -32,6 +25,7 @@ if command -v direnv &>/dev/null; then
 fi
 
 # Mise — polyglot dev runtime manager (Node, Python, Go, Rust, Bun, PNPM)
+# Single Source of Truth for all dev SDKs and languages
 if command -v mise &>/dev/null; then
   eval "$(mise activate zsh)"
 fi

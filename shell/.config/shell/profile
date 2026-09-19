@@ -11,13 +11,11 @@ fi
 
 [ -d "$HOME/Applications/bin" ] && export PATH="$HOME/Applications/bin:$PATH"
 
-# Node / Package Manager Environment
-export NPM_CONFIG_PREFIX="$HOME/.npm-global"
-export PNPM_HOME="$HOME/.local/share/pnpm"
-
-# Add package manager bin paths to PATH
-[ -d "$NPM_CONFIG_PREFIX/bin" ] && export PATH="$NPM_CONFIG_PREFIX/bin:$PATH"
-[ -d "$PNPM_HOME" ] && export PATH="$PNPM_HOME:$PATH"
+# Mise Dev Runtimes (Node, Python, Go, Rust, Bun, PNPM)
+# Ensure mise shims are in PATH for login shell, GUI apps & background scripts
+if [ -d "$HOME/.local/share/mise/shims" ]; then
+  export PATH="$HOME/.local/share/mise/shims:$PATH"
+fi
 
 
 # Default programs:
