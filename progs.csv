@@ -21,6 +21,7 @@
 ,libxinerama,2,dwm,Xinerama multi-monitor extension library for DWM.
 ,libxrender,2,dwm+st,X Rendering Extension client library.
 ,maim,2,x11,Can take quick screenshots (used by maimpick script).
+,slop,2,x11,Screen selection tool used by maim and ocr.
 ,picom,2,x11,Modern X compositor for transparency and removing screen-tearing; uses glx backend with vsync.
 ,rofi,2,x11,"Window switcher, application launcher and dmenu replacement."
 ,slock,2,x11,You to lock your computer with a simple password prompt.
@@ -92,10 +93,14 @@ A,brave-bin,7,browser,Default web browser (BROWSER env var).
 ,zathura,8,zathura,PDF viewer with vim-like bindings.
 ,zathura-pdf-mupdf,8,zathura,Mupdf pdf compatibility in zathura.
 ,zbar,8,otp,Zbarimg for QR-code scanning in otp script.
+,tesseract,8,ocr,Tesseract optical character recognition engine.
+,tesseract-data-eng,8,ocr,English language data for tesseract.
+,tesseract-data-vie,8,ocr,Vietnamese language data for tesseract.
 ,docker,9,docker,Container application engine.
 ,docker-compose,9,docker,Orchestrates multi-container apps.
 A,lazydocker-bin,9,docker,Manages Docker status via TUI.
 A,gtk-theme-arc-gruvbox-git,10,theme,The dark GTK theme (Arc-Gruvbox) used consistently in GTK2/3/4 config.
+,gettext,10,theme,Provides envsubst for theme-set template engine.
 ,inter-font,10,fonts,Typeface specially designed for computer screens.
 ,noto-fonts,10,fonts,Is an expansive font package for CJK and other language support.
 ,noto-fonts-cjk,10,fonts,CJK language glyphs.

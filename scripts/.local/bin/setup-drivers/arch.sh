@@ -119,7 +119,7 @@ arch_setup_pkgs() {
       esac
     elif [ "$target" = "tools" ]; then
       case "$deps" in
-        docs|apps|otp) match=true ;;
+        docs|apps|otp|ocr) match=true ;;
       esac
     elif [ "$target" = "virt" ]; then
       [ "$deps" = "docker" ] && match=true

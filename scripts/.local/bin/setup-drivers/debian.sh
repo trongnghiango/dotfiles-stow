@@ -25,7 +25,7 @@ is_deb_pkg_installed() {
 # 1. CÀI ĐẶT GÓI APT TỪ PKGS/DEBIAN.CSV
 # ------------------------------------------------------------------------------
 debian_setup_pkgs() {
-  local target="${1:-core}"
+  local target="${1:-}"
   local dotfiles_root="${2:-$DOTFILES_DIR}"
   local csv_file="$dotfiles_root/pkgs/debian.csv"
 
@@ -37,6 +37,33 @@ debian_setup_pkgs() {
   if ! command -v apt-get &>/dev/null; then
     log_error "Hệ thống không có apt-get. Driver này chỉ dành cho Debian/Ubuntu."
     return 1
+  fi
+
+  # Interactive prompt nếu người dùng chạy không tham số tại terminal
+  if [ -z "$target" ]; then
+    if [ -t 0 ]; then
+      echo -e "\033[1mChọn profile gói cài đặt từ pkgs/debian.csv:\033[0m"
+      echo -e "  \033[0;32m1) core\033[0m   Nền tảng DWM/X11, Fonts, Shell, Audio, Trình duyệt [Mặc định]"
+      echo -e "  \033[0;32m2) dev\033[0m    Công cụ lập trình (Neovim, VSCode, Rust, Clang, Node, LazyGit...)"
+      echo -e "  \033[0;32m3) media\033[0m  Nghe nhạc, xem phim, quay màn hình (MPD, ncmpcpp, OBS, yt-dlp...)"
+      echo -e "  \033[0;32m4) tools\033[0m  Văn phòng, đọc sách, ghi chú (Pandoc, Calibre, Telegram, Anki...)"
+      echo -e "  \033[0;32m5) virt\033[0m   Máy ảo & Containers (Docker, QEMU, Libvirt, Lazydocker...)"
+      echo -e "  \033[0;32m6) sys\033[0m    Tiện ích hệ thống mở rộng, Bluetooth, Máy in..."
+      echo -e "  \033[0;32m7) all\033[0m    Toàn bộ gói trong danh mục"
+      printf "\033[1;33mLựa chọn [1-7] (mặc định 1): \033[0m"
+      read -r choice
+      case "$choice" in
+        2|dev)   target="dev" ;;
+        3|media) target="media" ;;
+        4|tools) target="tools" ;;
+        5|virt)  target="virt" ;;
+        6|sys)   target="sys" ;;
+        7|all)   target="all" ;;
+        *)       target="core" ;;
+      esac
+    else
+      target="core"
+    fi
   fi
 
   log_step "Phân tích danh mục gói Debian cho Profile: '$target'..."
@@ -55,34 +82,44 @@ debian_setup_pkgs() {
     deps="$(echo "$deps" | tr -d '[:space:]')"
 
     local match=false
-    case "$target" in
-      all) match=true ;;
-      core)
-        [[ "$tier" =~ ^(1|2|3|10|11)$ ]] && match=true
-        ;;
-      dev)
-        [[ "$tier" =~ ^(1|2|3|4|5|10|11)$ ]] && match=true
-        ;;
-      media)
-        [[ "$tier" =~ ^(1|2|3|6|10|11)$ ]] && match=true
-        ;;
-      tools)
-        [[ "$tier" =~ ^(1|2|3|8|10|11)$ ]] && match=true
-        ;;
-      virt)
-        [[ "$tier" =~ ^(1|2|3|9|10|11)$ ]] && match=true
-        ;;
-      sys)
-        [[ "$tier" =~ ^(1|2|3|11)$ ]] && match=true
-        ;;
-      *)
-        if [[ "$target" =~ ^[0-9]+$ ]] && [ "$tier" = "$target" ]; then
+    if [ "$target" = "all" ]; then
+      match=true
+    elif [ "$target" = "core" ]; then
+      case "$deps" in
+        base|x11|dwm|dwm+st|dwm,st|st|dwmblocks|fcitx5|zsh|cli|lf|pipewire|browser|zathura|fonts|intel|system)
           match=true
-        elif [ "$deps" = "$target" ]; then
-          match=true
-        fi
-        ;;
-    esac
+          ;;
+      esac
+    elif [ "$target" = "dev" ]; then
+      case "$deps" in
+        dev|vscode) match=true ;;
+      esac
+    elif [ "$target" = "media" ]; then
+      case "$deps" in
+        music|media) match=true ;;
+      esac
+    elif [ "$target" = "tools" ]; then
+      case "$deps" in
+        docs|apps|otp|ocr) match=true ;;
+      esac
+    elif [ "$target" = "virt" ]; then
+      [ "$deps" = "docker" ] && match=true
+    elif [ "$target" = "sys" ]; then
+      case "$deps" in
+        intel|bluetooth|system|theme|base) match=true ;;
+      esac
+    elif [[ "$target" =~ ^[0-9,]+$ ]]; then
+      local t_arr=()
+      IFS="," read -ra t_arr <<< "$target"
+      IFS="$old_ifs"
+      for t in "${t_arr[@]}"; do
+        [ "$tier" = "$t" ] && match=true && break
+      done
+    else
+      if [[ "$deps" == *"$target"* ]]; then
+        match=true
+      fi
+    fi
 
     [ "$match" = false ] && continue
 
