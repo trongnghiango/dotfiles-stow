@@ -103,7 +103,7 @@ command -v setbg >/dev/null 2>&1 && setbg "$HOME/Pictures/Wallpapers/" &
 # ==============================================================================
 # 6. KHỞI CHẠY CÁC ỨNG DỤNG NỀN & TRAYER CHUNG
 # ==============================================================================
-autostart="clipboard-tray dunst udiskie xfce4-power-manager fcitx5 mpd picom unclutter remapd"
+autostart="dunst udiskie xfce4-power-manager fcitx5 mpd picom unclutter remapd"
 for program in $autostart; do
   if command -v "$program" >/dev/null 2>&1; then
     pgrep -u "$USER" -x "$program" >/dev/null || "$program" &
