@@ -5,11 +5,11 @@ barhover(XEvent *e, Bar *bar)
 	Monitor *m = bar->mon;
 	XMotionEvent *ev = &e->xmotion;
 	BarArg barg = { 0, 0, 0, 0 };
-	int r;
+	int r, hand = 0;
 
 	for (r = 0; r < LENGTH(barrules); r++) {
 		br = &barrules[r];
-		if (br->bar != bar->idx || (br->monitor == 'A' && m != selmon) || br->hoverfunc == NULL)
+		if (br->bar != bar->idx || (br->monitor == 'A' && m != selmon))
 			continue;
 		if (br->monitor != 'A' && br->monitor != -1 && br->monitor != bar->mon->num)
 			continue;
@@ -21,8 +21,15 @@ barhover(XEvent *e, Bar *bar)
 		barg.w = bar->w[r];
 		barg.h = bar->bh - 2 * bar->borderpx;
 
-		br->hoverfunc(bar, &barg, ev);
+		if (br->hoverfunc)
+			hand = br->hoverfunc(bar, &barg, ev);
 		break;
+	}
+
+	int cur = hand ? CurHand : CurNormal;
+	if (bar->cursor != cur) {
+		XDefineCursor(dpy, bar->win, cursor[cur]->cursor);
+		bar->cursor = cur;
 	}
 }
 

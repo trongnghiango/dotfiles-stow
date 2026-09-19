@@ -1,10 +1,12 @@
 int
-click_statuscmd_text(Arg *arg, int rel_x, char *text)
+getsigbypos(int rel_x, char *text)
 {
-	int i = -1;
-	int x = 0;
+	int i = -1, x = 0;
 	char ch;
-	statussig = -1;
+	int sig = -1;
+
+	if (rel_x < 0 || !text)
+		return 0;
 
 	while (text[++i]) {
 		if ((unsigned char)text[i] < ' ') {
@@ -13,24 +15,30 @@ click_statuscmd_text(Arg *arg, int rel_x, char *text)
 			int w = status2dtextlength(text);
 			x += w;
 			text[i] = ch;
-			text += i+1;
+			text += i + 1;
 			i = -1;
-			if (x >= rel_x && statussig != -1)
+			if (x >= rel_x && sig != -1)
 				break;
-			statussig = ch;
+			sig = ch;
 		}
 	}
-	if (statussig > 0) {
+	if (sig > 0) {
 		int w = status2dtextlength(text);
 		x += w;
 		if (rel_x > x)
-			statussig = 0;
+			sig = 0;
 	} else {
-		statussig = 0;
+		sig = 0;
 	}
-	return ClkStatusText;
+	return sig > 0 ? sig : 0;
 }
 
+int
+click_statuscmd_text(Arg *arg, int rel_x, char *text)
+{
+	statussig = getsigbypos(rel_x, text);
+	return ClkStatusText;
+}
 int
 click_statuscmd(Bar *bar, Arg *arg, BarArg *a)
 {
@@ -72,5 +80,11 @@ copyvalidchars(char *text, char *rawtext)
 		}
 	}
 	text[j] = '\0';
+}
+
+int
+hover_statuscmd(Bar *bar, BarArg *a, XMotionEvent *ev)
+{
+	return getsigbypos(a->x - (lrpad / 2), rawstext) > 0;
 }
 

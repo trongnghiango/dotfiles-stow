@@ -80,6 +80,7 @@ enum {
 	CurNormal,
 	CurResize,
 	CurMove,
+	CurHand,
 	CurLast
 }; /* cursor */
 
@@ -166,6 +167,7 @@ struct Bar {
 	int bx, by, bw, bh; /* bar geometry */
 	int w[BARRULES]; // width, array length == barrules, then use r index for lookup purposes
 	int x[BARRULES]; // x position, array length == ^
+	int cursor;
 };
 
 typedef struct {
@@ -319,6 +321,7 @@ static void grabbuttons(Client *c, int focused);
 static void grabkeys(void);
 static void incnmaster(const Arg *arg);
 static void keypress(XEvent *e);
+static void leavenotify(XEvent *e);
 static void killclient(const Arg *arg);
 static void manage(Window w, XWindowAttributes *wa);
 static void mappingnotify(XEvent *e);
@@ -404,6 +407,7 @@ static void (*handler[LASTEvent]) (XEvent *) = {
 	[Expose] = expose,
 	[FocusIn] = focusin,
 	[KeyPress] = keypress,
+	[LeaveNotify] = leavenotify,
 	[MappingNotify] = mappingnotify,
 	[MapRequest] = maprequest,
 	[MotionNotify] = motionnotify,
@@ -1296,6 +1300,20 @@ enternotify(XEvent *e)
 }
 
 void
+leavenotify(XEvent *e)
+{
+	Bar *bar;
+	XCrossingEvent *ev = &e->xcrossing;
+
+	if ((bar = wintobar(ev->window))) {
+		if (bar->cursor != CurNormal) {
+			XDefineCursor(dpy, bar->win, cursor[CurNormal]->cursor);
+			bar->cursor = CurNormal;
+		}
+	}
+}
+
+void
 expose(XEvent *e)
 {
 	Monitor *m;
@@ -1388,21 +1406,22 @@ focusstack(const Arg *arg)
 Atom
 getatomprop(Client *c, Atom prop, Atom req)
 {
-	int di;
-	unsigned long dl;
+	int format;
+	unsigned long nitems, dl;
 	unsigned char *p = NULL;
 	Atom da, atom = None;
 
 	if (prop == xatom[XembedInfo])
 		req = xatom[XembedInfo];
 
-	/* FIXME getatomprop should return the number of items and a pointer to
-	 * the stored data instead of this workaround */
+	/* Upstream 6.8 (commits 244fa85 + a9aa0d8 + c3dd6a8): prevent heap overflow & check format == 32 */
 	if (XGetWindowProperty(dpy, c->win, prop, 0L, sizeof atom, False, req,
-		&da, &di, &dl, &dl, &p) == Success && p) {
-		atom = *(Atom *)p;
-		if (da == xatom[XembedInfo] && dl == 2)
-			atom = ((Atom *)p)[1];
+		&da, &format, &nitems, &dl, &p) == Success && p) {
+		if (nitems > 0 && format == 32) {
+			atom = *(long *)p;
+			if (da == xatom[XembedInfo] && nitems >= 2)
+				atom = ((long *)p)[1];
+		}
 		XFree(p);
 	}
 	return atom;
@@ -1427,11 +1446,12 @@ getstate(Window w)
 	unsigned long n, extra;
 	Atom real;
 
+	/* Upstream 6.8 (commit 5c9f303): fix access type, check format == 32, remove redundant cast */
 	if (XGetWindowProperty(dpy, w, wmatom[WMState], 0L, 2L, False, wmatom[WMState],
-		&real, &format, &n, &extra, (unsigned char **)&p) != Success)
+		&real, &format, &n, &extra, &p) != Success)
 		return -1;
-	if (n != 0)
-		result = *p;
+	if (n != 0 && format == 32)
+		result = *(long *)p;
 	XFree(p);
 	return result;
 }
@@ -2086,6 +2106,9 @@ sendmon(Client *c, Monitor *m)
 	c->tags = m->tagset[m->seltags]; /* assign tags of target monitor */
 	attachx(c);
 	attachstack(c);
+	/* Upstream 6.8 (commit 2bb919e): resize fullscreen windows to target monitor */
+	if (c->isfullscreen)
+		resizeclient(c, m->mx, m->my, m->mw, m->mh);
 	arrange(NULL);
 	focus(NULL);
 }
@@ -2138,12 +2161,12 @@ sendevent(Window w, Atom proto, int mask, long d0, long d1, long d2, long d3, lo
 void
 setfocus(Client *c)
 {
-	if (!c->neverfocus) {
+	/* Upstream 6.8 (commit 397d618): always update _NET_ACTIVE_WINDOW even for neverfocus clients */
+	if (!c->neverfocus)
 		XSetInputFocus(dpy, c->win, RevertToPointerRoot, CurrentTime);
-		XChangeProperty(dpy, root, netatom[NetActiveWindow],
-			XA_WINDOW, 32, PropModeReplace,
-			(unsigned char *) &(c->win), 1);
-	}
+	XChangeProperty(dpy, root, netatom[NetActiveWindow],
+		XA_WINDOW, 32, PropModeReplace,
+		(unsigned char *) &(c->win), 1);
 	sendevent(c->win, wmatom[WMTakeFocus], NoEventMask, wmatom[WMTakeFocus], CurrentTime, 0, 0, 0);
 }
 
@@ -2276,6 +2299,7 @@ setup(void)
 	cursor[CurResizeVertArrow] = drw_cur_create(drw, XC_sb_v_double_arrow);
 	cursor[CurIronCross] = drw_cur_create(drw, XC_iron_cross);
 	cursor[CurMove] = drw_cur_create(drw, XC_fleur);
+	cursor[CurHand] = drw_cur_create(drw, XC_hand2);
 	/* init appearance */
 	scheme = ecalloc(LENGTH(colors) + 1, sizeof(Clr *));
 	scheme[LENGTH(colors)] = drw_scm_create(drw, colors[0], ColCount);
@@ -2590,7 +2614,7 @@ updatebars(void)
 	XSetWindowAttributes wa = {
 		.override_redirect = True,
 		.background_pixmap = ParentRelative,
-		.event_mask = ButtonPressMask|ExposureMask
+		.event_mask = ButtonPressMask|ExposureMask|PointerMotionMask|LeaveWindowMask
 	};
 	XClassHint ch = {"dwm", "dwm"};
 	for (m = mons; m; m = m->next) {
@@ -2602,6 +2626,7 @@ updatebars(void)
 						CopyFromParent, DefaultVisual(dpy, screen),
 						CWOverrideRedirect|CWBackPixmap|CWEventMask, &wa);
 				XDefineCursor(dpy, bar->win, cursor[CurNormal]->cursor);
+				bar->cursor = CurNormal;
 				XMapRaised(dpy, bar->win);
 				XSetClassHint(dpy, bar->win, &ch);
 			}

@@ -78,6 +78,6 @@ click_tags(Bar *bar, Arg *arg, BarArg *a)
 int
 hover_tags(Bar *bar, BarArg *a, XMotionEvent *ev)
 {
-
-	return 1;
+	Arg arg = {0};
+	return a->x >= 0 && click_tags(bar, &arg, a) == ClkTagBar && arg.ui != 0;
 }
