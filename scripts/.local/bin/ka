@@ -37,6 +37,7 @@ usage() {
   echo -e "${BOLD}DANH SÁCH LỆNH CỐT LÕI:${RESET}"
   echo -e "  ${GREEN}theme${RESET}   [nord|gruvbox-dark|catppuccin-mocha]   Đổi theme giao diện toàn hệ thống tức thì"
   echo -e "  ${GREEN}default${RESET} [show|set <cat> <app>]                 Quản lý & chọn ứng dụng mặc định một chạm (Rofi / CLI)"
+  echo -e "  ${GREEN}clip${RESET}    [menu|daemon|clear|status]            Quản lý lịch sử clipboard 2 cột (Text & Ảnh) qua Rofi"
   echo -e "  ${GREEN}pop${RESET}     <module>                              Bật/Tắt thẻ popup Omarchy (volume, clock, battery, cpu, mem, net, weather)"
   echo -e "  ${GREEN}dns${RESET}    [dhcp|cloudflare|google|custom <ip>]  Chuyển đổi máy chủ phân giải DNS nhanh"
   echo -e "  ${GREEN}dev${RESET}    [setup|status|update]                 Quản lý toàn bộ dev runtimes (Node, Python, Go, Rust, Bun, PNPM) qua Mise"
@@ -62,6 +63,10 @@ cmd_theme() {
 
 cmd_default() {
   ka-default "$@"
+}
+
+cmd_clip() {
+  ka-clip "$@"
 }
 
 cmd_pop() {
@@ -176,6 +181,7 @@ cmd_doctor() {
   check_item "Current Theme Config (~/.config/theme/colors/current.conf)" "test -f \$HOME/.config/theme/colors/current.conf"
   check_item "Dropdown Script (dwm-dropdown)" "command -v dwm-dropdown || test -x \"\$_SCRIPT_DIR/dwm-dropdown\""
   check_item "Default Handlers Selector (ka-default)" "command -v ka-default || test -x \"\$_SCRIPT_DIR/ka-default\""
+  check_item "Unified Clipboard Manager (ka-clip)" "command -v ka-clip || test -x \"\$_SCRIPT_DIR/ka-clip\""
   local sock_path="${XDG_RUNTIME_DIR:-/tmp}/dwm-dropdown-$(id -u).sock"
   if [[ -S "$sock_path" ]]; then
     echo -e "  [${GREEN}PASS${RESET}] Dropdown Socket Daemon is ACTIVE (${sock_path})"
@@ -224,6 +230,9 @@ case "$SUBCMD" in
     ;;
   default|handler|handlers)
     cmd_default "$@"
+    ;;
+  clip|clipboard)
+    cmd_clip "$@"
     ;;
   pop|dropdown)
     cmd_pop "$@"

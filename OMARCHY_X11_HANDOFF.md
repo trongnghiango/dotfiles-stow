@@ -91,6 +91,7 @@
   - Quản lý toàn bộ cấu hình, theme, DNS, popover và chẩn đoán hệ thống thông qua 1 điểm vào duy nhất.
   - Hỗ trợ `ka doctor` (quét kiểm tra toàn bộ 16 thành phần cốt lõi của máy), `ka dev [setup|status|update]` (quản lý Node, Python, Rust, Go, PNPM, Bun qua Mise).
   - Hỗ trợ `ka default [show|set]` và giao diện Rofi một chạm `Super + Ctrl + D` (học hỏi từ DHH & Chris Titus: chuyển đổi tức thì trình duyệt, trình soạn thảo, file manager, PDF, image, video, terminal mà không chạm vào cấu hình text).
+  - Hỗ trợ `ka clip [menu|daemon|clear|status]` và phím tắt **`Super + V`** / **`Super + Ctrl + V`**: Trình quản lý clipboard 2 cột Master/Detail (bên trái danh sách rút gọn theo thời gian, bên phải xem trước chi tiết nội dung text hoặc phóng to ảnh preview) hỗ trợ cả Văn bản và Hình ảnh/Screenshots.
 - **Instant In-Memory OCR (`ka-ocr`)**:
   - Kích hoạt qua phím tắt **`Super + Alt + T`** hoặc lệnh `ka ocr`.
   - Quét vùng màn hình qua `slop` $\rightarrow$ chụp ảnh raw stdout qua `maim` $\rightarrow$ bóc tách chữ qua `tesseract` (song ngữ Anh-Việt) $\rightarrow$ đưa thẳng vào Clipboard và phát thông báo qua `dunstify` (không ghi bất kỳ file rác nào ra đĩa SSD).

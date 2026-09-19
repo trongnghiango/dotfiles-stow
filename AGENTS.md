@@ -44,6 +44,7 @@ Each top-level directory is a Stow package containing `$HOME`-relative paths (23
   - `ka ocr` — Bóc tách chữ trên màn hình (In-memory OCR, song ngữ Anh-Việt) vào Clipboard
   - `ka theme [nord|gruvbox-dark|catppuccin-mocha]` — Đổi theme toàn diện, hot-reload tức thì
   - `ka default [show|set <cat> <app>]` — Quản lý & chọn ứng dụng mặc định một chạm (Rofi / CLI)
+  - `ka clip [menu|daemon|clear|status]` — Quản lý lịch sử clipboard 2 cột (Text & Ảnh) qua Rofi
   - `ka pop <module>` — Bật/Tắt thẻ popup Omarchy (volume, clock, battery, cpu, mem, net, forecast)
   - `ka dns [dhcp|cloudflare|google|custom <ip>]` — Chuyển đổi DNS server 1 chạm
   - `ka record [toggle|status]` — Quay video màn hình
@@ -66,6 +67,7 @@ Each top-level directory is a Stow package containing `$HOME`-relative paths (23
 | `Alt + Tab` | Window Switcher | Rofi window switcher, DWM tự nhảy Workspace & focus |
 | `Super + W` | Web Browser | `brave` GPU acceleration |
 | `Super + E` | File Manager | `lf` với image preview `ueberzugpp` |
+| `Super + V` | Clipboard Manager | Lịch sử clipboard 2 cột (Text & Ảnh) qua Rofi |
 | `Super + Q` | Close Window | Native C `killclient` |
 | `Super + F` | Toggle Fullscreen | Native C `togglefullscreen` 100% full màn hình |
 | `Super + Shift + Space` | Centered Floating | Cửa sổ nổi tự căn giữa tỉ lệ vàng 75% $\times$ 80% |

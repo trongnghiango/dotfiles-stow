@@ -113,6 +113,9 @@ done
 # Khởi động Dropdown Popover Daemon (Pre-warmed socket cho 0ms latency)
 command -v dwm-dropdown >/dev/null 2>&1 && dwm-dropdown --daemon &
 
+# Khởi động Clipboard Manager Daemon (Text & Image)
+command -v ka-clip >/dev/null 2>&1 && ka-clip daemon &
+
 
 
 # ==============================================================================

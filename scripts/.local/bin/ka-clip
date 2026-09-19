@@ -1,0 +1,407 @@
+#!/usr/bin/env python3
+"""
+ka-clip — Unified Clipboard Manager & History Visualizer
+Triết lý Omarchy / DHH kết hợp tính thực dụng của Chris Titus:
+- Hỗ trợ cả Văn bản (Text) lẫn Hình ảnh (Image / Screenshot / OCR).
+- Giao diện Rofi Master-Detail 2 cột:
+    + Cột trái: Thứ tự thời gian, icon phân loại, tóm tắt ngắn gọn 1 dòng.
+    + Cột phải: Xem trước chi tiết nội dung đầy đủ (Text multi-line / Ảnh phóng to / Metadata).
+- Tích hợp phím tắt Super + V / Super + Ctrl + V và Unified CLI (ka clip).
+- Tương thích 100% đa Distro (Arch, Debian, Void, NixOS).
+"""
+
+import os
+import sys
+import time
+import json
+import struct
+import signal
+import hashlib
+import subprocess
+from pathlib import Path
+
+def get_cache_base() -> Path:
+    """Xác định thư mục cache có quyền ghi (ưu tiên XDG_CACHE_HOME, fallback /tmp nếu sandbox/read-only)."""
+    xdg_cache = os.environ.get("XDG_CACHE_HOME", os.path.expanduser("~/.cache"))
+    try:
+        p = Path(xdg_cache) / "ka-clip"
+        p.mkdir(parents=True, exist_ok=True)
+        test_f = p / ".write_test"
+        test_f.touch()
+        test_f.unlink()
+        return p
+    except (OSError, PermissionError):
+        tmp_p = Path("/tmp") / f"ka-clip-{os.getuid()}"
+        tmp_p.mkdir(parents=True, exist_ok=True)
+        return tmp_p
+
+CACHE_DIR = get_cache_base()
+ENTRIES_DIR = CACHE_DIR / "entries"
+THUMBS_DIR = CACHE_DIR / "thumbs"
+HISTORY_FILE = CACHE_DIR / "history.json"
+PID_FILE = Path(os.environ.get("XDG_RUNTIME_DIR", "/tmp")) / f"ka-clip-{os.getuid()}.pid"
+
+MAX_ENTRIES = 100
+MAX_TEXT_SIZE = 2 * 1024 * 1024  # 2MB max for clipboard text
+
+def ensure_dirs():
+    ENTRIES_DIR.mkdir(parents=True, exist_ok=True)
+    THUMBS_DIR.mkdir(parents=True, exist_ok=True)
+
+def load_history():
+    if HISTORY_FILE.exists():
+        try:
+            with open(HISTORY_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            return []
+    return []
+
+def save_history(history):
+    ensure_dirs()
+    tmp_file = HISTORY_FILE.with_suffix(".tmp")
+    with open(tmp_file, "w", encoding="utf-8") as f:
+        json.dump(history[:MAX_ENTRIES], f, ensure_ascii=False, indent=2)
+    tmp_file.replace(HISTORY_FILE)
+
+def get_png_dimensions(data: bytes):
+    """Trích xuất kích thước ảnh PNG thuần túy bằng chuẩn header IHDR (0ms latency)."""
+    if len(data) >= 24 and data[:8] == b'\x89PNG\r\n\x1a\n':
+        w, h = struct.unpack('>II', data[16:24])
+        return w, h
+    return None
+
+def format_size(bytes_len: int) -> str:
+    if bytes_len < 1024:
+        return f"{bytes_len} B"
+    elif bytes_len < 1024 * 1024:
+        return f"{bytes_len / 1024:.1f} KB"
+    else:
+        return f"{bytes_len / (1024 * 1024):.1f} MB"
+
+def create_thumbnail(src_path: Path, thumb_path: Path):
+    """Tạo thumbnail nhỏ cho hình ảnh để hiển thị mượt mà trong Rofi."""
+    # Thử dùng ImageMagick convert nếu có
+    if subprocess.run(["which", "convert"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode == 0:
+        cmd = ["convert", "-thumbnail", "160x160", str(src_path), str(thumb_path)]
+        if subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode == 0:
+            return
+    # Fallback: copy file gốc làm thumbnail
+    try:
+        import shutil
+        shutil.copyfile(src_path, thumb_path)
+    except Exception:
+        pass
+
+def capture_clipboard():
+    """Bắt và lưu trữ nội dung clipboard hiện tại nếu có thay đổi."""
+    ensure_dirs()
+    try:
+        targets_out = subprocess.check_output(
+            ["xclip", "-selection", "clipboard", "-t", "TARGETS", "-o"],
+            stderr=subprocess.DEVNULL,
+            timeout=1
+        ).decode("utf-8", errors="ignore")
+    except Exception:
+        return False
+
+    targets = targets_out.splitlines()
+    history = load_history()
+    now = time.localtime()
+    date_str = time.strftime("%d/%m/%Y", now)
+    time_str = time.strftime("%H:%M:%S", now)
+    timestamp = int(time.time())
+
+    # 1. XỬ LÝ HÌNH ẢNH (Image / Screenshot)
+    if "image/png" in targets:
+        try:
+            img_data = subprocess.check_output(
+                ["xclip", "-selection", "clipboard", "-t", "image/png", "-o"],
+                stderr=subprocess.DEVNULL,
+                timeout=1.5
+            )
+        except Exception:
+            return False
+
+        if not img_data or len(img_data) < 32:
+            return False
+
+        img_hash = hashlib.sha256(img_data).hexdigest()
+        if history and history[0].get("hash") == img_hash:
+            return False  # Bỏ qua nếu trùng bản sao gần nhất
+
+        dim = get_png_dimensions(img_data)
+        dim_str = f"{dim[0]}×{dim[1]}" if dim else "PNG Image"
+        size_str = format_size(len(img_data))
+        entry_id = f"{timestamp}_{img_hash[:8]}"
+        file_path = ENTRIES_DIR / f"{entry_id}.png"
+        thumb_path = THUMBS_DIR / f"thumb_{entry_id}.png"
+
+        with open(file_path, "wb") as f:
+            f.write(img_data)
+
+        create_thumbnail(file_path, thumb_path)
+
+        new_entry = {
+            "id": entry_id,
+            "type": "image",
+            "date": date_str,
+            "time": time_str,
+            "hash": img_hash,
+            "summary_title": f"󰋩  Ảnh chụp ({dim_str}, {size_str})",
+            "file_path": str(file_path),
+            "thumb_path": str(thumb_path) if thumb_path.exists() else str(file_path),
+            "dimensions": dim_str,
+            "size_str": size_str,
+        }
+        history.insert(0, new_entry)
+        save_history(history)
+        return True
+
+    # 2. XỬ LÝ VĂN BẢN (Text / Code / URL)
+    text_targets = [t for t in targets if t in ("UTF8_STRING", "TEXT", "STRING", "text/plain")]
+    if text_targets:
+        try:
+            text_data = subprocess.check_output(
+                ["xclip", "-selection", "clipboard", "-o"],
+                stderr=subprocess.DEVNULL,
+                timeout=1
+            ).decode("utf-8", errors="replace")
+        except Exception:
+            return False
+
+        stripped = text_data.strip()
+        if not stripped or len(text_data) > MAX_TEXT_SIZE:
+            return False
+
+        text_hash = hashlib.sha256(text_data.encode("utf-8")).hexdigest()
+        if history and history[0].get("hash") == text_hash:
+            return False
+
+        entry_id = f"{timestamp}_{text_hash[:8]}"
+        file_path = ENTRIES_DIR / f"{entry_id}.txt"
+
+        with open(file_path, "w", encoding="utf-8") as f:
+            f.write(text_data)
+
+        first_line = stripped.splitlines()[0].strip()
+        if len(first_line) > 42:
+            short_line = first_line[:40] + "…"
+        else:
+            short_line = first_line
+
+        # Xác định icon ngữ cảnh
+        icon = "edit-paste"
+        icon_symbol = "󰈙"
+        if stripped.startswith("http://") or stripped.startswith("https://"):
+            icon = "internet-web-browser"
+            icon_symbol = "󰌨"
+        elif any(keyword in first_line for keyword in ("import ", "def ", "class ", "function ", "const ", "let ", "var ", "#!/")):
+            icon = "text-x-script"
+            icon_symbol = "󰘦"
+
+        lines_count = len(text_data.splitlines())
+        chars_count = len(text_data)
+
+        new_entry = {
+            "id": entry_id,
+            "type": "text",
+            "date": date_str,
+            "time": time_str,
+            "hash": text_hash,
+            "icon": icon,
+            "icon_symbol": icon_symbol,
+            "summary_title": f"{icon_symbol}  {short_line}",
+            "text": text_data,
+            "file_path": str(file_path),
+            "line_count": lines_count,
+            "char_count": chars_count,
+            "size_str": format_size(len(text_data.encode("utf-8"))),
+        }
+        history.insert(0, new_entry)
+        save_history(history)
+        return True
+
+    return False
+
+def show_rofi_menu():
+    """Mở giao diện Rofi 2 cột chọn lịch sử Clipboard."""
+    ensure_dirs()
+    # Bắt nhanh bản sao hiện tại trước khi nạp
+    capture_clipboard()
+    history = load_history()
+
+    rofi_theme = Path(os.environ.get("XDG_CONFIG_HOME", os.path.expanduser("~/.config"))) / "rofi/clipboard.rasi"
+    if not rofi_theme.exists():
+        rofi_theme = Path(__file__).resolve().parent / "../../../rofi/.config/rofi/clipboard.rasi"
+
+    if not history:
+        msg = "󰅖  Lịch sử Clipboard trống\0icon\x1fdialog-information\x1e"
+        subprocess.run(
+            ["rofi", "-dmenu", "-theme", str(rofi_theme), "-p", " 󰅍  CLIPBOARD", "-sep", "\x1e"],
+            input=msg.encode("utf-8"),
+            stdout=subprocess.DEVNULL
+        )
+        return
+
+    # Chuẩn bị dữ liệu danh sách bên trái và nội dung chi tiết bên phải
+    payload_parts = []
+    for idx, entry in enumerate(history, 1):
+        if entry["type"] == "image":
+            full_preview = (
+                f"[HÌNH ẢNH PNG]  ·  {entry['time']}  ({entry['date']})\n"
+                f"Kích thước: {entry.get('dimensions', 'N/A')}  ·  Dung lượng: {entry.get('size_str', 'N/A')}\n"
+                f"Tệp lưu: {entry.get('file_path', '')}\n"
+                f"────────────────────────────────────────────────────────────\n"
+                f"Nhấn Enter để sao chép hình ảnh vào bộ nhớ đệm và dán (Ctrl+V)."
+            )
+            icon = entry.get("thumb_path", "image-x-generic")
+            display_str = f"[{idx:02d}]  {entry['summary_title']}"
+        else:
+            sample_text = entry.get("text", "")
+            if len(sample_text) > 1600:
+                sample_text = sample_text[:1600] + "\n\n... (Còn tiếp phần còn lại của văn bản)"
+            full_preview = (
+                f"[VĂN BẢN]  ·  {entry['time']}  ({entry['date']})  ·  {entry.get('line_count', 1)} dòng, {entry.get('char_count', 0)} ký tự\n"
+                f"────────────────────────────────────────────────────────────\n"
+                f"{sample_text}"
+            )
+            icon = entry.get("icon", "edit-paste")
+            display_str = f"[{idx:02d}]  {entry['summary_title']}"
+
+        payload_parts.append(f"{full_preview}\0display\x1f{display_str}\0icon\x1f{icon}")
+
+    # Tùy chọn xóa lịch sử ở cuối danh sách
+    payload_parts.append(
+        "Xoá toàn bộ các bản sao lưu trong lịch sử clipboard.\0display\x1f󰆴  Xoá toàn bộ lịch sử (Clear History)\0icon\x1fedit-delete"
+    )
+
+    raw_input = "\x1e".join(payload_parts) + "\x1e"
+
+    rofi_cmd = [
+        "rofi", "-dmenu",
+        "-theme", str(rofi_theme),
+        "-p", " 󰅍  CLIPBOARD",
+        "-format", "i",
+        "-sep", "\x1e",
+        "-keep-right"
+    ]
+
+    proc = subprocess.Popen(rofi_cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+    stdout_data, _ = proc.communicate(input=raw_input.encode("utf-8"))
+
+    if proc.returncode != 0 or not stdout_data:
+        return
+
+    try:
+        selected_idx = int(stdout_data.decode("utf-8").strip())
+    except ValueError:
+        return
+
+    # Kiểm tra nếu chọn mục "Xoá lịch sử"
+    if selected_idx >= len(history):
+        clear_history()
+        return
+
+    # Nạp bản sao được chọn vào Clipboard
+    target_entry = history[selected_idx]
+    apply_clipboard(target_entry)
+
+def apply_clipboard(entry):
+    """Nạp nội dung từ lịch sử vào X11 clipboard."""
+    file_path = Path(entry["file_path"])
+    if not file_path.exists():
+        notify("Lỗi Clipboard", "Không tìm thấy tệp nội dung bản sao.", icon="dialog-error")
+        return
+
+    if entry["type"] == "image":
+        try:
+            with open(file_path, "rb") as f:
+                subprocess.run(
+                    ["xclip", "-selection", "clipboard", "-t", "image/png", "-i"],
+                    stdin=f,
+                    check=True
+                )
+            notify("Clipboard Image", f"Đã nạp ảnh ({entry.get('dimensions', 'PNG')}) vào clipboard.", icon=entry.get("thumb_path"))
+        except Exception as e:
+            notify("Lỗi Clipboard", f"Không thể sao chép ảnh: {e}", icon="dialog-error")
+    else:
+        try:
+            with open(file_path, "rb") as f:
+                content = f.read()
+            subprocess.run(["xclip", "-selection", "clipboard", "-i"], input=content, check=True)
+            # Đồng bộ luôn sang primary selection
+            subprocess.run(["xclip", "-selection", "primary", "-i"], input=content)
+            notify("Clipboard Text", f"Đã nạp văn bản: {entry['summary_title']}", icon=entry.get("icon", "edit-paste"))
+        except Exception as e:
+            notify("Lỗi Clipboard", f"Không thể sao chép văn bản: {e}", icon="dialog-error")
+
+def clear_history():
+    """Xóa sạch lịch sử và toàn bộ cache clipboard."""
+    ensure_dirs()
+    for p in ENTRIES_DIR.glob("*"):
+        try: p.unlink()
+        except Exception: pass
+    for p in THUMBS_DIR.glob("*"):
+        try: p.unlink()
+        except Exception: pass
+    save_history([])
+    notify("Clipboard Manager", "Đã dọn dẹp sạch toàn bộ lịch sử clipboard.", icon="edit-delete")
+
+def notify(title: str, message: str, icon: str = None):
+    icon_arg = ["-i", icon] if icon else []
+    if subprocess.run(["which", "dunstify"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode == 0:
+        subprocess.run(["dunstify", "-a", "ka-clip", "-r", "9943", *icon_arg, title, message])
+    elif subprocess.run(["which", "notify-send"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode == 0:
+        subprocess.run(["notify-send", "-a", "ka-clip", *icon_arg, title, message])
+
+def run_daemon():
+    """Tiến trình ngầm lắng nghe sự kiện thay đổi clipboard (sử dụng clipnotify)."""
+    ensure_dirs()
+    PID_FILE.write_text(str(os.getpid()))
+
+    def handle_sig(sig, frame):
+        try: PID_FILE.unlink()
+        except Exception: pass
+        sys.exit(0)
+
+    signal.signal(signal.SIGINT, handle_sig)
+    signal.signal(signal.SIGTERM, handle_sig)
+
+    # Bắt ngay nội dung ban đầu khi khởi động daemon
+    capture_clipboard()
+
+    has_clipnotify = subprocess.run(["which", "clipnotify"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode == 0
+
+    while True:
+        if has_clipnotify:
+            ret = subprocess.run(["clipnotify"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            if ret.returncode == 0:
+                capture_clipboard()
+        else:
+            time.sleep(0.8)
+            capture_clipboard()
+
+def print_status():
+    history = load_history()
+    text_count = sum(1 for e in history if e.get("type") == "text")
+    img_count = sum(1 for e in history if e.get("type") == "image")
+    is_running = PID_FILE.exists()
+    pid = PID_FILE.read_text().strip() if is_running else "Không"
+    print(f"\033[1m\033[36mKA CLIPBOARD MANAGER STATUS\033[0m")
+    print(f"  Daemon đang chạy : {'\033[32mCó (PID ' + pid + ')\033[0m' if is_running else '\033[33mChưa bật\033[0m'}")
+    print(f"  Tổng số bản sao  : {len(history)} (Văn bản: {text_count}, Hình ảnh: {img_count})")
+    print(f"  Thư mục lưu trữ  : {CACHE_DIR}")
+
+if __name__ == "__main__":
+    cmd = sys.argv[1].lower() if len(sys.argv) > 1 else "menu"
+    if cmd in ("daemon", "--daemon", "-d"):
+        run_daemon()
+    elif cmd in ("clear", "--clear"):
+        clear_history()
+    elif cmd in ("status", "--status"):
+        print_status()
+    elif cmd in ("capture", "--capture"):
+        capture_clipboard()
+    else:
+        show_rofi_menu()

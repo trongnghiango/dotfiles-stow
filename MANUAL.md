@@ -199,7 +199,24 @@ Lấy cảm hứng từ tính năng `omarchy-capture-text` của DHH:
 
 ---
 
-## 10. BẢO TRÌ, CHẨN ĐOÁN & KHẮC PHỤC SỰ CỐ
+## 10. BỘ QUẢN LÝ CLIPBOARD 2 CỘT OMARCHY (`ka clip` / `Super + V`)
+
+Thay thế hoàn toàn cơ chế khay hệ thống cũ (`fzf` trong terminal):
+- **Phím tắt gọi nhanh**: Nhấn **`Super + V`** (hoặc **`Super + Ctrl + V`**, hoặc click icon khay hệ thống).
+- **Hỗ trợ đa phương tiện toàn diện**:
+  - Tự động bắt và lưu trữ cả **Văn bản (Text, code, URL)** lẫn **Hình ảnh (Screenshots từ `maim`, ảnh copy từ trình duyệt, kết quả `ka-ocr`)**.
+- **Giao diện Master-Detail 2 Cột**:
+  - **Cột bên trái**: Danh sách các mục đã copy theo thứ tự thời gian mới nhất lên đầu, icon phân loại trực quan (`󰈙` text, `󰋩` ảnh, `󰌨` url, `󰘦` code) và tiêu đề tóm tắt 1 dòng.
+  - **Cột bên phải**: Xem trước chi tiết nội dung đầy đủ (văn bản nhiều dòng, số dòng, ký tự) hoặc ảnh thumbnail phóng to sắc nét đối với hình ảnh.
+- **Thao tác một chạm**: Dùng phím mũi tên hoặc `Ctrl+j/k` để duyệt và xem trước thời gian thực $\rightarrow$ Nhấn `Enter` để nạp ngay vào bộ nhớ đệm và dán (`Ctrl + V`).
+- **Lệnh hỗ trợ dòng lệnh**:
+  - `ka clip` — Mở giao diện Rofi.
+  - `ka clip status` — Xem trạng thái daemon và số lượng bản sao đang lưu.
+  - `ka clip clear` — Dọn dẹp sạch toàn bộ lịch sử clipboard.
+
+---
+
+## 11. BẢO TRÌ, CHẨN ĐOÁN & KHẮC PHỤC SỰ CỐ
 
 ### A. Kiểm Tra Sức Khỏe Toàn Diện Hệ Thống
 Bất cứ khi nào bạn cảm thấy hệ thống có vấn đề, chỉ cần chạy:
