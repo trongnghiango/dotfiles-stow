@@ -267,13 +267,13 @@ def show_rofi_menu():
                 f"────────────────────────────────────────────────────────────\n"
                 f"{sample_text}"
             )
+            icon = entry.get("icon", "edit-paste")
             display_str = f"[{idx:02d}]  {entry['summary_title']}"
-            # Với text: Không gán icon ảnh để khung preview nhường 100% không gian dọc cho text
-            payload_parts.append(f"{full_preview}\0display\x1f{display_str}")
+            payload_parts.append(f"{full_preview}\0display\x1f{display_str}\x1ficon\x1f{icon}")
 
     # Tùy chọn xóa lịch sử ở cuối danh sách
     payload_parts.append(
-        "Xoá toàn bộ các bản sao lưu trong lịch sử clipboard.\0display\x1f󰆴  Xoá toàn bộ lịch sử (Clear History)"
+        "Xoá toàn bộ các bản sao lưu trong lịch sử clipboard.\0display\x1f󰆴  Xoá toàn bộ lịch sử (Clear History)\x1ficon\x1fedit-delete"
     )
 
     raw_input = "\x1e".join(payload_parts) + "\x1e"

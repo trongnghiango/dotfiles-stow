@@ -1,9 +1,9 @@
 /**
  * Rofi Clipboard Theme — Two-Pane Master/Detail Split View
- * Golden Ratio 2 : 3 Layout (Left 400px : Right 604px)
+ * Golden Ratio 2 : 3 Layout (Left 380px : Right 570px)
  * Omarchy / DHH Design Standard (0px border-radius, 2px accent border)
  * Left: Chronological items with concise summaries & icons (2 parts, 40%)
- * Right: Full content preview with real image & full text details (3 parts, 60%)
+ * Right: Full content preview with real image & text details (3 parts, 60%)
  **/
 
 @import "config.rasi"
@@ -14,7 +14,7 @@ window {
     location:                    center;
     anchor:                      center;
     fullscreen:                  false;
-    width:                       1050px;
+    width:                       1000px;
     height:                      560px;
     x-offset:                    0px;
     y-offset:                    0px;
@@ -79,11 +79,10 @@ body {
     children:                    [ "listview", "preview-box" ];
 }
 
-/* TỶ LỆ 2 : 3 (BÊN TRÁI 2 PHẦN = 400px, KHÔNG EXPAND ĐỂ BẢO TOÀN TỶ LỆ) */
+/* TỶ LỆ 2 : 3 (BÊN TRÁI 2 PHẦN = 380px) */
 listview {
     enabled:                     true;
-    width:                       400px;
-    expand:                      false;
+    width:                       380px;
     columns:                     1;
     lines:                       10;
     cycle:                       true;
@@ -106,7 +105,7 @@ listview {
 
 element {
     enabled:                     true;
-    spacing:                     8px;
+    spacing:                     10px;
     margin:                      0px;
     padding:                     8px 10px;
     border:                      0px solid;
@@ -114,7 +113,7 @@ element {
     background-color:            transparent;
     text-color:                  @foreground;
     cursor:                      pointer;
-    children:                    [ "element-text" ];
+    children:                    [ "element-icon", "element-text" ];
 }
 
 element normal.normal {
@@ -127,6 +126,13 @@ element selected.normal {
     text-color:                  @background;
 }
 
+element-icon {
+    background-color:            transparent;
+    text-color:                  inherit;
+    size:                        22px;
+    cursor:                      inherit;
+}
+
 element-text {
     background-color:            transparent;
     text-color:                  inherit;
@@ -136,12 +142,11 @@ element-text {
     horizontal-align:            0.0;
 }
 
-/* TỶ LỆ 2 : 3 (BÊN PHẢI 3 PHẦN = 604px, TỰ ĐỘNG LẤP ĐẦY TOÀN BỘ PHẦN CÒN LẠI) */
+/* TỶ LỆ 2 : 3 (BÊN PHẢI 3 PHẦN = 574px) */
 preview-box {
     enabled:                     true;
     orientation:                 vertical;
-    width:                       604px;
-    expand:                      true;
+    width:                       574px;
     spacing:                     10px;
     margin:                      0px;
     padding:                     14px;
@@ -164,7 +169,7 @@ preview-title {
 icon-current-entry {
     enabled:                     true;
     expand:                      false;
-    size:                        200px;
+    size:                        150px;
     squared:                     false;
     horizontal-align:            0.5;
     vertical-align:              0.5;
