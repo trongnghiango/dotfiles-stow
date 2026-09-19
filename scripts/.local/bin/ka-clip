@@ -255,7 +255,8 @@ def show_rofi_menu():
                 f"────────────────────────────────────────────────────────────\n"
                 f"Nhấn Enter để sao chép hình ảnh vào bộ nhớ đệm và dán (Ctrl+V)."
             )
-            icon = entry.get("thumb_path", "image-x-generic")
+            file_p = entry.get("file_path", "")
+            icon = file_p if (file_p and Path(file_p).exists()) else "image-x-generic"
             display_str = f"[{idx:02d}]  {entry['summary_title']}"
         else:
             sample_text = entry.get("text", "")
@@ -269,11 +270,12 @@ def show_rofi_menu():
             icon = entry.get("icon", "edit-paste")
             display_str = f"[{idx:02d}]  {entry['summary_title']}"
 
-        payload_parts.append(f"{full_preview}\0display\x1f{display_str}\0icon\x1f{icon}")
+        # Cú pháp chuẩn Rofi dmenu metadata: \0display\x1f...\x1ficon\x1f...
+        payload_parts.append(f"{full_preview}\0display\x1f{display_str}\x1ficon\x1f{icon}")
 
     # Tùy chọn xóa lịch sử ở cuối danh sách
     payload_parts.append(
-        "Xoá toàn bộ các bản sao lưu trong lịch sử clipboard.\0display\x1f󰆴  Xoá toàn bộ lịch sử (Clear History)\0icon\x1fedit-delete"
+        "Xoá toàn bộ các bản sao lưu trong lịch sử clipboard.\0display\x1f󰆴  Xoá toàn bộ lịch sử (Clear History)\x1ficon\x1fedit-delete"
     )
 
     raw_input = "\x1e".join(payload_parts) + "\x1e"

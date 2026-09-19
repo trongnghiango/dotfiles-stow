@@ -1,8 +1,9 @@
 /**
  * Rofi Clipboard Theme — Two-Pane Master/Detail Split View
- * Omarchy / DHH Design Standard (0px border-radius, 2px accent border, Golden Ratio)
- * Left: Chronological items with concise summaries & icons
- * Right: Full content preview (text / image / metadata)
+ * Golden Ratio 2 : 3 Layout (Left 380px : Right 570px)
+ * Omarchy / DHH Design Standard (0px border-radius, 2px accent border)
+ * Left: Chronological items with concise summaries & icons (2 parts)
+ * Right: Full content preview with real image & text details (3 parts)
  **/
 
 @import "config.rasi"
@@ -13,7 +14,7 @@ window {
     location:                    center;
     anchor:                      center;
     fullscreen:                  false;
-    width:                       960px;
+    width:                       1000px;
     height:                      540px;
     x-offset:                    0px;
     y-offset:                    0px;
@@ -78,9 +79,10 @@ body {
     children:                    [ "listview", "preview-box" ];
 }
 
+/* TỶ LỆ 2 : 3 (BÊN TRÁI 2 PHẦN = 380px) */
 listview {
     enabled:                     true;
-    width:                       450px;
+    width:                       380px;
     columns:                     1;
     lines:                       9;
     cycle:                       true;
@@ -140,13 +142,14 @@ element-text {
     horizontal-align:            0.0;
 }
 
+/* TỶ LỆ 2 : 3 (BÊN PHẢI 3 PHẦN = 574px) */
 preview-box {
     enabled:                     true;
     orientation:                 vertical;
-    width:                       470px;
-    spacing:                     10px;
+    width:                       574px;
+    spacing:                     12px;
     margin:                      0px;
-    padding:                     12px;
+    padding:                     14px;
     border:                      1px solid;
     border-radius:               0px;
     border-color:                @border;
@@ -166,7 +169,8 @@ preview-title {
 icon-current-entry {
     enabled:                     true;
     expand:                      false;
-    size:                        150px;
+    size:                        200px;
+    squared:                     false;
     horizontal-align:            0.5;
     vertical-align:              0.5;
     background-color:            transparent;
