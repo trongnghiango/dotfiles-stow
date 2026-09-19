@@ -26,9 +26,20 @@ from pathlib import Path
 # ==============================================================================
 # 0. THƯ MỤC LƯU TRỮ & SOCKET NHANH (< 2ms FAST PATH)
 # ==============================================================================
-XDG_RUNTIME_DIR = os.environ.get("XDG_RUNTIME_DIR", "/tmp")
-SOCKET_PATH = os.path.join(XDG_RUNTIME_DIR, f"ka-clip-{os.getuid()}.sock")
-PID_FILE = Path(XDG_RUNTIME_DIR) / f"ka-clip-{os.getuid()}.pid"
+def get_runtime_dir() -> Path:
+    xdg_rt = os.environ.get("XDG_RUNTIME_DIR", "/tmp")
+    try:
+        p = Path(xdg_rt)
+        test_f = p / f".write_test_{os.getuid()}"
+        test_f.touch()
+        test_f.unlink()
+        return p
+    except (OSError, PermissionError):
+        return Path("/tmp")
+
+RUNTIME_DIR = get_runtime_dir()
+SOCKET_PATH = str(RUNTIME_DIR / f"ka-clip-{os.getuid()}.sock")
+PID_FILE = RUNTIME_DIR / f"ka-clip-{os.getuid()}.pid"
 
 def get_cache_base() -> Path:
     xdg_cache = os.environ.get("XDG_CACHE_HOME", os.path.expanduser("~/.cache"))
@@ -419,7 +430,6 @@ class ClipboardWindow(Gtk.Window):
 
         # Kết nối phím tắt
         self.connect("key-press-event", self.on_key_press)
-        self.connect("focus-out-event", lambda w, e: self.hide_window())
 
         self.paned.set_position(400)
 
@@ -462,20 +472,20 @@ class ClipboardWindow(Gtk.Window):
         row {{
             padding: 8px 10px;
             border-radius: 0px;
-            border-bottom: 1px solid #{self.colors['surface']}22;
+            border-bottom: 1px solid #{self.colors['surface']};
         }}
         row:hover {{
-            background-color: #{self.colors['bg_alt']}99;
+            background-color: #{self.colors['bg_alt']};
         }}
         row:selected {{
             background-color: #{self.colors['accent']};
             color: #{self.colors['bg']};
         }}
         row:selected label {{
-            color: #{self.colors['bg']} !important;
+            color: #{self.colors['bg']};
         }}
         #preview_header {{
-            border-bottom: 1px solid #{self.colors['surface']}88;
+            border-bottom: 1px solid #{self.colors['surface']};
             padding-bottom: 8px;
         }}
         #preview_title {{
