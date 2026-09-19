@@ -4,6 +4,10 @@
 # Tự động đồng bộ màu từ theme hiện tại và mở Rofi 2 cột khi click
 # ==============================================================================
 
+# Diệt sạch mọi tiến trình tray cũ (kể cả icon rác/icon ẩn) để tránh trùng lặp
+pkill -f "yad --notification" 2>/dev/null || true
+killall yad 2>/dev/null || true
+
 # Đảm bảo daemon ka-clip đang chạy ngầm
 pgrep -f "ka-clip.*daemon" >/dev/null 2>&1 || ka-clip daemon &
 
