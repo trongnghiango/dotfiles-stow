@@ -447,23 +447,37 @@ apply_handler() {
     xdg-mime default "$app" "$m" 2>/dev/null || true
   done
 
-  # Đồng bộ biến môi trường tương ứng trong profile.local
-  mkdir -p "$(dirname "$PROFILE_LOCAL")"
-  touch "$PROFILE_LOCAL"
-  if [ "$cat" = "browser" ]; then
-    local bin_hint="${app%%.*}"
-    bin_hint="${bin_hint%%-browser}"
-    sed -i '/export BROWSER=/d' "$PROFILE_LOCAL"
-    echo "export BROWSER=\"$bin_hint\"" >> "$PROFILE_LOCAL"
-  elif [ "$cat" = "editor" ]; then
-    if [[ "$app" =~ ^(text\.desktop|nvim\.desktop)$ ]]; then
-      sed -i '/export EDITOR=/d;/export VISUAL=/d' "$PROFILE_LOCAL"
-      echo "export EDITOR=\"nvim\"" >> "$PROFILE_LOCAL"
-      echo "export VISUAL=\"nvim\"" >> "$PROFILE_LOCAL"
-    elif [[ "$app" =~ ^(code\.desktop|code-oss\.desktop|codium\.desktop)$ ]]; then
-      sed -i '/export EDITOR=/d;/export VISUAL=/d' "$PROFILE_LOCAL"
-      echo "export EDITOR=\"code\"" >> "$PROFILE_LOCAL"
-      echo "export VISUAL=\"code\"" >> "$PROFILE_LOCAL"
+  # Chuẩn hóa trailing semicolon cho mimeapps.list theo chuẩn Freedesktop XDG
+  local mime_file="${XDG_CONFIG_HOME:-$HOME/.config}/mimeapps.list"
+  if [ -e "$mime_file" ]; then
+    local real_mime
+    real_mime="$(readlink -f "$mime_file" 2>/dev/null || echo "$mime_file")"
+    if [ -w "$real_mime" ]; then
+      sed -i -E '/^[^#\[].*=[^;]*[^;]$/ s/$/;/' "$real_mime"
+    fi
+  fi
+
+  # Đồng bộ biến môi trường tương ứng trong profile.local (nếu có quyền ghi)
+  if [ -w "$(dirname "$PROFILE_LOCAL")" ] || [ -w "$PROFILE_LOCAL" ]; then
+    mkdir -p "$(dirname "$PROFILE_LOCAL")" 2>/dev/null || true
+    touch "$PROFILE_LOCAL" 2>/dev/null || true
+    if [ -w "$PROFILE_LOCAL" ]; then
+      if [ "$cat" = "browser" ]; then
+        local bin_hint="${app%%.*}"
+        bin_hint="${bin_hint%%-browser}"
+        sed -i '/export BROWSER=/d' "$PROFILE_LOCAL"
+        echo "export BROWSER=\"$bin_hint\"" >> "$PROFILE_LOCAL"
+      elif [ "$cat" = "editor" ]; then
+        if [[ "$app" =~ ^(text\.desktop|nvim\.desktop)$ ]]; then
+          sed -i '/export EDITOR=/d;/export VISUAL=/d' "$PROFILE_LOCAL"
+          echo "export EDITOR=\"nvim\"" >> "$PROFILE_LOCAL"
+          echo "export VISUAL=\"nvim\"" >> "$PROFILE_LOCAL"
+        elif [[ "$app" =~ ^(code\.desktop|code-oss\.desktop|codium\.desktop)$ ]]; then
+          sed -i '/export EDITOR=/d;/export VISUAL=/d' "$PROFILE_LOCAL"
+          echo "export EDITOR=\"code\"" >> "$PROFILE_LOCAL"
+          echo "export VISUAL=\"code\"" >> "$PROFILE_LOCAL"
+        fi
+      fi
     fi
   fi
 

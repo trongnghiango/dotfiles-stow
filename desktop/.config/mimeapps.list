@@ -13,13 +13,13 @@ application/pdf=pdf.desktop;
 image/png=img.desktop;
 image/jpeg=img.desktop;
 image/gif=img.desktop;
-application/rss+xml=rss.desktop
-video/x-matroska=video.desktop
-video/mp4=video.desktop
-x-scheme-handler/lbry=lbry.desktop
-inode/directory=file.desktop
-x-scheme-handler/claude-cli=claude-code-url-handler.desktop
-x-scheme-handler/obsidian=obsidian.desktop
+application/rss+xml=rss.desktop;
+video/x-matroska=video.desktop;
+video/mp4=video.desktop;
+x-scheme-handler/lbry=lbry.desktop;
+inode/directory=file.desktop;
+x-scheme-handler/claude-cli=claude-code-url-handler.desktop;
+x-scheme-handler/obsidian=obsidian.desktop;
 
 # Web browsers - Brave as default
 x-scheme-handler/http=brave-browser.desktop;
@@ -29,4 +29,14 @@ application/x-extension-htm=brave-browser.desktop;
 application/x-extension-html=brave-browser.desktop;
 application/x-extension-shtml=brave-browser.desktop;
 application/xhtml+xml=brave-browser.desktop;
-x-scheme-handler/antigravity=antigravity.desktop
+x-scheme-handler/antigravity=antigravity.desktop;
+
+# Common text and code formats
+text/markdown=text.desktop;
+application/x-shellscript=text.desktop;
+text/x-c=text.desktop;
+text/x-c++=text.desktop;
+text/x-python=text.desktop;
+application/json=text.desktop;
+application/xml=text.desktop;
+text/x-makefile=text.desktop;
