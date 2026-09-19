@@ -28,8 +28,10 @@ from pathlib import Path
 # ==============================================================================
 def get_runtime_dir() -> Path:
     xdg_rt = os.environ.get("XDG_RUNTIME_DIR", "/tmp")
+    p = Path(xdg_rt)
+    if (p / f"ka-clip-{os.getuid()}.sock").exists() or (p / f"ka-clip-{os.getuid()}.pid").exists():
+        return p
     try:
-        p = Path(xdg_rt)
         test_f = p / f".write_test_{os.getuid()}"
         test_f.touch()
         test_f.unlink()
@@ -43,8 +45,10 @@ PID_FILE = RUNTIME_DIR / f"ka-clip-{os.getuid()}.pid"
 
 def get_cache_base() -> Path:
     xdg_cache = os.environ.get("XDG_CACHE_HOME", os.path.expanduser("~/.cache"))
+    p = Path(xdg_cache) / "ka-clip"
+    if p.exists():
+        return p
     try:
-        p = Path(xdg_cache) / "ka-clip"
         p.mkdir(parents=True, exist_ok=True)
         test_f = p / ".write_test"
         test_f.touch()
