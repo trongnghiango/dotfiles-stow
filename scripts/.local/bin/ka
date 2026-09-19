@@ -9,6 +9,9 @@
 
 set -eo pipefail
 
+_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+export PATH="$_SCRIPT_DIR:$_SCRIPT_DIR/dwmblocks-scripts:$_SCRIPT_DIR/dmenu-scripts:$PATH"
+
 VERSION="1.0.0"
 DWM_VER="6.8"
 
@@ -32,8 +35,9 @@ usage() {
   echo -e "  ${CYAN}ka${RESET} <lệnh> [tham số...]"
   echo ""
   echo -e "${BOLD}DANH SÁCH LỆNH CỐT LÕI:${RESET}"
-  echo -e "  ${GREEN}theme${RESET}  [nord|gruvbox-dark|catppuccin-mocha]   Đổi theme giao diện toàn hệ thống tức thì"
-  echo -e "  ${GREEN}pop${RESET}    <module>                              Bật/Tắt thẻ popup Omarchy (volume, clock, battery, cpu, mem, net, weather)"
+  echo -e "  ${GREEN}theme${RESET}   [nord|gruvbox-dark|catppuccin-mocha]   Đổi theme giao diện toàn hệ thống tức thì"
+  echo -e "  ${GREEN}default${RESET} [show|set <cat> <app>]                 Quản lý & chọn ứng dụng mặc định một chạm (Rofi / CLI)"
+  echo -e "  ${GREEN}pop${RESET}     <module>                              Bật/Tắt thẻ popup Omarchy (volume, clock, battery, cpu, mem, net, weather)"
   echo -e "  ${GREEN}dns${RESET}    [dhcp|cloudflare|google|custom <ip>]  Chuyển đổi máy chủ phân giải DNS nhanh"
   echo -e "  ${GREEN}dev${RESET}    [setup|status|update]                 Quản lý toàn bộ dev runtimes (Node, Python, Go, Rust, Bun, PNPM) qua Mise"
   echo -e "  ${GREEN}ocr${RESET}    [--lang eng|vie] [--stdout]           Bóc tách chữ trên màn hình bằng OCR vào Clipboard"
@@ -54,6 +58,10 @@ cmd_theme() {
   else
     theme-set "$target"
   fi
+}
+
+cmd_default() {
+  ka-default "$@"
 }
 
 cmd_pop() {
@@ -156,6 +164,7 @@ cmd_doctor() {
   check_item "Slop Region Selector" "command -v slop"
   check_item "Xclip Clipboard" "command -v xclip"
   check_item "Tesseract OCR" "command -v tesseract"
+  check_item "XDG MIME Tool (xdg-mime)" "command -v xdg-mime"
 
   echo -e "\n${BOLD}3. Audio & Network Stack:${RESET}"
   check_item "PipeWire Audio Server" "command -v pipewire"
@@ -164,7 +173,8 @@ cmd_doctor() {
 
   echo -e "\n${BOLD}4. Theming & Dropdown Popovers:${RESET}"
   check_item "Current Theme Config (~/.config/theme/colors/current.conf)" "test -f \$HOME/.config/theme/colors/current.conf"
-  check_item "Dropdown Script (dwm-dropdown)" "command -v dwm-dropdown"
+  check_item "Dropdown Script (dwm-dropdown)" "command -v dwm-dropdown || test -x \"\$_SCRIPT_DIR/dwm-dropdown\""
+  check_item "Default Handlers Selector (ka-default)" "command -v ka-default || test -x \"\$_SCRIPT_DIR/ka-default\""
   local sock_path="${XDG_RUNTIME_DIR:-/tmp}/dwm-dropdown-$(id -u).sock"
   if [[ -S "$sock_path" ]]; then
     echo -e "  [${GREEN}PASS${RESET}] Dropdown Socket Daemon is ACTIVE (${sock_path})"
@@ -210,6 +220,9 @@ shift || true
 case "$SUBCMD" in
   theme)
     cmd_theme "$@"
+    ;;
+  default|handler|handlers)
+    cmd_default "$@"
     ;;
   pop|dropdown)
     cmd_pop "$@"

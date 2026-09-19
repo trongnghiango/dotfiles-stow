@@ -43,6 +43,7 @@ Each top-level directory is a Stow package containing `$HOME`-relative paths (23
   - `ka dev [setup|status|update]` — Quản lý toàn bộ dev SDKs (Node, Python, Go, Rust, Bun, PNPM) qua Mise
   - `ka ocr` — Bóc tách chữ trên màn hình (In-memory OCR, song ngữ Anh-Việt) vào Clipboard
   - `ka theme [nord|gruvbox-dark|catppuccin-mocha]` — Đổi theme toàn diện, hot-reload tức thì
+  - `ka default [show|set <cat> <app>]` — Quản lý & chọn ứng dụng mặc định một chạm (Rofi / CLI)
   - `ka pop <module>` — Bật/Tắt thẻ popup Omarchy (volume, clock, battery, cpu, mem, net, forecast)
   - `ka dns [dhcp|cloudflare|google|custom <ip>]` — Chuyển đổi DNS server 1 chạm
   - `ka record [toggle|status]` — Quay video màn hình
@@ -77,6 +78,7 @@ Each top-level directory is a Stow package containing `$HOME`-relative paths (23
 | `Super + Ctrl + T` | Popover CPU | Bật/tắt thẻ CPU, nhiệt độ, quạt & top processes |
 | `Super + Ctrl + M` | Popover Memory | Bật/tắt thẻ RAM, Swap & top processes |
 | `Super + Ctrl + F` | Popover Forecast | Bật/tắt thẻ thời tiết khí quyển |
+| `Super + Ctrl + D` | Default Handlers | Bật/tắt menu chọn ứng dụng mặc định một chạm |
 | `Super + Alt + T` | Instant Screen OCR | Quét chọn vùng màn hình bóc tách chữ vào Clipboard |
 | `Super + Shift + Q` | Logout DWM | Thoát về TTY1 |
 | `Super + F5` | Reload Xresources | DWM nạp lại màu Xresources |
