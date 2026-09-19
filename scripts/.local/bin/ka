@@ -81,8 +81,8 @@ cmd_dev() {
       echo -e "${BOLD}${CYAN}Thiết lập toàn bộ Dev Runtimes qua Mise (~/.config/mise/config.toml)...${RESET}"
       if ! command -v mise >/dev/null 2>&1; then
         echo -e "${YELLOW}Chưa phát hiện mise. Vui lòng cài đặt mise bằng một trong hai cách:${RESET}"
-        echo -e "  Cách 1 (Khuyên dùng): ${GREEN}sudo pacman -S mise${RESET}"
-        echo -e "  Cách 2 (User space):  ${GREEN}curl https://mise.run | sh${RESET}"
+        echo -e "  Cách 1 (Package Manager): ${GREEN}sudo pacman -S mise${RESET} hoặc qua kho APT / PPA"
+        echo -e "  Cách 2 (User space):      ${GREEN}curl https://mise.run | sh${RESET}"
         return 1
       fi
       echo -e "${GREEN}Mise đã sẵn sàng. Đang tiến hành tải và cấu hình các runtimes (node, python, rust, go, pnpm, bun)...${RESET}"
@@ -94,7 +94,7 @@ cmd_dev() {
         echo -e "${BOLD}Các Dev Runtimes đang được quản lý bởi Mise (~/.config/mise/config.toml):${RESET}"
         mise ls "$@"
       else
-        echo -e "${RED}Chưa cài đặt Mise. Chạy 'sudo pacman -S mise' sau đó chạy 'ka dev setup' để bắt đầu.${RESET}"
+        echo -e "${RED}Chưa cài đặt Mise. Chạy 'curl https://mise.run | sh' sau đó chạy 'ka dev setup' để bắt đầu.${RESET}"
       fi
       ;;
     update|upgrade)
@@ -179,7 +179,7 @@ cmd_doctor() {
     mise_ver=$(mise --version 2>/dev/null | awk '{print $1}')
     echo -e "  [${GREEN}PASS${RESET}] Mise Runtime Manager (${mise_ver})"
   else
-    echo -e "  [${RED}FAIL${RESET}] Mise Runtime Manager (${YELLOW}Chưa cài đặt. Chạy 'sudo pacman -S mise' hoặc 'curl https://mise.run | sh'${RESET})"
+    echo -e "  [${RED}FAIL${RESET}] Mise Runtime Manager (${YELLOW}Chưa cài đặt. Chạy 'curl https://mise.run | sh' hoặc cài qua package manager${RESET})"
     all_pass=false
   fi
   check_item "Neovim (nvim)" "command -v nvim"
@@ -196,9 +196,11 @@ cmd_doctor() {
 
 cmd_version() {
   print_banner
+  local detected_os="Linux"
+  [ -f /etc/os-release ] && detected_os="$(. /etc/os-release && echo "$PRETTY_NAME")"
   echo "CLI Version: ${VERSION}"
   echo "DWM Core:    ${DWM_VER}"
-  echo "Arch Base:   Rolling Release (X11 Native Architecture)"
+  echo "Host OS:     ${detected_os} (X11 Native Architecture)"
 }
 
 # --- MAIN DISPATCHER ---

@@ -1,0 +1,139 @@
+#TAG,NAME,TIER,DEPS,PURPOSE
+,build-essential,1,base,"Essential compilation tools (gcc, g++, make)."
+,direnv,1,base,Environment switcher loaded in env.zsh.
+,efibootmgr,1,base,Manipulates EFI Boot Manager variables.
+,grub-efi-amd64,1,base,GNU GRUB bootloader for UEFI.
+,firmware-linux-free,1,base,Firmware files for Linux kernel.
+,lvm2,1,base,Logical Volume Manager tools.
+,man-db,1,base,Read man pages of programs.
+,network-manager,1,base,Manages network connections (nmcli).
+,stow,1,base,GNU Stow symlink manager to manage dotfiles.
+,sudo,1,base,Users to run programs with security privileges.
+,systemd-zram-generator,1,base,Manages zram swap devices automatically.
+,dunst,2,x11,Suckless notification daemon; paired with libnotify.
+,fontconfig,2,dwm+st,Library for configuring and customizing font access.
+B,libfontconfig1-dev,2,dwm+st,Development files for fontconfig.
+B,libharfbuzz-dev,2,st,OpenType text shaping engine required to compile st with ligatures support.
+B,libimlib2-dev,2,dwm,Image loading and rendering library for DWM icon and tag preview.
+B,libx11-dev,2,dwm+st,X11 client-side library headers.
+B,libxinerama-dev,2,dwm,Xinerama multi-monitor extension library for DWM.
+B,libxft-dev,2,dwm+st,FreeType font rendering library for DWM and ST.
+B,libxrender-dev,2,dwm+st,X Rendering Extension client library headers.
+B,libxcb1-dev,2,dwm,X C Binding client library headers.
+B,libxcb-res0-dev,2,dwm,X C Binding resource extension headers (swallow patch).
+B,libyajl-dev,2,dwm,Yet Another JSON Library headers for DWM IPC patch.
+B,libxext-dev,2,dwm,X11 miscellaneous extensions headers.
+,libimlib2,2,dwm,Image loading library.
+,maim,2,x11,Can take quick screenshots (used by maimpick script).
+,slop,2,x11,Screen selection tool used by maim and ocr.
+,picom,2,x11,Modern X compositor for transparency and removing screen-tearing.
+,rofi,2,x11,"Window switcher, application launcher and dmenu replacement."
+,suckless-tools,2,x11,Basic suckless utilities.
+,unclutter,2,x11,Hides an inactive mouse cursor after a few seconds.
+,xclip,2,x11,For copying and pasting from the command line.
+,xdotool,2,x11,Window action utilities on the command line (used in DWM scripts).
+,xserver-xorg,2,x11,Graphical Xorg server.
+,x11-xkb-utils,2,x11,Keyboard layout configuration utility (setxkbmap).
+,xinit,2,x11,Starts the graphical server.
+,x11-utils,2,x11,X11 utilities (xprop, xwininfo).
+,x11-xserver-utils,2,x11,X server utilities (xrandr, xset, xsetroot).
+,xwallpaper,2,x11,Sets the wallpaper via setbg script.
+,fcitx5,3,fcitx5,Generic input method framework.
+,fcitx5-config-qt,3,fcitx5,Configures Fcitx5 layout and engines (fcitx5-configtool).
+,fcitx5-frontend-gtk3,3,fcitx5,GTK3 support for Fcitx5.
+,fcitx5-frontend-gtk4,3,fcitx5,GTK4 support for Fcitx5.
+,fcitx5-frontend-qt5,3,fcitx5,Qt5 support for Fcitx5.
+E,fcitx5-bamboo,3,fcitx5,Vietnamese Bamboo input method (installed via deb package or build).
+,clang,4,dev,C/C++ compiler and LLVM tooling.
+,git-delta,4,dev,Syntax-highlighting pager for git.
+,lua5.1,4,dev,Lua 5.1 interpreter.
+E,mise,4,dev,"Polyglot runtime manager for Node, Python, Rust, Go."
+E,neovim,4,dev,"Primary text editor (latest via mise or tarball)."
+,bat,5,lf,Code highlighter (binary symlinked from batcat).
+,btop,5,cli,Shows system hardware utilization.
+,fd-find,5,cli,Fast file finder (binary symlinked from fdfind).
+,fzf,5,cli,Fuzzy finder tool used for quick file location.
+,jq,5,dwmblocks,Parses JSON data for weather forecast in dwmblocks status bar.
+E,eza,5,cli,Modern Rust-based replacement for ls (via apt repo or cargo/mise).
+E,lf,5,lf,Keyboard-centric terminal file manager (via official binary).
+,rsync,5,cli,Synchronizes files and folders.
+E,starship,5,zsh,"Cross-shell prompt (via official installer)."
+,tmux,5,cli,Terminal multiplexer.
+,trash-cli,5,cli,Moves files to trash cleanly.
+,yt-dlp,5,media,CLI video/audio downloader.
+,zoxide,5,zsh,Smarter cd command that remembers your most used directories.
+,zsh-autosuggestions,5,zsh,Fish-like fast autosuggestions for zsh based on history.
+,zsh-syntax-highlighting,5,zsh,Fish-like command syntax highlighting for zsh.
+,ffmpegthumbnailer,6,lf,Creates thumbnail previews of video files in lf file manager.
+,imagemagick,6,media,Manipulates images on CLI.
+,mediainfo,6,lf,Shows audio/video info and is used in lf file previews.
+,mpc,6,music,Terminal interface for mpd.
+,mpd,6,music,Lightweight music daemon.
+,mpv,6,media,Video player.
+,ncmpcpp,6,music,Ncurses interface for mpd.
+,pipewire,6,pipewire,Multimedia processing graph server.
+,pipewire-alsa,6,pipewire,ALSA compatibility layer for Pipewire.
+,pipewire-pulse,6,pipewire,PulseAudio compatibility layer for Pipewire.
+,pulsemixer,6,dwmblocks,CLI audio mixer for volume control.
+,wireplumber,6,pipewire,Audio session manager for Pipewire.
+E,brave-browser,7,browser,Default web browser (via Brave official apt repo).
+,curl,7,net,Transfers HTTP payload on CLI.
+,dnsmasq,7,net,Configures local DNS proxy cache.
+,s-tui,7,system,Monitors CPU temp and performs stress testing.
+,sshpass,7,net,Passes SSH password programmatically.
+,wget,7,net,Downloads files from the internet.
+,calcurse,8,apps,Terminal-based organizer.
+,newsboat,8,apps,Terminal RSS client.
+,pandoc,8,docs,Compiles document markups to PDF/Docx.
+,poppler-utils,8,zathura,Manipulates .pdfs and gives .pdf previews in lf.
+,telegram-desktop,8,apps,Telegram chat messenger.
+,w3m,8,docs,Terminal web browser with image display capability.
+,zathura,8,zathura,PDF viewer with vim-like bindings.
+,zathura-pdf-poppler,8,zathura,Poppler pdf backend in zathura.
+,zbar-tools,8,otp,Zbarimg for QR-code scanning in otp script.
+,tesseract-ocr,8,ocr,Tesseract optical character recognition engine.
+,tesseract-ocr-eng,8,ocr,English language data for tesseract.
+,tesseract-ocr-vie,8,ocr,Vietnamese language data for tesseract.
+,docker.io,9,docker,Container application engine.
+,docker-compose,9,docker,Orchestrates multi-container apps.
+E,lazydocker,9,docker,Manages Docker status via TUI (via binary).
+,fonts-inter,10,fonts,Typeface specially designed for computer screens.
+,fonts-noto-core,10,fonts,Expansive font package for general language support.
+,fonts-noto-cjk,10,fonts,CJK language glyphs.
+,fonts-noto-color-emoji,10,fonts,Color emoji font set.
+,papirus-icon-theme,10,fonts,Papirus system icons.
+,fonts-jetbrains-mono,10,fonts,JetBrains Mono monospace font.
+,7zip,11,system,Compresses files in 7z format.
+,alsa-utils,11,system,Alsa utilities.
+,atool,11,lf,Manages archives.
+,autorandr,11,system,Autorandr utility.
+,bc,11,cli,Mathematics language.
+,bluez,11,bluetooth,Bluetooth services protocol stack.
+,bmon,11,system,Bmon bandwidth monitor.
+,brightnessctl,11,dwmblocks,Screen brightness controller.
+,clipmenu,11,system,Clipboard history menu via Rofi.
+,dash,11,system,Fast POSIX shell.
+,dosfstools,11,system,FAT/DOS filesystem tools.
+,git,11,system,Tracks code changes with git.
+,gnome-keyring,11,system,System keyring daemon for Brave and secrets.
+,gvfs-backends,11,system,GVFS backend for MTP and remote filesystems.
+,hugo,11,system,Static site generator.
+,intel-media-va-driver,11,intel,Hardware video acceleration for Intel GPUs.
+,libnotify-bin,11,x11,Desktop notification delivery tool (notify-send).
+,nsxiv,11,system,Neo Simple X Image Viewer.
+,ntfs-3g,11,system,Accessing NTFS partitions.
+,pass,11,otp,Standard UNIX password manager.
+,pass-extension-otp,11,otp,GPG-based 2FA one-time password extension for pass.
+,policykit-1-gnome,11,system,Polkit authentication GUI agent.
+,smartmontools,11,system,Tests hard drive S.M.A.R.T. health.
+,udiskie,11,system,Removable media automounter with tray support.
+,unrar-free,11,system,Extracts RAR archives.
+,unzip,11,system,Unzips zip archives.
+,usbutils,11,system,Queries USB details on CLI (lsusb).
+,xdg-desktop-portal-gtk,11,system,GTK implementation for portals.
+,xfce4-power-manager,11,system,Power manager for battery and display.
+,zip,11,system,Creates ZIP archives.
+,zsh,11,zsh,Zsh shell.
+,python3-gi,11,dwmblocks,Python 3 GObject introspection bindings for dwm-dropdown.
+,gir1.2-gtk-3.0,11,dwmblocks,GTK 3 introspection library for dwm-dropdown.
+,lm-sensors,11,dwmblocks,Hardware monitoring sensors for CPU dropdown.

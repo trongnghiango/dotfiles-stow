@@ -58,8 +58,14 @@ _require_stow() {
         log_ok "Đã cài đặt GNU Stow thành công."
         return 0
       fi
+    elif command -v apt-get &>/dev/null; then
+      log_info "Đang tự động cài đặt GNU Stow qua apt..."
+      if sudo apt-get update -y && sudo apt-get install -y stow; then
+        log_ok "Đã cài đặt GNU Stow thành công."
+        return 0
+      fi
     fi
-    log_error "GNU Stow ('stow') is not installed. Please install it with: sudo pacman -S stow"
+    log_error "GNU Stow ('stow') is not installed. Please install it with your package manager."
     exit 1
   fi
 }

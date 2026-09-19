@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # ==============================================================================
 # KA SYSTEM SETUP (ka-setup)
-# Mô tả: Post-install autoconfig cho Arch Linux + DWM/X11 (ThinkPad X230)
+# Mô tả: Post-install autoconfig cho Arch Linux & Debian + DWM/X11 (ThinkPad X230)
 # Sử dụng: ka-setup <command>
 # Lệnh "ka-setup all" chạy toàn bộ quá trình cấu hình một lần.
+# Thuộc kiến trúc: Omarchy-X11 Layered Profile Architecture
 # ==============================================================================
 
 set -eEo pipefail
@@ -38,16 +39,32 @@ _SCRIPT_REAL="$(readlink -f "${BASH_SOURCE[0]}")"
 _SCRIPT_DIR="$(cd "$(dirname "$_SCRIPT_REAL")" && pwd)"
 DOTFILES_DIR="$(cd "$_SCRIPT_DIR/../../.." && pwd)"
 
+# --- Phát hiện hệ điều hành (Arch Linux, Debian, Ubuntu, etc.) ---
+detect_os() {
+  if [ -f /etc/os-release ]; then
+    (. /etc/os-release && echo "$ID")
+  elif command -v pacman &>/dev/null; then
+    echo "arch"
+  elif command -v apt-get &>/dev/null; then
+    echo "debian"
+  else
+    echo "unknown"
+  fi
+}
+
 show_help() {
+  local current_os
+  current_os="$(detect_os)"
   echo -e "${BOLD}ka-setup — DWM/X11 System Autoconfig (ThinkPad X230)${NC}"
   echo "================================================================="
+  echo -e "${BOLD}HỆ ĐIỀU HÀNH HIỆN TẠI:${NC} ${CYAN}$current_os${NC}"
   echo ""
   echo -e "${BOLD}SỬ DỤNG:${NC}"
   echo "  ka-setup <command> [options]"
   echo ""
   echo -e "${BOLD}COMMANDS:${NC}"
   echo -e "  ${GREEN}all [profile]${NC}   Chạy toàn bộ quy trình cấu hình (mặc định: core)"
-  echo -e "  ${GREEN}pkgs [profile]${NC}  Cài đặt gói từ progs.csv theo profile hoặc tier"
+  echo -e "  ${GREEN}pkgs [profile]${NC}  Cài đặt gói theo profile hoặc tier (Arch/Debian)"
   echo -e "                    Profiles:"
   echo -e "                      core    (Nền tảng DWM/X11, Fonts, Shell, Audio, Trình duyệt) [Mặc định]"
   echo -e "                      dev     (Neovim, VSCode, Rust, Clang, Node, LazyGit...)"
@@ -55,7 +72,7 @@ show_help() {
   echo -e "                      tools   (Pandoc, Calibre, Telegram, Anki...)"
   echo -e "                      virt    (Docker, Libvirt, QEMU, Lazydocker...)"
   echo -e "                      sys     (Tiện ích hệ thống, Bluetooth, Máy in...)"
-  echo -e "                      all     (Toàn bộ 200+ gói trong progs.csv)"
+  echo -e "                      all     (Toàn bộ gói trong danh mục)"
   echo -e "                    Hoặc theo số Tier: 1, 2, 1,2,3... hoặc deps: dwm, lf, zsh..."
   echo -e "  ${GREEN}shell${NC}          Đặt Zsh làm login shell mặc định"
   echo -e "  ${GREEN}stow${NC}           Deploy tất cả dotfiles qua stow-safe"
@@ -66,203 +83,41 @@ show_help() {
   echo -e "  ${GREEN}docker${NC}         Cấu hình Docker non-root + socket activation"
   echo ""
   echo -e "${BOLD}DOTFILES:${NC}  ${DIM}$DOTFILES_DIR${NC}"
-  echo -e "${BOLD}PROGS CSV:${NC} ${DIM}$DOTFILES_DIR/progs.csv${NC}"
-}
-
-# --- Helper: Tìm hoặc bootstrap AUR helper (yay-bin) ---
-get_aur_helper() {
-  if command -v yay &>/dev/null; then
-    echo "yay"
-    return 0
-  fi
-  if command -v paru &>/dev/null; then
-    echo "paru"
-    return 0
-  fi
-
-  log_info "Chưa tìm thấy yay/paru. Tự động biên dịch yay-bin từ AUR..."
-  local build_dir
-  build_dir="$(mktemp -d)"
-  if git clone https://aur.archlinux.org/yay-bin.git "$build_dir/yay-bin"; then
-    (
-      cd "$build_dir/yay-bin"
-      makepkg -si --noconfirm
-    )
-    rm -rf "$build_dir"
-    if command -v yay &>/dev/null; then
-      log_success "Đã cài đặt yay-bin thành công."
-      echo "yay"
-      return 0
-    fi
-  fi
-  rm -rf "$build_dir"
-  log_warn "Không thể tự động cài đặt yay-bin. Cần cài thủ công."
-  return 1
+  echo -e "${BOLD}PACKAGES:${NC}  ${DIM}$DOTFILES_DIR/pkgs/$current_os.csv${NC}"
 }
 
 # ==============================================================================
-# 0. CÀI ĐẶT GÓI PHỤ THUỘC (Đọc từ progs.csv)
+# 0. CÀI ĐẶT GÓI PHỤ THUỘC (Đa Distro: Arch & Debian)
 # ==============================================================================
 setup_pkgs() {
   local target="${1:-}"
-  local progs_file="$DOTFILES_DIR/progs.csv"
+  local current_os
+  current_os="$(detect_os)"
 
-  if [ ! -f "$progs_file" ]; then
-    log_error "Không tìm thấy file danh sách gói: $progs_file"
-    return 1
-  fi
-
-  if ! command -v pacman &>/dev/null; then
-    log_warn "Hệ thống không dùng pacman — bỏ qua bước cài đặt tự động."
-    return 0
-  fi
-
-  # Interactive prompt nếu người dùng chạy "ka-setup pkgs" không tham số tại terminal
-  if [ -z "$target" ]; then
-    if [ -t 0 ]; then
-      echo -e "${BOLD}Chọn profile gói cài đặt từ progs.csv:${NC}"
-      echo -e "  ${GREEN}1) core${NC}   Nền tảng DWM/X11, Fonts, Shell, Audio, Trình duyệt [Mặc định]"
-      echo -e "  ${GREEN}2) dev${NC}    Công cụ lập trình (Neovim, VSCode, Rust, Clang, Node, LazyGit...)"
-      echo -e "  ${GREEN}3) media${NC}  Nghe nhạc, xem phim, quay màn hình (MPD, ncmpcpp, OBS, yt-dlp...)"
-      echo -e "  ${GREEN}4) tools${NC}  Văn phòng, đọc sách, ghi chú (Pandoc, Calibre, Telegram, Anki...)"
-      echo -e "  ${GREEN}5) virt${NC}   Máy ảo & Containers (Docker, QEMU, Libvirt, Lazydocker...)"
-      echo -e "  ${GREEN}6) sys${NC}    Tiện ích hệ thống mở rộng, Bluetooth, Máy in..."
-      echo -e "  ${GREEN}7) all${NC}    Toàn bộ 200+ gói trong progs.csv"
-      printf "${YELLOW}Lựa chọn [1-7] (mặc định 1): ${NC}"
-      read -r choice
-      case "$choice" in
-        2|dev)   target="dev" ;;
-        3|media) target="media" ;;
-        4|tools) target="tools" ;;
-        5|virt)  target="virt" ;;
-        6|sys)   target="sys" ;;
-        7|all)   target="all" ;;
-        *)       target="core" ;;
-      esac
-    else
-      target="core"
-    fi
-  fi
-
-  log_step "Lọc danh sách gói theo profile [$target] từ progs.csv..."
-
-  local pacman_pkgs=()
-  local aur_pkgs=()
-
-  local old_ifs="$IFS"
-  while IFS=, read -r tag name tier deps purpose || [ -n "$name" ]; do
-    [[ -z "$name" || "$tag" =~ ^# ]] && continue
-    tag="${tag// /}"
-    name="${name// /}"
-    tier="${tier// /}"
-    deps="${deps// /}"
-
-    local match=false
-    if [ "$target" = "all" ]; then
-      match=true
-    elif [ "$target" = "core" ]; then
-      case "$deps" in
-        base|x11|dwm|dwm+st|dwm,st|st|dwmblocks|fcitx5|zsh|cli|lf|pipewire|browser|zathura|fonts|intel|system)
-          match=true
-          ;;
-      esac
-    elif [ "$target" = "dev" ]; then
-      case "$deps" in
-        dev|vscode) match=true ;;
-      esac
-    elif [ "$target" = "media" ]; then
-      case "$deps" in
-        music|media) match=true ;;
-      esac
-    elif [ "$target" = "tools" ]; then
-      case "$deps" in
-        docs|apps|otp) match=true ;;
-      esac
-    elif [ "$target" = "virt" ]; then
-      [ "$deps" = "docker" ] && match=true
-    elif [ "$target" = "sys" ]; then
-      case "$deps" in
-        intel|bluetooth|system|theme|base) match=true ;;
-      esac
-    elif [[ "$target" =~ ^[0-9,]+$ ]]; then
-      local t_arr=()
-      IFS="," read -ra t_arr <<< "$target"
-      IFS="$old_ifs"
-      for t in "${t_arr[@]}"; do
-        [ "$tier" = "$t" ] && match=true && break
-      done
-    else
-      if [[ "$deps" == *"$target"* ]]; then
-        match=true
-      fi
-    fi
-
-    [ "$match" = false ] && continue
-
-    case "$tag" in
-      ""|"M") pacman_pkgs+=("$name") ;;
-      "A")    aur_pkgs+=("$name") ;;
-      "G")    ;;
-    esac
-  done < "$progs_file"
-  IFS="$old_ifs"
-
-  # --- 1. Kiểm tra và cài đặt gói từ kho chính thức Arch (pacman) ---
-  local missing=()
-  for pkg in "${pacman_pkgs[@]}"; do
-    if ! pacman -Qi "$pkg" &>/dev/null 2>&1; then
-      missing+=("$pkg")
-    fi
-  done
-
-  if [ ${#missing[@]} -gt 0 ]; then
-    log_info "Profile '$target': Thiếu ${#missing[@]}/${#pacman_pkgs[@]} gói pacman."
-    log_dim "Gói thiếu: ${missing[*]}"
-    printf "${YELLOW}Cài đặt? [Y/n]: ${NC}"
-    read -r ans
-    if [[ ! "$ans" =~ ^[Nn] ]]; then
-      if sudo pacman -S --needed --noconfirm "${missing[@]}"; then
-        log_success "Đã cài đặt xong các gói pacman."
+  case "$current_os" in
+    arch|artix|endeavouros|manjaro)
+      if [ -f "$_SCRIPT_DIR/setup-drivers/arch.sh" ]; then
+        . "$_SCRIPT_DIR/setup-drivers/arch.sh"
+        arch_setup_pkgs "$target" "$DOTFILES_DIR"
       else
-        log_warn "Một số gói pacman không thể cài. Kiểm tra lại kết nối mạng hoặc mirrorlist."
+        log_error "Không tìm thấy Arch driver: $_SCRIPT_DIR/setup-drivers/arch.sh"
+        return 1
       fi
-    else
-      log_warn "Bỏ qua cài đặt gói pacman."
-    fi
-  else
-    log_success "Profile '$target': Toàn bộ ${#pacman_pkgs[@]} gói pacman đã có sẵn."
-  fi
-
-  # --- 2. Kiểm tra và cài đặt gói AUR ---
-  local missing_aur=()
-  for pkg in "${aur_pkgs[@]}"; do
-    pacman -Qi "$pkg" &>/dev/null || missing_aur+=("$pkg")
-  done
-
-  if [ ${#missing_aur[@]} -gt 0 ]; then
-    log_info "Profile '$target': Thiếu ${#missing_aur[@]}/${#aur_pkgs[@]} gói AUR."
-    log_dim "AUR thiếu: ${missing_aur[*]}"
-    local aur_helper=""
-    aur_helper="$(get_aur_helper || true)"
-    if [ -n "$aur_helper" ]; then
-      log_info "Cài AUR packages qua $aur_helper..."
-      if ! $aur_helper -S --needed --noconfirm "${missing_aur[@]}"; then
-        log_warn "Cài đặt hàng loạt AUR gặp lỗi. Đang thử cài đặt từng gói riêng lẻ..."
-        for apkg in "${missing_aur[@]}"; do
-          if ! pacman -Qi "$apkg" &>/dev/null; then
-            $aur_helper -S --needed --noconfirm "$apkg" || log_warn "Không thể cài gói AUR: $apkg"
-          fi
-        done
+      ;;
+    debian|ubuntu|pop|linuxmint|kali)
+      if [ -f "$_SCRIPT_DIR/setup-drivers/debian.sh" ]; then
+        . "$_SCRIPT_DIR/setup-drivers/debian.sh"
+        debian_setup_pkgs "$target" "$DOTFILES_DIR"
+      else
+        log_error "Không tìm thấy Debian driver: $_SCRIPT_DIR/setup-drivers/debian.sh"
+        return 1
       fi
-      log_success "Hoàn tất xử lý gói AUR."
-    else
-      log_warn "Thiếu AUR helper. Cài thủ công: yay -S ${missing_aur[*]}"
-    fi
-  else
-    if [ ${#aur_pkgs[@]} -gt 0 ]; then
-      log_success "Profile '$target': Toàn bộ ${#aur_pkgs[@]} gói AUR đã có sẵn."
-    fi
-  fi
+      ;;
+    *)
+      log_warn "Hệ điều hành '$current_os' chưa có driver cài đặt tự động."
+      log_info "Bạn có thể tham khảo danh mục gói tại pkgs/arch.csv hoặc pkgs/debian.csv."
+      ;;
+  esac
 }
 
 # ==============================================================================
@@ -275,7 +130,7 @@ setup_shell() {
   zsh_path="$(command -v zsh 2>/dev/null || echo "")"
 
   if [ -z "$zsh_path" ]; then
-    log_warn "Zsh chưa cài. Cài qua pacman trước (ka-setup pkgs)."
+    log_warn "Zsh chưa cài. Cài qua trình quản lý gói trước (ka-setup pkgs)."
     return 1
   fi
 
@@ -308,14 +163,23 @@ setup_stow() {
   # --- Cài GNU Stow nếu chưa có ---
   if ! command -v stow &>/dev/null; then
     log_info "GNU Stow chưa có — đang cài..."
-    sudo pacman -S --needed --noconfirm stow || {
-      log_error "Không thể cài stow. Chạy thủ công: sudo pacman -S stow"
+    if command -v pacman &>/dev/null; then
+      sudo pacman -S --needed --noconfirm stow || {
+        log_error "Không thể cài stow qua pacman."
+        return 1
+      }
+    elif command -v apt-get &>/dev/null; then
+      sudo apt-get update -y && sudo apt-get install -y stow || {
+        log_error "Không thể cài stow qua apt."
+        return 1
+      }
+    else
+      log_error "Không tìm thấy trình quản lý gói phù hợp để cài stow."
       return 1
-    }
+    fi
   fi
 
   # --- Bootstrap stow-safe vào PATH nếu chưa có ---
-  # (Trường hợp clone mới, scripts/ chưa được stow, stow-safe chưa trong PATH)
   if ! command -v stow-safe &>/dev/null; then
     local stow_safe_bin="$_SCRIPT_DIR/stow-safe"
     if [ -f "$stow_safe_bin" ]; then
@@ -361,7 +225,6 @@ setup_stow() {
 
   for pkg in "${packages[@]}"; do
     local pkg_dir="$DOTFILES_DIR/$pkg"
-    # Bỏ qua package không tồn tại trong dotfiles
     if [ ! -d "$pkg_dir" ]; then
       log_dim "Bỏ qua $pkg (không tìm thấy thư mục)"
       skipped=$((skipped + 1))
@@ -407,6 +270,16 @@ setup_stow() {
     log_dim "gtk filechooser settings applied (sort by modified descending)"
   fi
 
+  # Đồng bộ symlink tương thích nếu trên Debian
+  local current_os
+  current_os="$(detect_os)"
+  if [[ "$current_os" =~ ^(debian|ubuntu|pop|linuxmint|kali)$ ]]; then
+    if [ -f "$_SCRIPT_DIR/setup-drivers/debian.sh" ]; then
+      . "$_SCRIPT_DIR/setup-drivers/debian.sh"
+      debian_setup_symlinks
+    fi
+  fi
+
   echo ""
   log_success "Kết quả stow: ${success} thành công, ${failed} thất bại, ${skipped} bỏ qua."
   if (( failed > 0 )); then
@@ -419,6 +292,15 @@ setup_stow() {
 # ==============================================================================
 setup_suckless() {
   log_step "Biên dịch mã nguồn Suckless (DWM, ST, Dmenu, Dwmblocks)..."
+  local current_os
+  current_os="$(detect_os)"
+  if [[ "$current_os" =~ ^(debian|ubuntu|pop|linuxmint|kali)$ ]]; then
+    if [ -f "$_SCRIPT_DIR/setup-drivers/debian.sh" ]; then
+      . "$_SCRIPT_DIR/setup-drivers/debian.sh"
+      debian_setup_suckless_deps
+    fi
+  fi
+
   local src_dir="$HOME/.local/src"
   if [ ! -d "$src_dir" ]; then
     log_warn "Không tìm thấy thư mục $src_dir. Chắc chắn rằng package suckless đã được stow."
@@ -473,7 +355,7 @@ setup_pam() {
   fi
 
   if ! command -v gnome-keyring-daemon &>/dev/null; then
-    log_warn "gnome-keyring chưa cài. Chạy: sudo pacman -S gnome-keyring"
+    log_warn "gnome-keyring chưa cài. Vui lòng cài đặt gnome-keyring trước."
     return 1
   fi
 
@@ -504,10 +386,8 @@ setup_brave() {
 
   local flags_file="$HOME/.config/brave-flags.conf"
 
-  # Tạo thư mục nếu chưa có
   mkdir -p "$(dirname "$flags_file")"
 
-  # Kiểm tra nếu đã được quản lý bởi stow (symlink)
   if [ -L "$flags_file" ]; then
     log_success "brave-flags.conf đã được quản lý bởi stow (symlink)."
     log_dim "Source: $(readlink -f "$flags_file")"
@@ -520,49 +400,33 @@ setup_brave() {
     cp "$flags_file" "${flags_file}.bak"
   fi
 
-  # Nếu package brave/ chưa được stow, tạo trực tiếp
   cat > "$flags_file" << 'EOF'
 # ==============================================================================
 # Brave Browser Flags — ThinkPad X230 (Intel HD 4000) + X11
 # ==============================================================================
 
 # --- GPU Rendering (X11 + HD4000 Ivy Bridge) ---
-# Dùng OpenGL desktop thay vì EGL — ổn định hơn trên HD4000/Mesa
 --use-gl=desktop
-
-# GPU rasterization: Kéo rasterization sang GPU giảm tải CPU
 --enable-gpu-rasterization
-
-# Zero-copy: Tránh copy buffer giữa GPU↔CPU (tiết kiệm RAM bandwidth)
 --enable-zero-copy
-
-# Raster threads: X230 có 2 cores (4 HT) — 2 threads là optimal
 --num-raster-threads=2
 
 # --- Hardware Video Decode (VA-API, Intel HD4000 hỗ trợ H264/VP8) ---
-# Bật để decode video bằng hardware → tiết kiệm CPU đáng kể
 --enable-features=VaapiVideoDecoder
 --enable-accelerated-video-decode
 
 # --- Network Performance ---
-# QUIC (HTTP/3) — giảm latency cho các site hỗ trợ
 --enable-quic
 
 # --- X11 Specific ---
-# Tắt Ozone/Wayland (dùng X11 backend)
 --ozone-platform=x11
 
 # --- Fcitx5 IME (X11 mode cho tiếng Việt) ---
 --gtk-version=4
 
 # --- Memory / Performance cho máy cũ ---
-# Chạy Network Service trong process chính — tiết kiệm RAM
 --enable-features=NetworkServiceInProcess2
-
-# Tắt GPU compositing log spam
 --disable-logging
-
-# Tắt ChromeOS video decoder (không dùng trên Linux thường)
 --disable-features=UseChromeOSDirectVideoDecoder
 EOF
 
@@ -577,7 +441,6 @@ EOF
 setup_battery() {
   log_step "Cấu hình ngưỡng sạc pin ThinkPad..."
 
-  # Tìm battery-threshold trong PATH hoặc trực tiếp trong dotfiles
   local bt_cmd=""
   command -v battery-threshold &>/dev/null && bt_cmd="battery-threshold"
   [ -z "$bt_cmd" ] && [ -f "$_SCRIPT_DIR/battery-threshold" ] && bt_cmd="$_SCRIPT_DIR/battery-threshold"
@@ -605,7 +468,6 @@ setup_docker() {
   local REAL_USER="${SUDO_USER:-$USER}"
   [ "$REAL_USER" = "root" ] && REAL_USER=$(logname 2>/dev/null || echo "ka")
 
-  # Tạo group docker nếu chưa có
   if ! getent group docker &>/dev/null; then
     sudo groupadd docker
     log_success "Đã tạo nhóm 'docker'."
@@ -620,7 +482,6 @@ setup_docker() {
     group_changed=true
   fi
 
-  # Socket activation (không auto-start docker daemon)
   local svc_enabled socket_enabled socket_active
   svc_enabled=$(systemctl is-enabled docker.service 2>/dev/null || echo "disabled")
   socket_enabled=$(systemctl is-enabled docker.socket 2>/dev/null || echo "disabled")
