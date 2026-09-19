@@ -9,5 +9,5 @@ case ${BLOCK_BUTTON:-${BUTTON:-0}} in
 esac
 
 mem=$(free -h | awk '/Mem:/ { print $3 }' | cut -f1 -d 'i')
-echo "^C11^ ^C15^$mem"
+echo "^C11^ ^d^$mem^d^"
 #echo "^B14^^C0^ ^d^^C14^ $mem "

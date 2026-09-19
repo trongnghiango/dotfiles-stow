@@ -1,7 +1,7 @@
 #!/bin/sh
 
 case ${BLOCK_BUTTON:-${BUTTON:-0}} in
-    1) setsid -f dwm-dropdown battery ;;
+    1) setsid -f dwm-dropdown battery >/dev/null 2>&1 ;;
     3) notify-send "🔋 Battery module" "🔋: discharging
 🛑: not charging
 ♻: stagnant charge
@@ -9,9 +9,9 @@ case ${BLOCK_BUTTON:-${BUTTON:-0}} in
 ⚡: charged
 ❗: battery very low!
 - Scroll to adjust brightness." ;;
-    4) brightnessctl set +1% ;;
-    5) brightnessctl set 1%- ;;
-    6) setsid -f "$TERMINAL" -e "$EDITOR" "$0" ;;
+    4) brightnessctl -q set +1% >/dev/null 2>&1 ;;
+    5) brightnessctl -q set 1%- >/dev/null 2>&1 ;;
+    6) setsid -f "$TERMINAL" -e "$EDITOR" "$0" >/dev/null 2>&1 ;;
 esac
 
 BATTERY="/sys/class/power_supply/BAT0"

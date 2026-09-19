@@ -30,6 +30,14 @@ from gi.repository import Gtk, Gdk, GLib
 
 GLib.set_prgname("dwm-dropdown")
 
+# Ensure user local bin paths are always in PATH for subprocess calls
+_local_bin = os.path.expanduser("~/.local/bin")
+_scripts_bin = os.path.expanduser("~/.local/bin/dwmblocks-scripts")
+_current_path = os.environ.get("PATH", "")
+if _local_bin not in _current_path:
+    os.environ["PATH"] = f"{_scripts_bin}:{_local_bin}:{_current_path}"
+SET_DNS_BIN = os.path.expanduser("~/.local/bin/set-dns")
+
 
 def load_theme_colors():
     conf_path = os.path.expanduser("~/.config/theme/colors/current.conf")
@@ -136,7 +144,8 @@ def get_common_css(colors):
         color: {bg};
         border-color: {green};
     }}
-    .action-btn {{
+    button.action-btn, .action-btn {{
+        background-image: none;
         background-color: {card_bg};
         color: {fg};
         border: 1px solid {border};
@@ -144,18 +153,22 @@ def get_common_css(colors):
         padding: 5px 12px;
         font-size: 11px;
         font-weight: 600;
+        box-shadow: none;
     }}
-    .action-btn:hover {{
+    button.action-btn:hover, .action-btn:hover {{
+        background-image: none;
         background-color: {accent};
         color: {bg};
         border-color: {accent};
     }}
-    .action-btn.is-active {{
+    button.action-btn.is-active, .action-btn.is-active {{
+        background-image: none;
         background-color: {red};
         color: #ffffff;
         border-color: {red};
     }}
-    .btn-pill {{
+    button.btn-pill, .btn-pill, button.dns-btn, .dns-btn {{
+        background-image: none;
         background-color: {card_bg};
         color: {fg};
         border: 1px solid {border};
@@ -163,16 +176,21 @@ def get_common_css(colors):
         padding: 5px 8px;
         font-size: 11px;
         font-weight: 600;
+        box-shadow: none;
     }}
-    .btn-pill:hover {{
+    button.btn-pill:hover, .btn-pill:hover, button.dns-btn:hover, .dns-btn:hover {{
+        background-image: none;
         background-color: {accent};
         color: {bg};
         border-color: {accent};
     }}
-    .btn-pill.selected {{
+    button.btn-pill.selected, .btn-pill.selected, button.dns-btn.selected, .dns-btn.selected {{
+        background-image: none;
         background-color: {accent};
         color: {bg};
         border-color: {accent};
+        font-weight: 700;
+        box-shadow: none;
     }}
     entry {{
         background-color: {card_bg};
@@ -477,7 +495,7 @@ class VolumeDropdown(BaseDropdown):
                 ctx.remove_class("is-active")
 
     def on_mute_toggle(self, widget):
-        subprocess.run(["wpctl", "set-mute", "@DEFAULT_AUDIO_SINK@", "toggle"])
+        subprocess.run(["wpctl", "set-mute", "@DEFAULT_AUDIO_SINK@", "toggle"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         self.is_muted = not self.is_muted
         self.update_mute_btn()
         self.vol_icon_lbl.set_text(self.get_vol_icon())
@@ -490,7 +508,7 @@ class VolumeDropdown(BaseDropdown):
         self.current_vol = val / 100.0
         self.percent_lbl.set_text(f"{val}%")
         self.vol_icon_lbl.set_text(self.get_vol_icon())
-        subprocess.run(["wpctl", "set-volume", "@DEFAULT_AUDIO_SINK@", f"{self.current_vol:.2f}"])
+        subprocess.run(["wpctl", "set-volume", "@DEFAULT_AUDIO_SINK@", f"{self.current_vol:.2f}"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         subprocess.run(["pkill", "-RTMIN+11", "dwmblocks"], stderr=subprocess.DEVNULL)
 
     def on_scroll(self, widget, event):
@@ -513,7 +531,7 @@ class VolumeDropdown(BaseDropdown):
     def on_device_changed(self, combo):
         sink_id = combo.get_active_id()
         if sink_id:
-            subprocess.run(["wpctl", "set-default", sink_id])
+            subprocess.run(["wpctl", "set-default", sink_id], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             for s in self.sinks:
                 if str(s["id"]) == sink_id:
                     self.sub_lbl.set_text(s["name"])
@@ -675,7 +693,11 @@ class BatteryDropdown(BaseDropdown):
     def on_brightness_changed(self, scale):
         pct = int(scale.get_value())
         self.b_pct_lbl.set_text(f"{pct}%")
-        subprocess.run(["brightnessctl", "set", f"{pct}%"], stderr=subprocess.DEVNULL)
+        subprocess.run(
+            ["brightnessctl", "-q", "set", f"{pct}%"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
 
     def on_scroll(self, widget, event):
         delta = 0
@@ -701,44 +723,43 @@ class BatteryDropdown(BaseDropdown):
 class CpuDropdown(BaseDropdown):
     def __init__(self):
         super().__init__("cpu", min_width=360)
-
-        # Overall CPU %
-        cpu_pct = self.calc_cpu_usage()
-        temp_str, fan_str = self.get_sensors()
+        self.timer_id = None
 
         btop_btn = Gtk.Button(label=" btop")
         btop_btn.get_style_context().add_class("action-btn")
         btop_btn.connect("clicked", lambda w: subprocess.Popen(["st", "-e", "btop"]))
 
-        self.build_header("CPU & Thermals", f"Utilization: {cpu_pct:.1f}% • {temp_str}", btop_btn)
+        self.build_header("CPU & Thermals", "󱑖 Đang tải dữ liệu CPU...", btop_btn)
 
         # Progress bar
-        bar = Gtk.ProgressBar()
-        bar.set_fraction(min(1.0, cpu_pct / 100.0))
-        if cpu_pct >= 85:
-            bar.get_style_context().add_class("danger")
-        elif cpu_pct >= 60:
-            bar.get_style_context().add_class("warning")
-        self.main_box.pack_start(bar, False, False, 0)
+        self.bar = Gtk.ProgressBar()
+        self.bar.set_fraction(0.0)
+        self.main_box.pack_start(self.bar, False, False, 0)
 
         # Thermals & Fan Tile
         tile = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
         tile.get_style_context().add_class("card-tile")
 
-        def add_row(lbl, val):
+        def add_row(lbl, val_label):
             row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
             l = Gtk.Label(label=lbl, xalign=0)
             l.get_style_context().add_class("stat-label")
-            v = Gtk.Label(label=val, xalign=1)
-            v.get_style_context().add_class("stat-val")
             row.pack_start(l, True, True, 0)
-            row.pack_end(v, False, False, 0)
+            row.pack_end(val_label, False, False, 0)
             tile.pack_start(row, False, False, 0)
 
-        add_row("Package Temperature", temp_str)
-        if fan_str:
-            add_row("Cooling Fan", fan_str)
-        add_row("Processor", "Intel Core i5-3320M @ 2.60GHz")
+        self.temp_lbl = Gtk.Label(label="󱑖 Đang đọc...", xalign=1)
+        self.temp_lbl.get_style_context().add_class("stat-val")
+        add_row("Package Temperature", self.temp_lbl)
+
+        self.fan_lbl = Gtk.Label(label="󱑖 Đang đọc...", xalign=1)
+        self.fan_lbl.get_style_context().add_class("stat-val")
+        add_row("Cooling Fan", self.fan_lbl)
+
+        self.cpu_name_lbl = Gtk.Label(label=self.get_cpu_model(), xalign=1)
+        self.cpu_name_lbl.get_style_context().add_class("stat-val")
+        add_row("Processor", self.cpu_name_lbl)
+
         self.main_box.pack_start(tile, False, False, 0)
 
         # Top Processes Table
@@ -746,40 +767,128 @@ class CpuDropdown(BaseDropdown):
         p_lbl.get_style_context().add_class("section-header")
         self.main_box.pack_start(p_lbl, False, False, 0)
 
-        proc_tile = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
-        proc_tile.get_style_context().add_class("card-tile")
+        self.proc_tile = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+        self.proc_tile.get_style_context().add_class("card-tile")
 
-        procs = self.get_top_procs()
-        for p in procs:
-            row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
-            cmd_lbl = Gtk.Label(label=f"{p['pid']:>5}  {p['name']:<18}", xalign=0)
-            cmd_lbl.get_style_context().add_class("stat-label")
-            val_lbl = Gtk.Label(label=f"{p['cpu']}%", xalign=1)
-            val_lbl.get_style_context().add_class("stat-val")
-            row.pack_start(cmd_lbl, True, True, 0)
-            row.pack_end(val_lbl, False, False, 0)
-            proc_tile.pack_start(row, False, False, 0)
+        self.loading_lbl = Gtk.Label(label="󱑖 Đang nạp danh sách tiến trình...", xalign=0)
+        self.loading_lbl.get_style_context().add_class("stat-label")
+        self.proc_tile.pack_start(self.loading_lbl, False, False, 0)
 
-        self.main_box.pack_start(proc_tile, False, False, 0)
+        self.main_box.pack_start(self.proc_tile, False, False, 0)
         self.build_footer("Esc to close")
 
-    def calc_cpu_usage(self):
-        def sample():
-            with open("/proc/stat") as f:
-                l = f.readline()
-            flds = [float(x) for x in l.split()[1:8]]
-            return flds[3] + flds[4], sum(flds)
+        self.connect("destroy", self.on_destroy)
+        GLib.idle_add(self.load_data)
+
+    def on_destroy(self, widget):
+        if self.timer_id:
+            GLib.source_remove(self.timer_id)
+            self.timer_id = None
+
+    def get_cpu_model(self):
         try:
-            i1, t1 = sample()
-            time.sleep(0.08)
-            i2, t2 = sample()
-            dt, di = t2 - t1, i2 - i1
-            return 100.0 * (dt - di) / dt if dt else 0.0
+            with open("/proc/cpuinfo") as f:
+                for line in f:
+                    if "model name" in line:
+                        return line.split(":", 1)[1].strip()
         except Exception:
-            return 0.0
+            pass
+        return "Intel Processor"
+
+    def load_data(self):
+        self.update_stats()
+        if not self.timer_id:
+            self.timer_id = GLib.timeout_add(1500, self.update_stats)
+        return False
+
+    def update_stats(self):
+        try:
+            cpu_pct = self.calc_cpu_usage()
+            temp_str, fan_str = self.get_sensors()
+            procs = self.get_top_procs()
+
+            if hasattr(self, "sub_lbl"):
+                self.sub_lbl.set_text(f"Utilization: {cpu_pct:.1f}% • {temp_str}")
+            self.bar.set_fraction(min(1.0, max(0.0, cpu_pct / 100.0)))
+            ctx = self.bar.get_style_context()
+            ctx.remove_class("danger")
+            ctx.remove_class("warning")
+            if cpu_pct >= 85:
+                ctx.add_class("danger")
+            elif cpu_pct >= 60:
+                ctx.add_class("warning")
+
+            self.temp_lbl.set_text(temp_str)
+            self.fan_lbl.set_text(fan_str if fan_str else "N/A")
+
+            for child in self.proc_tile.get_children():
+                self.proc_tile.remove(child)
+
+            if not procs:
+                lbl = Gtk.Label(label="No processes found", xalign=0)
+                lbl.get_style_context().add_class("stat-label")
+                self.proc_tile.pack_start(lbl, False, False, 0)
+            else:
+                for p in procs:
+                    row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+                    cmd_lbl = Gtk.Label(label=f"{p['pid']:>5}  {p['name']:<18}", xalign=0)
+                    cmd_lbl.get_style_context().add_class("stat-label")
+                    val_lbl = Gtk.Label(label=f"{p['cpu']}%", xalign=1)
+                    val_lbl.get_style_context().add_class("stat-val")
+                    row.pack_start(cmd_lbl, True, True, 0)
+                    row.pack_end(val_lbl, False, False, 0)
+                    self.proc_tile.pack_start(row, False, False, 0)
+
+            self.proc_tile.show_all()
+        except Exception:
+            pass
+        return True
+
+    def calc_cpu_usage(self):
+        stat_file = "/tmp/ka-cpu.stat"
+        try:
+            with open("/proc/stat") as f:
+                flds = [float(x) for x in f.readline().split()[1:8]]
+            cur_idle = flds[3] + flds[4]
+            cur_total = sum(flds)
+
+            if os.path.exists(stat_file):
+                with open(stat_file) as f:
+                    parts = f.read().split()
+                if len(parts) >= 2:
+                    prev_total, prev_idle = float(parts[0]), float(parts[1])
+                    dt = cur_total - prev_total
+                    di = cur_idle - prev_idle
+                    if dt > 0:
+                        try:
+                            with open(stat_file, "w") as f:
+                                f.write(f"{int(cur_total)} {int(cur_idle)}")
+                        except Exception:
+                            pass
+                        return max(0.0, min(100.0, 100.0 * (dt - di) / dt))
+        except Exception:
+            pass
+        return 0.0
 
     def get_sensors(self):
         temp, fan = "N/A", ""
+        try:
+            for d in os.listdir("/sys/class/hwmon"):
+                name_file = f"/sys/class/hwmon/{d}/name"
+                if os.path.exists(name_file):
+                    name = open(name_file).read().strip()
+                    if name == "coretemp":
+                        t_file = f"/sys/class/hwmon/{d}/temp1_input"
+                        if os.path.exists(t_file):
+                            temp = f"+{int(open(t_file).read().strip())/1000.0:.1f}°C"
+                    elif name == "thinkpad":
+                        f_file = f"/sys/class/hwmon/{d}/fan1_input"
+                        if os.path.exists(f_file):
+                            fan = f"{open(f_file).read().strip()} RPM"
+            if temp != "N/A":
+                return temp, fan
+        except Exception:
+            pass
         try:
             out = subprocess.check_output(["sensors"], text=True, stderr=subprocess.DEVNULL)
             for line in out.splitlines():
@@ -814,6 +923,7 @@ class CpuDropdown(BaseDropdown):
 class MemoryDropdown(BaseDropdown):
     def __init__(self):
         super().__init__("memory", min_width=360)
+        self.timer_id = None
 
         ram_used, ram_total, swap_used, swap_total = self.get_mem_stats()
         ram_pct = (ram_used / ram_total * 100) if ram_total else 0
@@ -829,45 +939,97 @@ class MemoryDropdown(BaseDropdown):
         )
 
         # RAM Progress bar
-        ram_bar = Gtk.ProgressBar()
-        ram_bar.set_fraction(min(1.0, ram_pct / 100.0))
+        self.ram_bar = Gtk.ProgressBar()
+        self.ram_bar.set_fraction(min(1.0, ram_pct / 100.0))
         if ram_pct >= 85:
-            ram_bar.get_style_context().add_class("danger")
+            self.ram_bar.get_style_context().add_class("danger")
         elif ram_pct >= 65:
-            ram_bar.get_style_context().add_class("warning")
-        self.main_box.pack_start(ram_bar, False, False, 0)
+            self.ram_bar.get_style_context().add_class("warning")
+        self.main_box.pack_start(self.ram_bar, False, False, 0)
 
         # Swap Bar
         swap_pct = (swap_used / swap_total * 100) if swap_total else 0
-        swap_lbl = Gtk.Label(label=f"SWAP: {swap_used:.1f} GB / {swap_total:.1f} GB ({swap_pct:.0f}%)", xalign=0)
-        swap_lbl.get_style_context().add_class("stat-label")
-        self.main_box.pack_start(swap_lbl, False, False, 0)
+        self.swap_lbl = Gtk.Label(label=f"SWAP: {swap_used:.1f} GB / {swap_total:.1f} GB ({swap_pct:.0f}%)", xalign=0)
+        self.swap_lbl.get_style_context().add_class("stat-label")
+        self.main_box.pack_start(self.swap_lbl, False, False, 0)
 
-        swap_bar = Gtk.ProgressBar()
-        swap_bar.set_fraction(min(1.0, swap_pct / 100.0))
-        self.main_box.pack_start(swap_bar, False, False, 0)
+        self.swap_bar = Gtk.ProgressBar()
+        self.swap_bar.set_fraction(min(1.0, swap_pct / 100.0))
+        self.main_box.pack_start(self.swap_bar, False, False, 0)
 
         # Top Procs by RAM
         p_lbl = Gtk.Label(label="TOP MEMORY HOGS", xalign=0)
         p_lbl.get_style_context().add_class("section-header")
         self.main_box.pack_start(p_lbl, False, False, 0)
 
-        proc_tile = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
-        proc_tile.get_style_context().add_class("card-tile")
+        self.proc_tile = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+        self.proc_tile.get_style_context().add_class("card-tile")
 
-        procs = self.get_top_procs()
-        for p in procs:
-            row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
-            cmd_lbl = Gtk.Label(label=f"{p['pid']:>5}  {p['name']:<18}", xalign=0)
-            cmd_lbl.get_style_context().add_class("stat-label")
-            val_lbl = Gtk.Label(label=f"{p['rss']} MB ({p['mem']}%)", xalign=1)
-            val_lbl.get_style_context().add_class("stat-val")
-            row.pack_start(cmd_lbl, True, True, 0)
-            row.pack_end(val_lbl, False, False, 0)
-            proc_tile.pack_start(row, False, False, 0)
+        self.loading_lbl = Gtk.Label(label="󱑖 Đang nạp danh sách tiến trình...", xalign=0)
+        self.loading_lbl.get_style_context().add_class("stat-label")
+        self.proc_tile.pack_start(self.loading_lbl, False, False, 0)
 
-        self.main_box.pack_start(proc_tile, False, False, 0)
+        self.main_box.pack_start(self.proc_tile, False, False, 0)
         self.build_footer("Esc to close")
+
+        self.connect("destroy", self.on_destroy)
+        GLib.idle_add(self.load_data)
+
+    def on_destroy(self, widget):
+        if self.timer_id:
+            GLib.source_remove(self.timer_id)
+            self.timer_id = None
+
+    def load_data(self):
+        self.update_stats()
+        if not self.timer_id:
+            self.timer_id = GLib.timeout_add(2000, self.update_stats)
+        return False
+
+    def update_stats(self):
+        try:
+            ram_used, ram_total, swap_used, swap_total = self.get_mem_stats()
+            ram_pct = (ram_used / ram_total * 100) if ram_total else 0
+            swap_pct = (swap_used / swap_total * 100) if swap_total else 0
+
+            if hasattr(self, "sub_lbl"):
+                self.sub_lbl.set_text(f"RAM: {ram_used:.1f} GB / {ram_total:.1f} GB ({ram_pct:.0f}%)")
+
+            self.ram_bar.set_fraction(min(1.0, ram_pct / 100.0))
+            ctx = self.ram_bar.get_style_context()
+            ctx.remove_class("danger")
+            ctx.remove_class("warning")
+            if ram_pct >= 85:
+                ctx.add_class("danger")
+            elif ram_pct >= 65:
+                ctx.add_class("warning")
+
+            self.swap_lbl.set_text(f"SWAP: {swap_used:.1f} GB / {swap_total:.1f} GB ({swap_pct:.0f}%)")
+            self.swap_bar.set_fraction(min(1.0, swap_pct / 100.0))
+
+            procs = self.get_top_procs()
+            for child in self.proc_tile.get_children():
+                self.proc_tile.remove(child)
+
+            if not procs:
+                lbl = Gtk.Label(label="No processes found", xalign=0)
+                lbl.get_style_context().add_class("stat-label")
+                self.proc_tile.pack_start(lbl, False, False, 0)
+            else:
+                for p in procs:
+                    row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+                    cmd_lbl = Gtk.Label(label=f"{p['pid']:>5}  {p['name']:<18}", xalign=0)
+                    cmd_lbl.get_style_context().add_class("stat-label")
+                    val_lbl = Gtk.Label(label=f"{p['rss']} MB ({p['mem']}%)", xalign=1)
+                    val_lbl.get_style_context().add_class("stat-val")
+                    row.pack_start(cmd_lbl, True, True, 0)
+                    row.pack_end(val_lbl, False, False, 0)
+                    self.proc_tile.pack_start(row, False, False, 0)
+
+            self.proc_tile.show_all()
+        except Exception:
+            pass
+        return True
 
     def get_mem_stats(self):
         info = {}
@@ -914,6 +1076,7 @@ class NetworkDropdown(BaseDropdown):
 
         ssid, signal, dev, ip_addr, dns_list = self.query_network_status()
         self.dev = dev
+        self.con_name = ssid if ssid != "Disconnected" else None
         rx_val, tx_val = self.get_traffic()
 
         nmtui_btn = Gtk.Button(label="󰖩 nmtui")
@@ -1011,7 +1174,7 @@ class NetworkDropdown(BaseDropdown):
         dns_tile.pack_start(self.custom_box, False, False, 0)
         self.main_box.pack_start(dns_tile, False, False, 0)
 
-        self.update_dns_display(dns_list)
+        self.update_dns_display()
 
         self.build_footer("Esc to close")
 
@@ -1065,39 +1228,69 @@ class NetworkDropdown(BaseDropdown):
     def get_dns_info(self, dev):
         dns_list = []
         try:
-            out = subprocess.check_output(["nmcli", "dev", "show", dev], text=True, stderr=subprocess.DEVNULL)
+            out = subprocess.check_output(["nmcli", "-t", "-f", "IP4.DNS", "dev", "show", dev], text=True, stderr=subprocess.DEVNULL)
             for line in out.splitlines():
-                if "IP4.DNS" in line:
+                if line.startswith("IP4.DNS"):
                     dns_list.append(line.split(":", 1)[1].strip())
         except Exception:
             pass
 
         current_dns_str = ", ".join(dns_list) if dns_list else "Automatic (DHCP)"
         provider = "dhcp"
-        if "1.1.1.1" in current_dns_str:
-            provider = "cloudflare"
-        elif "8.8.8.8" in current_dns_str:
-            provider = "google"
-        elif dns_list:
-            provider = "custom"
+        is_dhcp = True
+        dns_cfg = ""
 
-        return current_dns_str, provider
+        c_name = getattr(self, "con_name", None)
+        if not c_name:
+            try:
+                out = subprocess.check_output(["nmcli", "-t", "-f", "GENERAL.CONNECTION", "dev", "show", dev], text=True, stderr=subprocess.DEVNULL)
+                for line in out.splitlines():
+                    if line.startswith("GENERAL.CONNECTION:"):
+                        c_name = line.split(":", 1)[1].strip()
+                        break
+            except Exception:
+                pass
 
-    def update_dns_display(self, preloaded_dns=None):
-        if preloaded_dns is not None:
-            dns_list = preloaded_dns
-            current_dns_str = ", ".join(dns_list) if dns_list else "Automatic (DHCP)"
+        if c_name and c_name != "Disconnected":
+            try:
+                out = subprocess.check_output(
+                    ["nmcli", "-t", "-f", "ipv4.ignore-auto-dns,ipv4.dns", "con", "show", c_name],
+                    text=True, stderr=subprocess.DEVNULL
+                )
+                ignore_auto = "no"
+                for line in out.splitlines():
+                    if line.startswith("ipv4.ignore-auto-dns:"):
+                        ignore_auto = line.split(":", 1)[1].strip()
+                    elif line.startswith("ipv4.dns:"):
+                        dns_cfg = line.split(":", 1)[1].strip()
+                if ignore_auto == "yes" and dns_cfg:
+                    is_dhcp = False
+            except Exception:
+                pass
+
+        if is_dhcp:
             provider = "dhcp"
+        elif "1.1.1.1" in dns_cfg or "1.0.0.1" in dns_cfg:
+            provider = "cloudflare"
+        elif "8.8.8.8" in dns_cfg or "8.8.4.4" in dns_cfg:
+            provider = "google"
+        elif dns_cfg:
+            provider = "custom"
+        else:
             if "1.1.1.1" in current_dns_str:
                 provider = "cloudflare"
             elif "8.8.8.8" in current_dns_str:
                 provider = "google"
-            elif dns_list:
+            elif dns_list and not any(ip.startswith(("192.168.", "10.", "172.16.", "172.17.", "172.18.", "172.19.", "172.20.", "172.21.", "172.22.", "172.23.", "172.24.", "172.25.", "172.26.", "172.27.", "172.28.", "172.29.", "172.30.", "172.31.")) for ip in dns_list):
                 provider = "custom"
-        else:
-            current_dns_str, provider = self.get_dns_info(self.dev)
+            else:
+                provider = "dhcp"
 
-        prov_title = provider.upper()
+        return current_dns_str, provider
+
+    def update_dns_display(self, preloaded_dns=None):
+        current_dns_str, provider = self.get_dns_info(self.dev)
+        prov_title = "DHCP" if provider == "dhcp" else provider.upper()
         self.dns_status_lbl.set_markup(f"Active: <b>{current_dns_str}</b> ({prov_title})")
 
         for p_id, btn in self.dns_btns.items():
@@ -1126,14 +1319,41 @@ class NetworkDropdown(BaseDropdown):
                     ctx.remove_class("selected")
             return
 
-        subprocess.run(["set-dns", p_id], stderr=subprocess.DEVNULL)
+        for k, b in self.dns_btns.items():
+            ctx = b.get_style_context()
+            if k == p_id:
+                ctx.add_class("selected")
+            else:
+                ctx.remove_class("selected")
+        self.custom_box.set_visible(False)
+
+        cmd = [SET_DNS_BIN if os.path.exists(SET_DNS_BIN) else "set-dns", p_id]
+        try:
+            subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except Exception:
+            pass
+
         self.update_dns_display()
+        GLib.timeout_add(400, lambda: (self.update_dns_display(), False)[1])
+        subprocess.run(["pkill", "-RTMIN+4", "dwmblocks"], stderr=subprocess.DEVNULL)
 
     def on_apply_custom_dns(self, widget):
         val = self.custom_entry.get_text().strip()
         if val:
-            subprocess.run(["set-dns", "custom", val], stderr=subprocess.DEVNULL)
+            for k, b in self.dns_btns.items():
+                ctx = b.get_style_context()
+                if k == "custom":
+                    ctx.add_class("selected")
+                else:
+                    ctx.remove_class("selected")
+            cmd = [SET_DNS_BIN if os.path.exists(SET_DNS_BIN) else "set-dns", "custom", val]
+            try:
+                subprocess.run(cmd, stderr=subprocess.DEVNULL)
+            except Exception:
+                pass
             self.update_dns_display()
+            GLib.timeout_add(300, lambda: (self.update_dns_display(), False)[1])
+            subprocess.run(["pkill", "-RTMIN+4", "dwmblocks"], stderr=subprocess.DEVNULL)
 
     def get_traffic(self):
         def format_bytes(n):
@@ -1263,35 +1483,36 @@ class ForecastDropdown(BaseDropdown):
 # MAIN ROUTER
 # ==============================================================================
 def main():
+    # Detach stdout and stderr from any inherited pipe (e.g. dwmblocks popen)
+    try:
+        devnull_fd = os.open(os.devnull, os.O_WRONLY)
+        os.dup2(devnull_fd, 1)
+        os.dup2(devnull_fd, 2)
+        os.close(devnull_fd)
+    except Exception:
+        pass
+
     # Enforce strictly 1 dwm-dropdown instance at any given time
     my_pid = os.getpid()
-    pid_file = os.path.expanduser("~/.cache/dwm-dropdown.pid")
+    pid_file = "/tmp/dwm-dropdown.pid"
     if os.path.exists(pid_file):
         try:
             with open(pid_file, "r") as f:
                 old_pid = int(f.read().strip())
             if old_pid != my_pid:
-                try:
-                    os.kill(old_pid, signal.SIGKILL)
-                except ProcessLookupError:
-                    pass
+                cmd_file = f"/proc/{old_pid}/cmdline"
+                if os.path.exists(cmd_file):
+                    with open(cmd_file, "rb") as f:
+                        cmd = f.read().decode(errors="ignore")
+                    if "dwm-dropdown" in cmd:
+                        try:
+                            os.kill(old_pid, signal.SIGTERM)
+                        except ProcessLookupError:
+                            pass
         except Exception:
             pass
 
     try:
-        out = subprocess.check_output(["pgrep", "-f", "dwm-dropdown"], text=True)
-        for p_str in out.split():
-            p = int(p_str)
-            if p != my_pid:
-                try:
-                    os.kill(p, signal.SIGKILL)
-                except Exception:
-                    pass
-    except Exception:
-        pass
-
-    try:
-        os.makedirs(os.path.dirname(pid_file), exist_ok=True)
         with open(pid_file, "w") as f:
             f.write(str(my_pid))
     except Exception:

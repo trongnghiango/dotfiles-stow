@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 
 case "$BLOCK_BUTTON" in
-1) setsid -f ka-volume-pop ;;
+1) setsid -f ka-volume-pop >/dev/null 2>&1 ;;
 2) wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle ;;
 4) wpctl set-volume @DEFAULT_AUDIO_SINK@ 1%+ ;;
 5) wpctl set-volume @DEFAULT_AUDIO_SINK@ 1%- ;;
@@ -10,7 +10,7 @@ esac
 vol_info="$(wpctl get-volume @DEFAULT_AUDIO_SINK@)"
 
 if echo "$vol_info" | grep -q '\[MUTED\]'; then
-  echo "^C5^[ 🔇 MUTE ]"
+  echo "^C5^[ 🔇 MUTE ]^d^"
   exit 0
 fi
 
@@ -24,4 +24,4 @@ else
   icon="🔈"
 fi
 
-echo "^C13^$icon^d^^C15^$vol%"
+echo "^C13^$icon^d^ $vol%^d^"

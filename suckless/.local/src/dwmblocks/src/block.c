@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <signal.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -53,8 +54,15 @@ int block_deinit(block *const block) {
 
 int block_execute(block *const block, const uint8_t button) {
     // Ensure only one child process exists per block at an instance.
+    // If a background periodic update is running and user clicks, cancel background update to respond immediately.
     if (block->fork_pid != -1) {
-        return 0;
+        if (button != 0) {
+            kill(block->fork_pid, SIGTERM);
+            waitpid(block->fork_pid, NULL, 0);
+            block->fork_pid = -1;
+        } else {
+            return 0;
+        }
     }
 
     block->fork_pid = fork();

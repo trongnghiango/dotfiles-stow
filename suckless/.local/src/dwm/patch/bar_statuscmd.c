@@ -36,9 +36,10 @@ click_statuscmd(Bar *bar, Arg *arg, BarArg *a)
 {
 	int res = click_statuscmd_text(arg, a->x - (lrpad / 2), rawstext);
 	if (statussig > 0) {
-		/* Toggle: Nếu click vào block đang mở dropdown, đóng nó và trả về -1 */
-		if (active_block.sig == statussig && active_block.win) {
-			killdropdown(active_block.win);
+		/* Toggle: Nếu click vào block đang mở dropdown (hoặc đang mở), đóng nó và trả về -1 */
+		if (active_block.sig == statussig) {
+			if (active_block.win)
+				killdropdown(active_block.win);
 			active_block.sig = 0;
 			active_block.win = 0;
 			active_block.w = 0;

@@ -76,7 +76,7 @@ if command -v nmcli >/dev/null 2>&1 && systemctl is-active --quiet NetworkManage
       return 0
     fi
     if command -v sudo >/dev/null 2>&1; then
-      sudo nmcli "$@"
+      sudo -n nmcli "$@" 2>/dev/null || nmcli "$@"
     else
       nmcli "$@"
     fi
@@ -90,8 +90,12 @@ if command -v nmcli >/dev/null 2>&1 && systemctl is-active --quiet NetworkManage
     echo "[OK] Reset DNS to DHCP (Automatic)."
   else
     run_nmcli connection modify "$CONNECTION" ipv4.ignore-auto-dns yes ipv4.dns "$DNS4"
-    if ip -6 route show default >/dev/null 2>&1 && ip -6 route show default | grep -q . && [[ -n "$DNS6" ]]; then
-      run_nmcli connection modify "$CONNECTION" ipv6.ignore-auto-dns yes ipv6.dns "$DNS6" || true
+    if ip -6 route show default >/dev/null 2>&1 && ip -6 route show default | grep -q .; then
+      if [[ -n "$DNS6" ]]; then
+        run_nmcli connection modify "$CONNECTION" ipv6.ignore-auto-dns yes ipv6.dns "$DNS6" || true
+      else
+        run_nmcli connection modify "$CONNECTION" ipv6.ignore-auto-dns no ipv6.dns "" || true
+      fi
     fi
     echo "[OK] Set DNS to $DNS_PROVIDER ($DNS4)."
   fi

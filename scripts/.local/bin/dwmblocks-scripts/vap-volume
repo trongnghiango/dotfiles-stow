@@ -39,4 +39,4 @@ $((vol >= 1))) icon=" " ;;
 *) echo  && exit ;;
 esac
 
-echo "^C13^$icon^d^^C15^$vol%"
+echo "^C13^$icon^d^ $vol%^d^"

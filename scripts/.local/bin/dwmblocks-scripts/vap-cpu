@@ -19,4 +19,4 @@ total=$((a+b+c+idle))
 cpu=$((100*( (total-prevtotal) - (idle-previdle) ) / (total-prevtotal) ))
 
 #printf "^B14^^C0^   ^d^^C14^ $cpu%% "
-printf "^C4^ ^C15^$cpu%% "
+printf "^C4^ ^d^$cpu%%^d^ "

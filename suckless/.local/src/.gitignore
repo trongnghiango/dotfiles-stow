@@ -7,6 +7,8 @@
 
 # Compiled binaries
 dwm/dwm
+dwm68/dwm
+dwm68/config.h
 st/st
 dmenu/dmenu
 dmenu/stest

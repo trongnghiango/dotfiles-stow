@@ -18,10 +18,10 @@ case "$hour" in
 esac
 
 case ${BLOCK_BUTTON:-${BUTTON:-0}} in
-    1) setsid -f dwm-dropdown clock ;;
-    2) ifinstalled calcurse && setsid -f "$TERMINAL" -e calcurse ;;
+    1) setsid -f dwm-dropdown clock >/dev/null 2>&1 ;;
+    2) ifinstalled calcurse && setsid -f "$TERMINAL" -e calcurse >/dev/null 2>&1 ;;
     3) notify-send "📅 Time" "Left: Month view\nMiddle: Calcurse" ;;
-    6) setsid -f "$TERMINAL" -e "$EDITOR" "$0" ;;
+    6) setsid -f "$TERMINAL" -e "$EDITOR" "$0" >/dev/null 2>&1 ;;
 esac
 
-echo "$icon$(date '+%I:%M%P')"
+echo "$icon^d^$(date '+%I:%M%P')^d^"

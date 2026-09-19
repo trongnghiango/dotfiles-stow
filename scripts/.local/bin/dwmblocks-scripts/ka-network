@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 
 case ${BLOCK_BUTTON:-${BUTTON:-0}} in
-1) setsid -f dwm-dropdown network ;;
-3) ifinstalled nmtui && setsid -f "$TERMINAL" -e nmtui ;;
-6) setsid -f "$TERMINAL" -e "$EDITOR" "$0" ;;
+1) setsid -f dwm-dropdown network >/dev/null 2>&1 ;;
+3) ifinstalled nmtui && setsid -f "$TERMINAL" -e nmtui >/dev/null 2>&1 ;;
+6) setsid -f "$TERMINAL" -e "$EDITOR" "$0" >/dev/null 2>&1 ;;
 esac
 
 wifi_icon=""
@@ -16,7 +16,7 @@ if [ -d /sys/class/net/w* ]; then
   if [ "$state" = "up" ]; then
     sig=$(awk '/^\s*w/ { print int($3 * 100 / 70) }' /proc/net/wireless | head -n1)
     sig=${sig:-0}
-    wifi_icon="📶 ${sig}%"
+    wifi_icon="📶 ^d^${sig}%"
     net_icon=""
   fi
 fi
