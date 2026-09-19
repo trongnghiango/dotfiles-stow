@@ -34,7 +34,7 @@ log_err()   { echo -e "${RED}[err]${NC}   $1" >&2; }
 # --- Helpers ---
 _require_envsubst() {
     command -v envsubst &>/dev/null && return
-    log_err "envsubst không có. Cài: sudo pacman -S gettext"
+    log_err "envsubst không có. Cài đặt: Arch: sudo pacman -S gettext | Debian: sudo apt install gettext-base"
     exit 1
 }
 

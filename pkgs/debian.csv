@@ -103,6 +103,7 @@ E,lazydocker,9,docker,Manages Docker status via TUI (via binary).
 ,fonts-noto-color-emoji,10,fonts,Color emoji font set.
 ,papirus-icon-theme,10,fonts,Papirus system icons.
 ,fonts-jetbrains-mono,10,fonts,JetBrains Mono monospace font.
+,gettext-base,10,theme,Provides envsubst for theme-set template engine.
 ,7zip,11,system,Compresses files in 7z format.
 ,alsa-utils,11,system,Alsa utilities.
 ,atool,11,lf,Manages archives.
