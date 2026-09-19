@@ -102,6 +102,9 @@ for program in $autostart; do
   fi
 done
 
+# Khởi động Dropdown Popover Daemon (Pre-warmed socket cho 0ms latency)
+command -v dwm-dropdown >/dev/null 2>&1 && dwm-dropdown --daemon &
+
 
 
 # ==============================================================================
