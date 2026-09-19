@@ -258,24 +258,22 @@ def show_rofi_menu():
             file_p = entry.get("file_path", "")
             icon = file_p if (file_p and Path(file_p).exists()) else "image-x-generic"
             display_str = f"[{idx:02d}]  {entry['summary_title']}"
+            # Gán icon chỉ cho hình ảnh để Rofi preview hiển thị ảnh sắc nét
+            payload_parts.append(f"{full_preview}\0display\x1f{display_str}\x1ficon\x1f{icon}")
         else:
             sample_text = entry.get("text", "")
-            if len(sample_text) > 1600:
-                sample_text = sample_text[:1600] + "\n\n... (Còn tiếp phần còn lại của văn bản)"
             full_preview = (
                 f"[VĂN BẢN]  ·  {entry['time']}  ({entry['date']})  ·  {entry.get('line_count', 1)} dòng, {entry.get('char_count', 0)} ký tự\n"
                 f"────────────────────────────────────────────────────────────\n"
                 f"{sample_text}"
             )
-            icon = entry.get("icon", "edit-paste")
             display_str = f"[{idx:02d}]  {entry['summary_title']}"
-
-        # Cú pháp chuẩn Rofi dmenu metadata: \0display\x1f...\x1ficon\x1f...
-        payload_parts.append(f"{full_preview}\0display\x1f{display_str}\x1ficon\x1f{icon}")
+            # Với text: Không gán icon ảnh để khung preview nhường 100% không gian dọc cho text
+            payload_parts.append(f"{full_preview}\0display\x1f{display_str}")
 
     # Tùy chọn xóa lịch sử ở cuối danh sách
     payload_parts.append(
-        "Xoá toàn bộ các bản sao lưu trong lịch sử clipboard.\0display\x1f󰆴  Xoá toàn bộ lịch sử (Clear History)\x1ficon\x1fedit-delete"
+        "Xoá toàn bộ các bản sao lưu trong lịch sử clipboard.\0display\x1f󰆴  Xoá toàn bộ lịch sử (Clear History)"
     )
 
     raw_input = "\x1e".join(payload_parts) + "\x1e"

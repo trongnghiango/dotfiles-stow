@@ -1,9 +1,9 @@
 /**
  * Rofi Clipboard Theme — Two-Pane Master/Detail Split View
- * Golden Ratio 2 : 3 Layout (Left 380px : Right 570px)
+ * Golden Ratio 2 : 3 Layout (Left 400px : Right 604px)
  * Omarchy / DHH Design Standard (0px border-radius, 2px accent border)
- * Left: Chronological items with concise summaries & icons (2 parts)
- * Right: Full content preview with real image & text details (3 parts)
+ * Left: Chronological items with concise summaries & icons (2 parts, 40%)
+ * Right: Full content preview with real image & full text details (3 parts, 60%)
  **/
 
 @import "config.rasi"
@@ -14,8 +14,8 @@ window {
     location:                    center;
     anchor:                      center;
     fullscreen:                  false;
-    width:                       1000px;
-    height:                      540px;
+    width:                       1050px;
+    height:                      560px;
     x-offset:                    0px;
     y-offset:                    0px;
 
@@ -79,12 +79,13 @@ body {
     children:                    [ "listview", "preview-box" ];
 }
 
-/* TỶ LỆ 2 : 3 (BÊN TRÁI 2 PHẦN = 380px) */
+/* TỶ LỆ 2 : 3 (BÊN TRÁI 2 PHẦN = 400px, KHÔNG EXPAND ĐỂ BẢO TOÀN TỶ LỆ) */
 listview {
     enabled:                     true;
-    width:                       380px;
+    width:                       400px;
+    expand:                      false;
     columns:                     1;
-    lines:                       9;
+    lines:                       10;
     cycle:                       true;
     dynamic:                     true;
     scrollbar:                   false;
@@ -105,7 +106,7 @@ listview {
 
 element {
     enabled:                     true;
-    spacing:                     10px;
+    spacing:                     8px;
     margin:                      0px;
     padding:                     8px 10px;
     border:                      0px solid;
@@ -113,7 +114,7 @@ element {
     background-color:            transparent;
     text-color:                  @foreground;
     cursor:                      pointer;
-    children:                    [ "element-icon", "element-text" ];
+    children:                    [ "element-text" ];
 }
 
 element normal.normal {
@@ -126,13 +127,6 @@ element selected.normal {
     text-color:                  @background;
 }
 
-element-icon {
-    background-color:            transparent;
-    text-color:                  inherit;
-    size:                        22px;
-    cursor:                      inherit;
-}
-
 element-text {
     background-color:            transparent;
     text-color:                  inherit;
@@ -142,12 +136,13 @@ element-text {
     horizontal-align:            0.0;
 }
 
-/* TỶ LỆ 2 : 3 (BÊN PHẢI 3 PHẦN = 574px) */
+/* TỶ LỆ 2 : 3 (BÊN PHẢI 3 PHẦN = 604px, TỰ ĐỘNG LẤP ĐẦY TOÀN BỘ PHẦN CÒN LẠI) */
 preview-box {
     enabled:                     true;
     orientation:                 vertical;
-    width:                       574px;
-    spacing:                     12px;
+    width:                       604px;
+    expand:                      true;
+    spacing:                     10px;
     margin:                      0px;
     padding:                     14px;
     border:                      1px solid;
@@ -160,7 +155,7 @@ preview-box {
 preview-title {
     enabled:                     true;
     expand:                      false;
-    content:                     "󰅍  CHI TIẾT BẢN SAO (PREVIEW)";
+    content:                     "󰅍  CHI TIẾT NỘI DUNG (PREVIEW)";
     font:                        "JetBrains Mono Bold 10";
     text-color:                  @selected;
     horizontal-align:            0.0;
@@ -184,6 +179,7 @@ textbox-current-entry {
     text-color:                  @foreground;
     horizontal-align:            0.0;
     vertical-align:              0.0;
+    wrap:                        true;
     placeholder:                 "Chọn một bản sao để xem chi tiết...";
     placeholder-color:           @foreground-dim;
 }
