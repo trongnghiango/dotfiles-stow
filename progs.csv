@@ -99,7 +99,7 @@ A,brave-bin,7,browser,Default web browser (BROWSER env var).
 ,docker,9,docker,Container application engine.
 ,docker-compose,9,docker,Orchestrates multi-container apps.
 A,lazydocker-bin,9,docker,Manages Docker status via TUI.
-A,gtk-theme-arc-gruvbox-git,10,theme,The dark GTK theme (Arc-Gruvbox) used consistently in GTK2/3/4 config.
+,adwaita-icon-theme,10,theme,Official Adwaita base and icon theme for GTK.
 ,gettext,10,theme,Provides envsubst for theme-set template engine.
 ,inter-font,10,fonts,Typeface specially designed for computer screens.
 ,noto-fonts,10,fonts,Is an expansive font package for CJK and other language support.

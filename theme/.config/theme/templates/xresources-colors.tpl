@@ -2,6 +2,8 @@
 ! Nguồn sự thật: ~/.config/theme/colors/current.conf
 ! Font và alpha được quản lý riêng trong xresources chính
 
+Xft.dpi: ${XFT_DPI}
+
 *.foreground:  #${FG}
 *.background:  #${BG}
 *.cursorColor: #${FG}
@@ -41,3 +43,5 @@ dwm.color12: #${COLOR12}
 dwm.color13: #${COLOR13}
 dwm.color14: #${COLOR14}
 dwm.color15: #${COLOR15}
+dwm.selbordercolor: #${ACCENT}
+dwm.normbordercolor: #${COLOR8}

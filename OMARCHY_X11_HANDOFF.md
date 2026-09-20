@@ -126,7 +126,7 @@
 | `picom/` | Compositor tối ưu Low-Latency (vsync glx, tắt blur/fading) |
 | `rofi/` | `launcher.rasi`, `config.rasi`, `colors.rasi` thiết kế tỉ lệ vàng |
 | `dunst/` | Daemon thông báo với block quản lý màu tự động |
-| `gtk/` | Cấu hình giao diện Arc-Gruvbox, font Inter 10, GTK bookmarks |
+| `gtk/` | Cấu hình giao diện Adwaita Base + Dynamic CSS Injection, font Inter 10, GTK bookmarks |
 | `fontconfig/` | Khử font bitmap, tối ưu hiển thị chữ trên màn hình |
 | `nsxiv/` | Trình xem ảnh X11 siêu nhẹ |
 | `theme/` | Hệ thống theme động (`theme-set`, palettes, templates, hooks) |

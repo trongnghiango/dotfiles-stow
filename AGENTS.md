@@ -26,7 +26,7 @@ Each top-level directory is a Stow package containing `$HOME`-relative paths (23
 | `dunst/` | Dunst notification daemon config (hỗ trợ managed block tự động đổi màu) |
 | `rofi/` | Rofi app launcher & window switcher configs (tỉ lệ vàng 580px, font 11pt, icon 20px) |
 | `picom/` | Picom compositor config tối ưu Low-Latency (vsync glx, use-damage, tắt blur/fading) |
-| `gtk/` | GTK 2/3/4 theme settings (Arc-Gruvbox, Papirus-Dark, gtk-3.0/bookmarks) |
+| `gtk/` | GTK 2/3/4 settings (Adwaita Base + Dynamic CSS Injection, Papirus-Dark, bookmarks) |
 | `fontconfig/` | Fontconfig rules (loại bỏ font bitmap) |
 | `nsxiv/` | Nsxiv image viewer keybinds |
 | `brave/` | Brave browser flags config (X11 + HD4000 GPU decode) |

@@ -1,70 +1,97 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# Hook 40: Đồng bộ Dark/Light và GTK theme sang GSettings (D-Bus) và GTK settings.ini
-# Cho phép Brave, Antigravity và các ứng dụng GUI tự động nhận diện theme hệ thống
-# mà không cần force cờ cứng.
+# Hook 40: Ka Appearance Engine — Đồng bộ GTK3, GTK4, GSettings, Brave & Qt
+# Triết lý: Official Base (Adwaita / Adwaita-dark) + Dynamic CSS Injection
 # ==============================================================================
 set -euo pipefail
 
-CURRENT_LINK="${XDG_CONFIG_HOME:-$HOME/.config}/theme/colors/current.conf"
-if [ -f "$CURRENT_LINK" ]; then
-    # shellcheck disable=SC1090
-    source "$CURRENT_LINK"
+THEME_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/theme"
+TEMPLATES_DIR="$THEME_DIR/templates"
+CURRENT_LINK="$THEME_DIR/colors/current.conf"
+
+if [ ! -f "$CURRENT_LINK" ]; then
+    exit 0
 fi
 
-# 1. Tự động xác định Dark hay Light từ $MODE hoặc qua độ sáng màu nền $BG
-if [ -z "${MODE:-}" ] && [ -n "${BG:-}" ]; then
-    r=$((16#${BG:0:2}))
-    g=$((16#${BG:2:2}))
-    b=$((16#${BG:4:2}))
-    luma=$(( (r * 299 + g * 587 + b * 114) / 1000 ))
-    if [ "$luma" -lt 128 ]; then
-        THEME_MODE="dark"
-    else
-        THEME_MODE="light"
-    fi
-else
-    THEME_MODE="${MODE:-dark}"
-fi
+# 1. Export tất cả biến từ theme hiện tại
+set -a
+# shellcheck disable=SC1090
+source "$CURRENT_LINK"
 
+# Tự động xác định chế độ tối/sáng
+THEME_MODE="${MODE:-dark}"
 if [ "$THEME_MODE" = "dark" ]; then
     COLOR_SCHEME="prefer-dark"
     GTK_PREFER_DARK="1"
-    DEFAULT_GTK_THEME="Arc-Gruvbox"
+    GTK_THEME_BASE="Adwaita-dark"
 else
     COLOR_SCHEME="prefer-light"
     GTK_PREFER_DARK="0"
-    DEFAULT_GTK_THEME="Default"
+    GTK_THEME_BASE="Adwaita"
 fi
-GTK_THEME="${GTK_THEME:-$DEFAULT_GTK_THEME}"
 
-# 2. Bắn tín hiệu D-Bus qua GSettings -> Brave và Antigravity lập tức đổi màu
+# Fallback giá trị cho font, cursor, icon
+FONT_UI="${FONT_UI:-Inter}"
+FONT_UI_SIZE="${FONT_UI_SIZE:-10}"
+FONT_MONO="${FONT_MONO:-JetBrains Mono}"
+FONT_MONO_SIZE="${FONT_MONO_SIZE:-11}"
+CURSOR_THEME="${CURSOR_THEME:-Adwaita}"
+CURSOR_SIZE="${CURSOR_SIZE:-16}"
+ICON_THEME="${ICON_THEME:-Papirus-Dark}"
+BORDER="${BORDER:-$ACCENT}"
+SURFACE="${SURFACE:-$COLOR0}"
+set +a
+
+# 2. Dynamic CSS Injection cho GTK-3.0 và GTK-4.0
+if command -v envsubst &>/dev/null && [ -f "$TEMPLATES_DIR/gtk-colors.css.tpl" ]; then
+    for gtk_ver in "gtk-3.0" "gtk-4.0"; do
+        target_dir="${XDG_CONFIG_HOME:-$HOME/.config}/$gtk_ver"
+        mkdir -p "$target_dir"
+        envsubst < "$TEMPLATES_DIR/gtk-colors.css.tpl" > "$target_dir/gtk.css"
+    done
+fi
+
+# 3. Đồng bộ settings.ini cho GTK-3.0 và GTK-4.0
+if command -v envsubst &>/dev/null && [ -f "$TEMPLATES_DIR/gtk-settings.ini.tpl" ]; then
+    for gtk_ver in "gtk-3.0" "gtk-4.0"; do
+        target_dir="${XDG_CONFIG_HOME:-$HOME/.config}/$gtk_ver"
+        mkdir -p "$target_dir"
+        envsubst < "$TEMPLATES_DIR/gtk-settings.ini.tpl" > "$target_dir/settings.ini"
+    done
+fi
+
+# 4. Cập nhật GTK2 legacy config (~/.gtkrc-2.0)
+cat > "$HOME/.gtkrc-2.0" << EOF
+include "~/.gtkrc-2.0.mine"
+gtk-theme-name="$GTK_THEME_BASE"
+gtk-icon-theme-name="$ICON_THEME"
+gtk-font-name="$FONT_UI $FONT_UI_SIZE"
+gtk-cursor-theme-name="$CURSOR_THEME"
+gtk-cursor-theme-size=$CURSOR_SIZE
+gtk-toolbar-style=GTK_TOOLBAR_TEXT
+gtk-toolbar-icon-size=GTK_ICON_SIZE_LARGE_TOOLBAR
+gtk-button-images=0
+gtk-menu-images=0
+gtk-enable-event-sounds=0
+gtk-enable-input-feedback-sounds=0
+gtk-xft-antialias=1
+gtk-xft-hinting=1
+gtk-xft-hintstyle="hintmedium"
+gtk-xft-rgba="rgb"
+EOF
+
+# 5. Bắn tín hiệu D-Bus qua GSettings (Brave, Portal, Web Apps nhận tức thì)
 if command -v gsettings &>/dev/null; then
     gsettings set org.gnome.desktop.interface color-scheme "$COLOR_SCHEME" 2>/dev/null || true
-    gsettings set org.gnome.desktop.interface gtk-theme "$GTK_THEME" 2>/dev/null || true
+    gsettings set org.gnome.desktop.interface gtk-theme "$GTK_THEME_BASE" 2>/dev/null || true
+    gsettings set org.gnome.desktop.interface icon-theme "$ICON_THEME" 2>/dev/null || true
+    gsettings set org.gnome.desktop.interface font-name "$FONT_UI $FONT_UI_SIZE" 2>/dev/null || true
+    gsettings set org.gnome.desktop.interface monospace-font-name "$FONT_MONO $FONT_MONO_SIZE" 2>/dev/null || true
+    gsettings set org.gnome.desktop.interface cursor-theme "$CURSOR_THEME" 2>/dev/null || true
+    gsettings set org.gnome.desktop.interface cursor-size "$CURSOR_SIZE" 2>/dev/null || true
 fi
 
-# 3. Đồng bộ vào cấu hình file GTK-3.0 và GTK-4.0 settings.ini
-for gtk_ini in "${XDG_CONFIG_HOME:-$HOME/.config}/gtk-3.0/settings.ini" \
-               "${XDG_CONFIG_HOME:-$HOME/.config}/gtk-4.0/settings.ini"; do
-    if [ -f "$gtk_ini" ]; then
-        if grep -q "gtk-application-prefer-dark-theme" "$gtk_ini"; then
-            sed -i "s/gtk-application-prefer-dark-theme=.*/gtk-application-prefer-dark-theme=$GTK_PREFER_DARK/" "$gtk_ini"
-        else
-            sed -i "/\[Settings\]/a gtk-application-prefer-dark-theme=$GTK_PREFER_DARK" "$gtk_ini"
-        fi
-
-        if [ -n "${GTK_THEME:-}" ]; then
-            if grep -q "gtk-theme-name" "$gtk_ini"; then
-                sed -i "s/gtk-theme-name=.*/gtk-theme-name=$GTK_THEME/" "$gtk_ini"
-            else
-                sed -i "/\[Settings\]/a gtk-theme-name=$GTK_THEME" "$gtk_ini"
-            fi
-        fi
-    fi
-done
-
-# 4. Reload xsettingsd nếu đang chạy
+# 6. Reload xsettingsd nếu đang chạy
 xsettingsd_pid=$(pidof xsettingsd 2>/dev/null || true)
 if [ -n "$xsettingsd_pid" ]; then
     kill -HUP "$xsettingsd_pid" 2>/dev/null || true
