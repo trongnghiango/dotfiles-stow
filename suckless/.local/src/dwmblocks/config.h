@@ -22,11 +22,11 @@
 #define CENTER_BLOCK_COUNT 2
 
 // Định nghĩa các blocks: X(icon, cmd, interval, signal)
-// Phân đoạn 1 (Center): ka-forecast, ka-clock
+// Phân đoạn 1 (Center): ka-clock, ka-forecast
 // Phân đoạn 2 (Right): sb-record, ka-volume, ka-battery, ka-network, ka-cpu, ka-memory
 #define BLOCKS(X)                     \
-    X("", "ka-forecast", 1800, 14)    \
     X("", "ka-clock",    60,   1)     \
+    X("", "ka-forecast", 1800, 14)    \
     X("", "sb-record",   0,    9)     \
     X("", "ka-volume",   60,   11)    \
     X("", "ka-battery",  60,   30)    \
