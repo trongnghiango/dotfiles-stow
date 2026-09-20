@@ -660,6 +660,7 @@ attach(Client *c)
 void
 attachstack(Client *c)
 {
+	detachstack(c);
 	c->snext = c->mon->stack;
 	c->mon->stack = c;
 }
@@ -2442,10 +2443,12 @@ showhide(Client *c)
 			&& !c->isfullscreen
 			)
 			resize(c, c->x, c->y, c->w, c->h, 0);
-		showhide(c->snext);
+		if (c->snext && c->snext != c)
+			showhide(c->snext);
 	} else {
 		/* hide clients bottom up */
-		showhide(c->snext);
+		if (c->snext && c->snext != c)
+			showhide(c->snext);
 		XMoveWindow(dpy, c->win, WIDTH(c) * -2, c->y);
 	}
 }
