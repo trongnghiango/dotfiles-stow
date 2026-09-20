@@ -369,6 +369,7 @@ static const Key keys[] = {
 	{ MODKEY|ControlMask,           XK_d,          spawn,                  SHCMD("ka default") },
 	{ MODKEY|ControlMask,           XK_v,          spawn,                  SHCMD("ka clip") },
 	{ MODKEY|Mod1Mask,              XK_t,          spawn,                  SHCMD("ka-ocr") },
+	{ MODKEY|Mod1Mask,              XK_n,          spawn,                  SHCMD("ka night") },
 	{ MODKEY,                       XK_n,	       spawn,                  {.v = themesetcmd } },
 	{ MODKEY,			XK_x,	       togglescratch,	       {.ui = 0 } },
 	{ 0, XF86XK_AudioMute,                         spawn,                  SHCMD("wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle; pkill -RTMIN+11 dwmblocks") },

@@ -42,13 +42,49 @@ if [ -z "$weather_data" ]; then
 fi
 
 # Parse JSON (Nếu có dữ liệu)
-icon=$(echo "$weather_data" | jq -r '.weather[0].icon // "01d"' 2>/dev/null | tr -d 'nd')
+raw_icon=$(echo "$weather_data" | jq -r '.weather[0].icon // "01d"' 2>/dev/null)
+is_night=false
+if [[ "$raw_icon" == *n* ]]; then
+  is_night=true
+fi
+code=$(echo "$raw_icon" | tr -d 'nd')
 
-# Map Icon nhanh
-case $icon in
-01) ico="󰖙" ;; 02) ico="󰖕" ;; 03) ico="󰖐" ;; 04) ico="☁" ;;
-09) ico="󰖖" ;; 10) ico="󰖗" ;; 11) ico="󰙾" ;; 13) ico="󰖘" ;;
-50) ico="󰖝" ;; *) ico="󰖕" ;;
+# Map Icon theo chuẩn nhịp sinh học ngày/đêm (Circadian Glyphs)
+case "$code" in
+01)
+  if [ "$is_night" = true ]; then
+    ico="󰖔" # Mặt trăng đêm quang đãng
+  else
+    ico="󰖙" # Mặt trời ban ngày
+  fi
+  ;;
+02)
+  if [ "$is_night" = true ]; then
+    ico="󰼱" # Mặt trăng sau mây
+  else
+    ico="󰖕" # Mặt trời sau mây
+  fi
+  ;;
+03) ico="󰖐" ;; # Mây rải rác
+04) ico="☁"  ;; # Nhiều mây
+09) ico="󰖖" ;; # Mưa rào
+10)
+  if [ "$is_night" = true ]; then
+    ico="󰖗" # Mưa đêm
+  else
+    ico="🌦" # Mưa rải rác ngày
+  fi
+  ;;
+11) ico="󰙾" ;; # Giông sét
+13) ico="󰖘" ;; # Tuyết
+50) ico="󰖝" ;; # Sương mù
+*)
+  if [ "$is_night" = true ]; then
+    ico="󰖔"
+  else
+    ico="󰖕"
+  fi
+  ;;
 esac
 
 echo "$ico"

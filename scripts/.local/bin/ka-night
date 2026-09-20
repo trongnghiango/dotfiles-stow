@@ -1,0 +1,123 @@
+#!/usr/bin/env bash
+# ==============================================================================
+# ka-night — Ergonomic Night Working Mode (Omarchy-X11 Architecture)
+# ==============================================================================
+# Controls blue-light filtering (color temperature) and screen brightness dimming.
+# Uses redshift/sct if available, with native xrandr fallback (zero bloat, zero dependencies).
+# ==============================================================================
+
+set -eo pipefail
+
+STATE_FILE="${XDG_RUNTIME_DIR:-/tmp}/ka-night.state"
+BRIGHTNESS_BACKUP="${XDG_RUNTIME_DIR:-/tmp}/ka-night-brightness.bak"
+
+get_current_brightness() {
+  if command -v brightnessctl >/dev/null 2>&1; then
+    brightnessctl -m | cut -d, -f4 | tr -d '%'
+  else
+    echo "70"
+  fi
+}
+
+set_brightness() {
+  local val="$1"
+  if command -v brightnessctl >/dev/null 2>&1; then
+    brightnessctl -q set "${val}%" 2>/dev/null || true
+  fi
+}
+
+apply_warm() {
+  local temp="${1:-4000}"
+  if command -v redshift >/dev/null 2>&1; then
+    redshift -P -O "$temp" >/dev/null 2>&1 || true
+  elif command -v sct >/dev/null 2>&1; then
+    sct "$temp" >/dev/null 2>&1 || true
+  else
+    # Native X11 xrandr gamma fallback (~4000K warm tint)
+    for out in $(xrandr --query 2>/dev/null | awk '/ connected/ {print $1}'); do
+      xrandr --output "$out" --gamma 1.0:0.85:0.7 2>/dev/null || true
+    done
+  fi
+}
+
+apply_neutral() {
+  if command -v redshift >/dev/null 2>&1; then
+    redshift -x >/dev/null 2>&1 || true
+  elif command -v sct >/dev/null 2>&1; then
+    sct 6500 >/dev/null 2>&1 || true
+  else
+    # Native X11 xrandr reset
+    for out in $(xrandr --query 2>/dev/null | awk '/ connected/ {print $1}'); do
+      xrandr --output "$out" --gamma 1.0:1.0:1.0 2>/dev/null || true
+    done
+  fi
+}
+
+turn_on() {
+  local temp="${1:-4000}"
+  # Backup current brightness
+  local cur_b
+  cur_b=$(get_current_brightness)
+  echo "$cur_b" > "$BRIGHTNESS_BACKUP"
+
+  # Apply warm color temperature
+  apply_warm "$temp"
+
+  # Dim brightness to comfortable night level (35%)
+  set_brightness 35
+
+  # Record state
+  echo "active:$temp" > "$STATE_FILE"
+
+  notify-send -u low -i preferences-desktop-display "🌙 Chế độ Ban Đêm" "Đã bật: ${temp}K · Giảm độ sáng dịu mắt (35%)" 2>/dev/null || true
+}
+
+turn_off() {
+  # Restore neutral color temperature
+  apply_neutral
+
+  # Restore daytime brightness
+  local prev_b="70"
+  if [ -f "$BRIGHTNESS_BACKUP" ]; then
+    prev_b=$(cat "$BRIGHTNESS_BACKUP")
+    rm -f "$BRIGHTNESS_BACKUP"
+  fi
+  set_brightness "$prev_b"
+
+  # Remove state
+  rm -f "$STATE_FILE"
+
+  notify-send -u low -i preferences-desktop-display "☀️ Chế độ Ban Ngày" "Đã tắt: 6500K · Khôi phục độ sáng bình thường (${prev_b}%)" 2>/dev/null || true
+}
+
+is_active() {
+  [ -f "$STATE_FILE" ]
+}
+
+case "${1:-toggle}" in
+  on)
+    turn_on "${2:-4000}"
+    ;;
+  off)
+    turn_off
+    ;;
+  toggle)
+    if is_active; then
+      turn_off
+    else
+      turn_on "${2:-4000}"
+    fi
+    ;;
+  status)
+    if is_active; then
+      local state
+      state=$(cat "$STATE_FILE")
+      echo "Night Mode: ACTIVE (${state#active:})"
+    else
+      echo "Night Mode: INACTIVE (6500K Day Mode)"
+    fi
+    ;;
+  *)
+    echo "Usage: ka night [on|off|toggle|status] [temperature (e.g. 4000)]"
+    ;;
+esac

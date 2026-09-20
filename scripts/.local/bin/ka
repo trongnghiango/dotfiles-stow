@@ -43,6 +43,7 @@ usage() {
   echo -e "  ${GREEN}dev${RESET}    [setup|status|update]                 Quản lý toàn bộ dev runtimes (Node, Python, Go, Rust, Bun, PNPM) qua Mise"
   echo -e "  ${GREEN}ocr${RESET}    [--lang eng|vie] [--stdout]           Bóc tách chữ trên màn hình bằng OCR vào Clipboard"
   echo -e "  ${GREEN}record${RESET} [toggle|status]                      Bật/Tắt quay video màn hình"
+  echo -e "  ${GREEN}night${RESET}  [on|off|toggle|status]                Bật/Tắt chế độ làm việc ban đêm (Lọc ánh sáng xanh 4000K + dịu mắt)"
   echo -e "  ${GREEN}setup${RESET}  [all|suckless|stow|pkgs]              Tự động hóa triển khai gói và dotfiles"
   echo -e "  ${GREEN}stow${RESET}   <package>                             Triển khai an toàn gói cấu hình qua stow-safe"
   echo -e "  ${GREEN}doctor${RESET}                                       Chẩn đoán sức khỏe, công cụ và tính toàn vẹn hệ thống"
@@ -84,6 +85,10 @@ cmd_ocr() {
 
 cmd_record() {
   record "$@"
+}
+
+cmd_night() {
+  ka-night "$@"
 }
 
 cmd_dev() {
@@ -245,6 +250,9 @@ case "$SUBCMD" in
     ;;
   record)
     cmd_record "$@"
+    ;;
+  night|nightshift|redshift)
+    cmd_night "$@"
     ;;
   setup)
     cmd_setup "$@"
