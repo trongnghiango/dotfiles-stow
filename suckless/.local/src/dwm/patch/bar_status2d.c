@@ -232,12 +232,17 @@ drawstatusbar(BarArg *a, char* stext)
 			if (active_block.win) {
 				Client *dc = wintoclient(active_block.win);
 				if (dc && dc->mon) {
-					int drop_x = active_block.screen_x;
-					int max_x = dc->mon->wx + dc->mon->ww - WIDTH(dc);
-					if (drop_x > max_x)
-						drop_x = max_x;
-					if (drop_x < dc->mon->wx)
-						drop_x = dc->mon->wx;
+					int drop_x;
+					if (strstr(dc->name, "notify")) {
+						drop_x = dc->mon->wx + dc->mon->ww - WIDTH(dc);
+					} else {
+						drop_x = active_block.screen_x;
+						int max_x = dc->mon->wx + dc->mon->ww - WIDTH(dc);
+						if (drop_x > max_x)
+							drop_x = max_x;
+						if (drop_x < dc->mon->wx)
+							drop_x = dc->mon->wx;
+					}
 					if (dc->x != drop_x && drop_x > 0) {
 						dc->x = drop_x;
 						XMoveWindow(dpy, dc->win, dc->x, dc->y);

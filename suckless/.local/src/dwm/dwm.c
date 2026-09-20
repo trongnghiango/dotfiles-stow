@@ -980,15 +980,26 @@ configurerequest(XEvent *e)
 			}
 			if (c->isdropdown) {
 				c->bw = 0;
-				c->y = m->wy;
-				if (active_block.w > 0)
-					c->x = active_block.screen_x;
-				int max_x = m->wx + m->ww - WIDTH(c);
-				if (c->x > max_x)
-					c->x = max_x;
-				int min_x = m->wx;
-				if (c->x < min_x)
-					c->x = min_x;
+				if (strstr(c->name, "notify")) {
+					int nw = (int)(m->ww * 0.25);
+					if (nw < 340) nw = 340;
+					if (nw > 500) nw = 500;
+					if (nw > m->ww) nw = m->ww;
+					c->w = nw;
+					c->h = m->wh;
+					c->x = m->wx + m->ww - nw;
+					c->y = m->wy;
+				} else {
+					c->y = m->wy;
+					if (active_block.w > 0)
+						c->x = active_block.screen_x;
+					int max_x = m->wx + m->ww - WIDTH(c);
+					if (c->x > max_x)
+						c->x = max_x;
+					int min_x = m->wx;
+					if (c->x < min_x)
+						c->x = min_x;
+				}
 			} else {
 				if ((c->x + c->w) > m->mx + m->mw && c->isfloating)
 					c->x = m->mx + (m->mw / 2 - WIDTH(c) / 2);  /* center in x direction */
