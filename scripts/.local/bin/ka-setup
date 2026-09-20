@@ -337,7 +337,7 @@ setup_suckless() {
     return 1
   fi
 
-  for tool in dwm st dmenu dwmblocks; do
+  for tool in dwm st dmenu dwmblocks ka-pop; do
     # Dọn dẹp binary rác nếu tồn tại trong ~/.local/bin đè lên /usr/local/bin
     if [ -f "$HOME/.local/bin/$tool" ] && [ ! -L "$HOME/.local/bin/$tool" ]; then
       log_warn "Phát hiện binary cũ $HOME/.local/bin/$tool đang đè lên /usr/local/bin/$tool. Đang sao lưu và gỡ bỏ..."

@@ -22,7 +22,7 @@ static void spawn_async(const char *cmd) {
 // -----------------------------------------------------------------------------
 static void native_cpu(char *output, size_t max_len, uint8_t button) {
     if (button == 1) {
-        spawn_async("setsid -f dwm-dropdown cpu >/dev/null 2>&1");
+        spawn_async("setsid -f ka-pop cpu >/dev/null 2>&1 || setsid -f dwm-dropdown cpu >/dev/null 2>&1");
     } else if (button == 3) {
         spawn_async("INFO=$(sensors 2>/dev/null | awk '/^fan1:/ { printf \"🌪️ Fan: %s RPM\\n\", $2 } /^CPU:/ { printf \"🔥 CPU: %s\\n\", $2 } /^Core 0:/ { printf \"1️⃣ Core 0: %s\\n\", $3 } /^Core 1:/ { printf \"2️⃣ Core 1: %s\\n\", $3 }'); notify-send '🌡️ Sensors' \"$INFO\"");
     }
@@ -72,7 +72,7 @@ static void native_cpu(char *output, size_t max_len, uint8_t button) {
 // -----------------------------------------------------------------------------
 static void native_memory(char *output, size_t max_len, uint8_t button) {
     if (button == 1) {
-        spawn_async("setsid -f dwm-dropdown memory >/dev/null 2>&1");
+        spawn_async("setsid -f ka-pop memory >/dev/null 2>&1 || setsid -f dwm-dropdown memory >/dev/null 2>&1");
     } else if (button == 2) {
         spawn_async("setsid -f st -e btop >/dev/null 2>&1");
     }
@@ -85,7 +85,7 @@ static void native_memory(char *output, size_t max_len, uint8_t button) {
 // -----------------------------------------------------------------------------
 static void native_battery(char *output, size_t max_len, uint8_t button) {
     if (button == 1) {
-        spawn_async("setsid -f dwm-dropdown battery >/dev/null 2>&1");
+        spawn_async("setsid -f ka-pop battery >/dev/null 2>&1 || setsid -f dwm-dropdown battery >/dev/null 2>&1");
     } else if (button == 4) {
         spawn_async("brightnessctl -q set +1% >/dev/null 2>&1");
     } else if (button == 5) {
@@ -149,7 +149,7 @@ static void native_battery(char *output, size_t max_len, uint8_t button) {
 // -----------------------------------------------------------------------------
 static void native_network(char *output, size_t max_len, uint8_t button) {
     if (button == 1) {
-        spawn_async("setsid -f dwm-dropdown network >/dev/null 2>&1");
+        spawn_async("setsid -f ka-pop network >/dev/null 2>&1 || setsid -f dwm-dropdown network >/dev/null 2>&1");
     } else if (button == 3) {
         spawn_async("setsid -f st -e nmtui >/dev/null 2>&1");
     }
@@ -225,7 +225,7 @@ static void native_network(char *output, size_t max_len, uint8_t button) {
 // -----------------------------------------------------------------------------
 static void native_clock(char *output, size_t max_len, uint8_t button) {
     if (button == 1) {
-        spawn_async("setsid -f dwm-dropdown clock >/dev/null 2>&1");
+        spawn_async("setsid -f ka-pop clock >/dev/null 2>&1 || setsid -f dwm-dropdown clock >/dev/null 2>&1");
     }
 
     time_t now = time(NULL);

@@ -74,7 +74,11 @@ cmd_clip() {
 
 cmd_pop() {
   local module="${1:-volume}"
-  dwm-dropdown "$module"
+  if command -v ka-pop >/dev/null 2>&1; then
+    ka-pop "$module" &
+  else
+    dwm-dropdown "$module"
+  fi
 }
 
 cmd_dns() {
@@ -224,6 +228,7 @@ cmd_doctor() {
 
   echo -e "\n${BOLD}4. Theming & Dropdown Popovers:${RESET}"
   check_item "Current Theme Config (~/.config/theme/colors/current.conf)" "test -f \$HOME/.config/theme/colors/current.conf"
+  check_item "Native C Popovers (ka-pop)" "command -v ka-pop || test -x \"\$_SCRIPT_DIR/ka-pop\""
   check_item "Unified System Daemon (ka-daemon)" "command -v ka-daemon || test -x \"\$_SCRIPT_DIR/ka-daemon\""
   check_item "Dropdown Script (dwm-dropdown)" "command -v dwm-dropdown || test -x \"\$_SCRIPT_DIR/dwmblocks-scripts/dwm-dropdown\" || test -x \"\$_SCRIPT_DIR/dwm-dropdown\""
   check_item "Default Handlers Selector (ka-default)" "command -v ka-default || test -x \"\$_SCRIPT_DIR/ka-default\""
