@@ -58,9 +58,9 @@ def send_socket_cmd(sock_path: str, payload: dict, timeout: float = 0.15) -> str
     except Exception as e:
         return ""
 
-# Check if called as client
+# Check if called as client or daemon
 args = [a.lower() for a in sys.argv[1:]]
-is_daemon = any(a in ("--daemon", "-d", "daemon", "server") for a in args)
+is_daemon = len(sys.argv) == 1 or any(a in ("--daemon", "-d", "daemon", "server", "start") for a in args)
 
 if not is_daemon and len(sys.argv) > 1:
     cmd = sys.argv[1].lower()
@@ -88,7 +88,12 @@ if not is_daemon and len(sys.argv) > 1:
         resp = send_socket_cmd(DAEMON_SOCK, {"action": "status"})
         if resp:
             print(resp)
-            sys.exit(0)
+        else:
+            print("ka-daemon is not running.")
+        sys.exit(0)
+    elif cmd in ("-h", "--help", "help"):
+        print("Usage: ka-daemon [--daemon|start|stop|status|pop <module>|clip <action>]")
+        sys.exit(0)
 
 # ==============================================================================
 # 1. INITIALIZE GTK3 & GLIB ENVIRONMENT
@@ -595,7 +600,7 @@ def main():
                 pass
         return True
 
-    GLib.io_add_watch(server_sock.fileno(), GLib.IOCondition.IO_IN, on_socket_readable)
+    GLib.io_add_watch(server_sock.fileno(), GLib.IO_IN, on_socket_readable)
 
     stop_event = threading.Event()
     start_clip_monitor(stop_event)

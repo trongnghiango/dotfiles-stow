@@ -1860,7 +1860,7 @@ def run_daemon():
                 pass
         return True
 
-    GLib.io_add_watch(server_sock.fileno(), GLib.IOCondition.IO_IN, on_socket_readable)
+    GLib.io_add_watch(server_sock.fileno(), GLib.IO_IN, on_socket_readable)
 
     def cleanup():
         try:
