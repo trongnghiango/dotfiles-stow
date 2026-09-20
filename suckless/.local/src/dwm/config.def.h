@@ -24,6 +24,8 @@ static const int sidepad                 = 0;  /* horizontal padding of bar (0 =
 static const int statusmon               = 'A';
 static const unsigned int systrayspacing  = 8;   /* systray spacing */
 static const unsigned int systrayiconsize = 15;  /* systray icon size in pixels */
+static const char *systray_icon_collapsed = ""; /* Nerd Font angle-left khi thu gọn */
+static const char *systray_icon_expanded  = ""; /* Nerd Font angle-right khi mở rộng */
 static const int showsystray             = 1;   /* 0 means no systray */
 static const unsigned int ulinepad = 5;         /* horizontal padding between the underline and tag */
 static const unsigned int ulinestroke  = 2;     /* thickness / height of the underline */

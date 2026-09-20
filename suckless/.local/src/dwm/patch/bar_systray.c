@@ -5,6 +5,14 @@ static int systraycollapsed = 1;
 #define SYSTRAY_MAX_ICONS 0
 #endif
 
+static inline const char *
+systray_btn_text(void)
+{
+	return systraycollapsed
+		? (systray_icon_collapsed ? systray_icon_collapsed : "")
+		: (systray_icon_expanded  ? systray_icon_expanded  : "");
+}
+
 int
 width_systray(Bar *bar, BarArg *a)
 {
@@ -16,7 +24,7 @@ width_systray(Bar *bar, BarArg *a)
 	if (showsystray) {
 		for (i = systray->icons; i; i = i->next) n++;
 		if (n > SYSTRAY_MAX_ICONS) {
-			tw = TEXTW(systraycollapsed ? "<" : ">") - lrpad / 2;
+			tw = drw_fontset_getwidth(drw, systray_btn_text(), False);
 		}
 		for (i = systray->icons; i; i = i->next) {
 			if (systraycollapsed && count >= SYSTRAY_MAX_ICONS)
@@ -32,7 +40,7 @@ width_systray(Bar *bar, BarArg *a)
 		if (!w)
 			XMoveWindow(dpy, systray->win, -systray->h, bar->by);
 	}
-	return w ? w + 4 : 0;
+	return w;
 }
 
 int
@@ -89,9 +97,10 @@ draw_systray(Bar *bar, BarArg *a)
 
 	for (i = systray->icons; i; i = i->next) n++;
 	if (n > SYSTRAY_MAX_ICONS) {
-		tw = TEXTW(systraycollapsed ? "<" : ">") - lrpad / 2;
+		const char *btn = systray_btn_text();
+		tw = drw_fontset_getwidth(drw, btn, False);
 		drw_setscheme(drw, scheme[SchemeNorm]);
-		drw_text(drw, bar->bx + a->x, a->y, tw, a->h, lrpad / 4, (systraycollapsed ? "<" : ">"), 0, False);
+		drw_text(drw, bar->bx + a->x, a->y, tw, a->h, 0, btn, 0, False);
 	}
 
 	drw_setscheme(drw, scheme[SchemeNorm]);
@@ -129,7 +138,7 @@ click_systray(Bar *bar, Arg *arg, BarArg *a)
 	Client *i;
 	for (i = systray ? systray->icons : NULL; i; i = i->next) n++;
 	if (n > SYSTRAY_MAX_ICONS) {
-		int tw = TEXTW(systraycollapsed ? "<" : ">") - lrpad / 2;
+		int tw = drw_fontset_getwidth(drw, systray_btn_text(), False) + systrayspacing / 2;
 		if (a->x <= tw) {
 			systraycollapsed = !systraycollapsed;
 			drawbarwin(bar);
@@ -145,7 +154,7 @@ hover_systray(Bar *bar, BarArg *a, XMotionEvent *ev)
 	Client *i;
 	for (i = systray ? systray->icons : NULL; i; i = i->next) n++;
 	if (n > SYSTRAY_MAX_ICONS) {
-		int tw = TEXTW(systraycollapsed ? "<" : ">") - lrpad / 2;
+		int tw = drw_fontset_getwidth(drw, systray_btn_text(), False) + systrayspacing / 2;
 		if (a->x <= tw)
 			return 1;
 	}
