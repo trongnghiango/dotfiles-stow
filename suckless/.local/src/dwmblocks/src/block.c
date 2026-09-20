@@ -54,15 +54,14 @@ int block_deinit(block *const block) {
 }
 
 int block_execute(block *const block, const uint8_t button) {
-    // Native C Zero-Fork fast path
+    // Native C Zero-Fork fast path: update in-memory buffer directly (0 syscalls, 0 pipe overhead)
     native_block_fn native_fn = get_native_block_fn(block->command);
     if (native_fn != NULL) {
         char buffer[LEN(block->output)] = {[0] = '\0'};
         native_fn(buffer, sizeof(buffer), button);
 
-        const size_t output_size =
-            truncate_utf8_string(buffer, LEN(buffer), MAX_BLOCK_OUTPUT_LENGTH);
-        (void)write(block->pipe[WRITE_END], buffer, output_size);
+        (void)truncate_utf8_string(buffer, LEN(buffer), MAX_BLOCK_OUTPUT_LENGTH);
+        strncpy(block->output, buffer, LEN(block->output));
         block->fork_pid = -1;
         return 0;
     }
@@ -135,6 +134,10 @@ int block_execute(block *const block, const uint8_t button) {
 }
 
 int block_update(block *const block) {
+    if (get_native_block_fn(block->command) != NULL) {
+        return 0;
+    }
+
     char buffer[LEN(block->output)];
 
     const ssize_t bytes_read =

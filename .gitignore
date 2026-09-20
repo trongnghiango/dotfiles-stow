@@ -21,6 +21,17 @@ brave-*-Default.desktop
 # Python cache
 **/__pycache__/
 *.pyc
+# Compiled binaries
+suckless/**/ka-pop/ka-pop
+scripts/.local/bin/ka-pop
+suckless/**/dwm/dwm
+suckless/**/st/st
+suckless/**/dmenu/dmenu
+suckless/**/dmenu/stest
+suckless/**/dwmblocks/build/
+suckless/**/dwm/dwm-msg
+*.o
+
 # DSH session dumps
 dsh-session-*.zip
 extracted_dsh_session/

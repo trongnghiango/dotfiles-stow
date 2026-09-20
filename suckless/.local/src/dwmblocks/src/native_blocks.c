@@ -236,6 +236,138 @@ static void native_clock(char *output, size_t max_len, uint8_t button) {
 }
 
 // -----------------------------------------------------------------------------
+// 6. VOLUME BLOCK (In-Process Native C)
+// -----------------------------------------------------------------------------
+static void native_volume(char *output, size_t max_len, uint8_t button) {
+    if (button == 1) {
+        spawn_async("setsid -f ka-pop volume >/dev/null 2>&1 || setsid -f dwm-dropdown volume >/dev/null 2>&1");
+    } else if (button == 2) {
+        spawn_async("wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle");
+    } else if (button == 4) {
+        spawn_async("wpctl set-volume @DEFAULT_AUDIO_SINK@ 1%+");
+    } else if (button == 5) {
+        spawn_async("wpctl set-volume @DEFAULT_AUDIO_SINK@ 1%-");
+    }
+
+    int vol = 50;
+    int is_muted = 0;
+    FILE *p = popen("wpctl get-volume @DEFAULT_AUDIO_SINK@ 2>/dev/null", "r");
+    if (p) {
+        char buf[128];
+        if (fgets(buf, sizeof(buf), p)) {
+            float v = 0.5f;
+            if (sscanf(buf, "Volume: %f", &v) >= 1) {
+                vol = (int)(v * 100.0f + 0.5f);
+            }
+            if (strstr(buf, "[MUTED]")) is_muted = 1;
+        }
+        pclose(p);
+    }
+
+    if (is_muted) {
+        snprintf(output, max_len, "󰝟");
+    } else if (vol >= 70) {
+        snprintf(output, max_len, "󰕾");
+    } else if (vol >= 30) {
+        snprintf(output, max_len, "󰖀");
+    } else {
+        snprintf(output, max_len, "󰕿");
+    }
+}
+
+// -----------------------------------------------------------------------------
+// 7. FORECAST BLOCK (In-Process Native C)
+// -----------------------------------------------------------------------------
+static void native_forecast(char *output, size_t max_len, uint8_t button) {
+    if (button == 1) {
+        spawn_async("setsid -f ka-pop forecast >/dev/null 2>&1 || setsid -f dwm-dropdown forecast >/dev/null 2>&1");
+    }
+
+    const char *home = getenv("HOME");
+    char cache_path[512];
+    snprintf(cache_path, sizeof(cache_path), "%s/.cache/weatherreport", home ? home : "/tmp");
+
+    FILE *f = fopen(cache_path, "r");
+    if (!f) {
+        snprintf(output, max_len, "󰖕");
+        return;
+    }
+
+    char buf[2048];
+    char icon_code[16] = "01d";
+    if (fgets(buf, sizeof(buf), f)) {
+        char *p_icon = strstr(buf, "\"icon\":\"");
+        if (p_icon) {
+            sscanf(p_icon + 8, "%15[^\"]", icon_code);
+        }
+    }
+    fclose(f);
+
+    int is_night = (strchr(icon_code, 'n') != NULL);
+    int code_num = atoi(icon_code);
+
+    const char *ico = "󰖕";
+    switch (code_num) {
+        case 1:  ico = is_night ? "󰖔" : "󰖙"; break;
+        case 2:  ico = is_night ? "󰼱" : "󰖕"; break;
+        case 3:
+        case 4:  ico = "󰖐"; break;
+        case 9:
+        case 10: ico = "󰖖"; break;
+        case 11: ico = "󰖓"; break;
+        case 13: ico = "󰖘"; break;
+        case 50: ico = "󰖑"; break;
+        default: ico = is_night ? "󰖔" : "󰖙"; break;
+    }
+    snprintf(output, max_len, "%s", ico);
+}
+
+// -----------------------------------------------------------------------------
+// 8. NOTIFY BLOCK (In-Process Native C)
+// -----------------------------------------------------------------------------
+static void native_notify(char *output, size_t max_len, uint8_t button) {
+    if (button == 1) {
+        spawn_async("setsid -f ka-pop notify >/dev/null 2>&1 || setsid -f dwm-dropdown notify >/dev/null 2>&1");
+    } else if (button == 2) {
+        spawn_async("dunstctl history-clear 2>/dev/null; pkill -RTMIN+8 dwmblocks 2>/dev/null");
+    } else if (button == 3) {
+        spawn_async("dunstctl set-paused toggle 2>/dev/null; pkill -RTMIN+8 dwmblocks 2>/dev/null");
+    }
+
+    int is_paused = 0;
+    int hist_count = 0;
+
+    FILE *p = popen("dunstctl is-paused 2>/dev/null", "r");
+    if (p) {
+        char buf[32];
+        if (fgets(buf, sizeof(buf), p) && strstr(buf, "true")) {
+            is_paused = 1;
+        }
+        pclose(p);
+    }
+
+    if (is_paused) {
+        snprintf(output, max_len, "󰂛");
+        return;
+    }
+
+    p = popen("dunstctl count history 2>/dev/null", "r");
+    if (p) {
+        char buf[32];
+        if (fgets(buf, sizeof(buf), p)) {
+            hist_count = atoi(buf);
+        }
+        pclose(p);
+    }
+
+    if (hist_count > 0) {
+        snprintf(output, max_len, "󰂞");
+    } else {
+        snprintf(output, max_len, "󰂚");
+    }
+}
+
+// -----------------------------------------------------------------------------
 // REGISTRY / ROUTER
 // -----------------------------------------------------------------------------
 native_block_fn get_native_block_fn(const char *command) {
@@ -255,6 +387,15 @@ native_block_fn get_native_block_fn(const char *command) {
     }
     if (strcmp(command, "ka-clock") == 0 || strcmp(command, "native:clock") == 0) {
         return native_clock;
+    }
+    if (strcmp(command, "ka-volume") == 0 || strcmp(command, "native:volume") == 0) {
+        return native_volume;
+    }
+    if (strcmp(command, "ka-forecast") == 0 || strcmp(command, "native:forecast") == 0) {
+        return native_forecast;
+    }
+    if (strcmp(command, "sb-notify") == 0 || strcmp(command, "native:notify") == 0) {
+        return native_notify;
     }
 
     return NULL;

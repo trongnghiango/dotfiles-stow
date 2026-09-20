@@ -261,6 +261,24 @@ static void build_footer(GtkWidget *box, const char *hint) {
 // -----------------------------------------------------------------------------
 static GtkWidget *g_vol_scale = NULL;
 static GtkWidget *g_vol_percent = NULL;
+static guint g_vol_timeout_id = 0;
+static int g_target_vol = -1;
+
+static gboolean apply_volume_timeout(gpointer data) {
+    (void)data;
+    if (g_target_vol >= 0) {
+        char vol_str[16];
+        snprintf(vol_str, sizeof(vol_str), "%d%%", g_target_vol);
+        pid_t pid = fork();
+        if (pid == 0) {
+            setsid();
+            execlp("wpctl", "wpctl", "set-volume", "@DEFAULT_AUDIO_SINK@", vol_str, (char *)NULL);
+            _exit(0);
+        }
+    }
+    g_vol_timeout_id = 0;
+    return G_SOURCE_REMOVE;
+}
 
 static void on_vol_changed(GtkRange *range, gpointer user_data) {
     (void)user_data;
@@ -269,9 +287,10 @@ static void on_vol_changed(GtkRange *range, gpointer user_data) {
     snprintf(buf, sizeof(buf), "%d%%", vol);
     gtk_label_set_text(GTK_LABEL(g_vol_percent), buf);
 
-    char cmd[64];
-    snprintf(cmd, sizeof(cmd), "wpctl set-volume @DEFAULT_AUDIO_SINK@ %d%%", vol);
-    system(cmd);
+    g_target_vol = vol;
+    if (g_vol_timeout_id == 0) {
+        g_vol_timeout_id = g_timeout_add(50, apply_volume_timeout, NULL);
+    }
 }
 
 static void on_vol_mute_toggle(GtkButton *btn, gpointer user_data) {
@@ -352,13 +371,32 @@ static GtkWidget* build_volume_window() {
 // 2. BATTERY & BRIGHTNESS MODULE
 // -----------------------------------------------------------------------------
 static GtkWidget *g_bri_scale = NULL;
+static guint g_bri_timeout_id = 0;
+static int g_target_bri = -1;
+
+static gboolean apply_brightness_timeout(gpointer data) {
+    (void)data;
+    if (g_target_bri >= 0) {
+        char bri_str[16];
+        snprintf(bri_str, sizeof(bri_str), "%d%%", g_target_bri);
+        pid_t pid = fork();
+        if (pid == 0) {
+            setsid();
+            execlp("brightnessctl", "brightnessctl", "-q", "set", bri_str, (char *)NULL);
+            _exit(0);
+        }
+    }
+    g_bri_timeout_id = 0;
+    return G_SOURCE_REMOVE;
+}
 
 static void on_bri_changed(GtkRange *range, gpointer user_data) {
     (void)user_data;
     int bri = (int)gtk_range_get_value(range);
-    char cmd[64];
-    snprintf(cmd, sizeof(cmd), "brightnessctl -q set %d%%", bri);
-    system(cmd);
+    g_target_bri = bri;
+    if (g_bri_timeout_id == 0) {
+        g_bri_timeout_id = g_timeout_add(50, apply_brightness_timeout, NULL);
+    }
 }
 
 static GtkWidget* build_battery_window() {

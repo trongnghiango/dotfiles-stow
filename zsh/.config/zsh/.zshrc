@@ -140,16 +140,24 @@ elif [ -f /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting
   source /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
 fi
 
-# 2. Zoxide — smart directory jumper (replaces `cd` with frecency-based z)
+# 2. Zoxide — smart directory jumper (static cache)
 #    Usage: cd <partial-name>  OR  z <partial-name>
 #    Install: sudo pacman -S zoxide
 if command -v zoxide &>/dev/null; then
-  eval "$(zoxide init zsh --cmd cd)"
+  _zoxide_cache="${XDG_CACHE_HOME:-$HOME/.cache}/zsh/zoxide_init.zsh"
+  if [[ ! -f "$_zoxide_cache" || "$(command -v zoxide)" -nt "$_zoxide_cache" ]]; then
+    zoxide init zsh --cmd cd > "$_zoxide_cache" 2>/dev/null
+  fi
+  source "$_zoxide_cache"
 fi
 
-# 3. Starship — cross-shell prompt (shows git, lang versions, exit code...)
+# 3. Starship — cross-shell prompt (static cache)
 #    Must be LAST — replaces PS1 defined above (PS1 is the fallback if absent)
 #    Install: sudo pacman -S starship
 if command -v starship &>/dev/null; then
-  eval "$(starship init zsh)"
+  _starship_cache="${XDG_CACHE_HOME:-$HOME/.cache}/zsh/starship_init.zsh"
+  if [[ ! -f "$_starship_cache" || "$HOME/.config/starship.toml" -nt "$_starship_cache" || "$(command -v starship)" -nt "$_starship_cache" ]]; then
+    starship init zsh --print-full-init > "$_starship_cache" 2>/dev/null
+  fi
+  source "$_starship_cache"
 fi

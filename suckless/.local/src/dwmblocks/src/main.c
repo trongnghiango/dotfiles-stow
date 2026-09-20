@@ -118,6 +118,9 @@ static int event_loop(block *const blocks, const unsigned short block_count,
 }
 
 int main(const int argc, const char *const argv[]) {
+    // Prevent zombie processes from background jobs / popups
+    signal(SIGCHLD, SIG_IGN);
+
     const cli_arguments cli_args = cli_parse_arguments(argv, argc);
     if (errno != 0) {
         return 1;
