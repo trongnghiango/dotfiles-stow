@@ -18,14 +18,20 @@
 
 // Định nghĩa các blocks: X(icon, cmd, interval, signal)
 // Lưu ý: Interval = 0 nghĩa là chỉ update khi có signal (tương tự bản cũ)
+// Số lượng block thuộc phân vùng Center (giữa)
+#define CENTER_BLOCK_COUNT 2
+
+// Định nghĩa các blocks: X(icon, cmd, interval, signal)
+// Phân đoạn 1 (Center): ka-forecast, ka-clock
+// Phân đoạn 2 (Right): sb-record, ka-volume, ka-battery, ka-network, ka-cpu, ka-memory
 #define BLOCKS(X)                     \
     X("", "ka-forecast", 1800, 14)    \
-    X("", "ka-memory",   10,   10)    \
-    X("", "ka-cpu",      2,    15)    \
-    X("", "ka-network",  10,   4)     \
-    X("", "ka-battery",  60,   30)    \
-    X("", "ka-volume",   60,   11)    \
+    X("", "ka-clock",    60,   1)     \
     X("", "sb-record",   0,    9)     \
-    X("", "ka-clock",    60,   1)
+    X("", "ka-volume",   60,   11)    \
+    X("", "ka-battery",  60,   30)    \
+    X("", "ka-network",  10,   4)     \
+    X("", "ka-cpu",      2,    15)    \
+    X("", "ka-memory",   10,   10)
 
 #endif  // CONFIG_H

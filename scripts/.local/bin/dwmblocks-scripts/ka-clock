@@ -1,22 +1,5 @@
 #!/bin/sh
 
-hour=$(date '+%I')
-
-case "$hour" in
-    "00"|"12") icon="🕛" ;;
-    "01") icon="🕐" ;;
-    "02") icon="🕑" ;;
-    "03") icon="🕒" ;;
-    "04") icon="🕓" ;;
-    "05") icon="🕔" ;;
-    "06") icon="🕕" ;;
-    "07") icon="🕖" ;;
-    "08") icon="🕗" ;;
-    "09") icon="🕘" ;;
-    "10") icon="🕙" ;;
-    "11") icon="🕚" ;;
-esac
-
 case ${BLOCK_BUTTON:-${BUTTON:-0}} in
     1) setsid -f dwm-dropdown clock >/dev/null 2>&1 ;;
     2) ifinstalled calcurse && setsid -f "$TERMINAL" -e calcurse >/dev/null 2>&1 ;;
@@ -24,4 +7,4 @@ case ${BLOCK_BUTTON:-${BUTTON:-0}} in
     6) setsid -f "$TERMINAL" -e "$EDITOR" "$0" >/dev/null 2>&1 ;;
 esac
 
-echo "$icon^d^$(date '+%I:%M%P')^d^"
+echo "$(date '+%a %b %d  %H:%M')"

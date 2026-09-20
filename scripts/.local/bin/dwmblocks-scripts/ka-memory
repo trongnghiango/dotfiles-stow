@@ -6,8 +6,4 @@ case ${BLOCK_BUTTON:-${BUTTON:-0}} in
     3) notify-send "🧠 Memory module" "\- Shows Memory Used/Total.\n- Click to show memory hogs.\n- Middle click to open htop." ;;
 esac
 
-# Optimized one-liner
-mem=$(free -h | awk '/^Mem:/ {print $3}' | sed 's/i//g')
-
-# Keep your format colors
-echo "^C11^ ^d^$mem^d^"
+echo "󰘚"

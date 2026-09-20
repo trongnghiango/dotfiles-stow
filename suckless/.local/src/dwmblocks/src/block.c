@@ -124,7 +124,10 @@ int block_update(block *const block) {
     char buffer[LEN(block->output)];
 
     const ssize_t bytes_read =
-        read(block->pipe[READ_END], buffer, LEN(buffer));
+        read(block->pipe[READ_END], buffer, LEN(buffer) - 1);
+    if (bytes_read >= 0) {
+        buffer[bytes_read] = '\0';
+    }
     if (bytes_read == -1) {
         (void)fprintf(stderr,
                       "error: could not fetch output of \"%s\" block\n",

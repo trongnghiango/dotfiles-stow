@@ -385,6 +385,8 @@ static void zoom(const Arg *arg);
 static const char broken[] = "broken";
 static char stext[1024];
 static char rawstext[1024];
+static char rawstext_center[1024];
+static char rawstext_right[1024];
 
 static int screen;
 static int sw, sh;           /* X display screen geometry width, height */
@@ -2876,10 +2878,27 @@ void
 updatestatus(void)
 {
 	Monitor *m;
-	if (!gettextprop(root, XA_WM_NAME, rawstext, sizeof(rawstext)))
+	if (!gettextprop(root, XA_WM_NAME, rawstext, sizeof(rawstext))) {
 		strcpy(stext, "dwm-"VERSION);
-	else
+		rawstext_center[0] = '\0';
+		rawstext_right[0] = '\0';
+	} else {
+		char *sep = strchr(rawstext, ';');
+		if (sep) {
+			size_t clen = sep - rawstext;
+			if (clen >= sizeof(rawstext_center))
+				clen = sizeof(rawstext_center) - 1;
+			strncpy(rawstext_center, rawstext, clen);
+			rawstext_center[clen] = '\0';
+			strncpy(rawstext_right, sep + 1, sizeof(rawstext_right) - 1);
+			rawstext_right[sizeof(rawstext_right) - 1] = '\0';
+		} else {
+			rawstext_center[0] = '\0';
+			strncpy(rawstext_right, rawstext, sizeof(rawstext_right) - 1);
+			rawstext_right[sizeof(rawstext_right) - 1] = '\0';
+		}
 		copyvalidchars(stext, rawstext);
+	}
 	for (m = mons; m; m = m->next)
 		drawbar(m);
 }

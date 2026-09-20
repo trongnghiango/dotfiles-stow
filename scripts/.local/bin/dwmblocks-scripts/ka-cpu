@@ -37,14 +37,10 @@ if [ -f "$STAT_FILE" ]; then
 fi
 echo "$total $idle" >"$STAT_FILE"
 
-# --- 3. HIỂN THỊ ICON MÀU MÈ ---
-# Thêm logic đổi icon/màu cảnh báo nếu CPU cao > 80%
-ICON=""
-COLOR="^d^" # Mặc định theo màu theme chuẩn
-
+# --- 3. HIỂN THỊ ICON ĐƠN SẮC (OMARCHY STYLE) ---
+ICON="󰍛"
 if [ "$cpu_usage" -ge 80 ]; then
-  COLOR="^C9^" # Đỏ khi quá tải
-  ICON="🔥"
+  echo "^C1^$ICON^d^"
+else
+  echo "$ICON"
 fi
-
-printf "^C4^$ICON %s%s%%^d^\n" "$COLOR" "$cpu_usage"

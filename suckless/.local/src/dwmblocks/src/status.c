@@ -30,17 +30,17 @@ bool status_update(status *const status) {
     (void)strncpy(status->previous, status->current, LEN(status->current));
     status->current[0] = '\0';
 
-    for (unsigned short i = 0; i < status->block_count; ++i) {
+    bool center_has_content = false;
+    bool right_has_content = false;
+
+    // Phân đoạn Center (giữa): ka-forecast, ka-clock
+    for (unsigned short i = 0; i < status->block_count && i < CENTER_BLOCK_COUNT; ++i) {
         const block *const block = &status->blocks[i];
 
         if (strlen(block->output) > 0) {
-#if LEADING_DELIMITER
-            (void)strncat(status->current, DELIMITER, LEN(DELIMITER));
-#else
-            if (status->current[0] != '\0') {
+            if (center_has_content) {
                 (void)strncat(status->current, DELIMITER, LEN(DELIMITER));
             }
-#endif
 
 #if CLICKABLE_BLOCKS
             if (block->signal > 0) {
@@ -51,14 +51,38 @@ bool status_update(status *const status) {
 
             (void)strncat(status->current, block->icon, LEN(block->output));
             (void)strncat(status->current, block->output, LEN(block->output));
+            center_has_content = true;
         }
     }
 
-#if TRAILING_DELIMITER
-    if (status->current[0] != '\0') {
-        (void)strncat(status->current, DELIMITER, LEN(DELIMITER));
+    // Dấu phân cách ';' giữa Center và Right
+    size_t cur_len = strlen(status->current);
+    if (cur_len < sizeof(status->current) - 1) {
+        status->current[cur_len] = ';';
+        status->current[cur_len + 1] = '\0';
     }
+
+    // Phân đoạn Right: sb-record, ka-volume, ka-battery, ka-network, ka-cpu, ka-memory
+    for (unsigned short i = CENTER_BLOCK_COUNT; i < status->block_count; ++i) {
+        const block *const block = &status->blocks[i];
+
+        if (strlen(block->output) > 0) {
+            if (right_has_content) {
+                (void)strncat(status->current, DELIMITER, LEN(DELIMITER));
+            }
+
+#if CLICKABLE_BLOCKS
+            if (block->signal > 0) {
+                const char signal[] = {(char)block->signal, '\0'};
+                (void)strncat(status->current, signal, LEN(signal));
+            }
 #endif
+
+            (void)strncat(status->current, block->icon, LEN(block->output));
+            (void)strncat(status->current, block->output, LEN(block->output));
+            right_has_content = true;
+        }
+    }
 
     return has_status_changed(status);
 }

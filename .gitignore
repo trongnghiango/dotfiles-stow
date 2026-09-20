@@ -21,3 +21,6 @@ brave-*-Default.desktop
 # Python cache
 **/__pycache__/
 *.pyc
+# DSH session dumps
+dsh-session-*.zip
+extracted_dsh_session/

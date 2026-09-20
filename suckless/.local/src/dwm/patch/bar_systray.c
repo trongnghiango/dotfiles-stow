@@ -1,8 +1,8 @@
 static Systray *systray = NULL;
 static unsigned long systrayorientation = _NET_SYSTEM_TRAY_ORIENTATION_HORZ;
-static int systraycollapsed = 0;
+static int systraycollapsed = 1;
 #ifndef SYSTRAY_MAX_ICONS
-#define SYSTRAY_MAX_ICONS 4
+#define SYSTRAY_MAX_ICONS 0
 #endif
 
 int
@@ -123,7 +123,7 @@ click_systray(Bar *bar, Arg *arg, BarArg *a)
 {
 	int n = 0;
 	Client *i;
-	for (i = systray->icons; i; i = i->next) n++;
+	for (i = systray ? systray->icons : NULL; i; i = i->next) n++;
 	if (n > SYSTRAY_MAX_ICONS) {
 		int tw = TEXTW(systraycollapsed ? "<" : ">") - lrpad / 2;
 		if (a->x <= tw) {
@@ -132,6 +132,20 @@ click_systray(Bar *bar, Arg *arg, BarArg *a)
 		}
 	}
 	return -1;
+}
+
+int
+hover_systray(Bar *bar, BarArg *a, XMotionEvent *ev)
+{
+	int n = 0;
+	Client *i;
+	for (i = systray ? systray->icons : NULL; i; i = i->next) n++;
+	if (n > SYSTRAY_MAX_ICONS) {
+		int tw = TEXTW(systraycollapsed ? "<" : ">") - lrpad / 2;
+		if (a->x <= tw)
+			return 1;
+	}
+	return 0;
 }
 
 void

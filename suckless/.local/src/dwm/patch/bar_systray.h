@@ -30,6 +30,7 @@ struct Systray {
 static int width_systray(Bar *bar, BarArg *a);
 static int draw_systray(Bar *bar, BarArg *a);
 static int click_systray(Bar *bar, Arg *arg, BarArg *a);
+static int hover_systray(Bar *bar, BarArg *a, XMotionEvent *ev);
 
 /* function declarations */
 static void removesystrayicon(Client *i);

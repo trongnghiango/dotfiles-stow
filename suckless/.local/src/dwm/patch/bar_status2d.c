@@ -23,14 +23,30 @@ int
 width_status2d(Bar *bar, BarArg *a)
 {
 	int width;
-	width = status2dtextlength(rawstext);
+	width = status2dtextlength(rawstext_right[0] ? rawstext_right : rawstext);
 	return width ? width + lrpad : 0;
 }
 
 int
 draw_status2d(Bar *bar, BarArg *a)
 {
-	return drawstatusbar(a, rawstext);
+	return drawstatusbar(a, rawstext_right[0] ? rawstext_right : rawstext);
+}
+
+int
+width_status2d_center(Bar *bar, BarArg *a)
+{
+	int width;
+	width = status2dtextlength(rawstext_center);
+	return width ? width + lrpad : 0;
+}
+
+int
+draw_status2d_center(Bar *bar, BarArg *a)
+{
+	if (!rawstext_center[0])
+		return 0;
+	return drawstatusbar(a, rawstext_center);
 }
 
 int
@@ -156,7 +172,7 @@ drawstatusbar(BarArg *a, char* stext)
 
 	if (active_block.sig > 0) {
 		char rtext[1024];
-		strncpy(rtext, rawstext, sizeof(rtext) - 1);
+		strncpy(rtext, stext, sizeof(rtext) - 1);
 		rtext[sizeof(rtext) - 1] = '\0';
 		char *t = rtext;
 		int bx = 0, ti = -1, cur_sig = -1;

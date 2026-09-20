@@ -37,28 +37,20 @@ weather_data=$(cat "$CACHE_FILE")
 
 # Nếu chưa có dữ liệu (lần đầu khởi động) -> Hiện icon Loading rồi thoát ngay
 if [ -z "$weather_data" ]; then
-  echo "🌦️ ..."
+  echo "⛅ ..."
   exit 0
 fi
 
 # Parse JSON (Nếu có dữ liệu)
-desc=$(echo "$weather_data" | jq -r '.weather[0].description // empty' 2>/dev/null | sed -e "s/\b\(.\)/\u\1/g")
 temp=$(echo "$weather_data" | jq -r '.main.temp // 0' 2>/dev/null | cut -d. -f1)
 icon=$(echo "$weather_data" | jq -r '.weather[0].icon // "01d"' 2>/dev/null | tr -d 'nd')
 
 # Map Icon nhanh
 case $icon in
-01) ico="" ;; 02) ico="⛅" ;; 03) ico="🌫️" ;; 04) ico="☁️" ;;
-09) ico="🌧️" ;; 10) ico="🌦️" ;; 11) ico="🌩️" ;; 13) ico="❄️" ;;
-50) ico="💨" ;; *) ico="🍃" ;;
+01) ico="" ;; 02) ico="⛅" ;; 03) ico="󰖑" ;; 04) ico="☁" ;;
+09) ico="󰖖" ;; 10) ico="🌦" ;; 11) ico="󰙾" ;; 13) ico="󰖘" ;;
+50) ico="󰖝" ;; *) ico="⛅" ;;
 esac
 
-# Map Temp
 t_val=$((temp))
-if [ "$t_val" -le 20 ]; then
-  t_ico="🥶"
-elif [ "$t_val" -ge 38 ]; then
-  t_ico="🥵"
-else t_ico="🌞"; fi
-
-echo "[$ico $desc] [$t_ico $t_val°C]^d^"
+echo "$ico ${t_val}°C"

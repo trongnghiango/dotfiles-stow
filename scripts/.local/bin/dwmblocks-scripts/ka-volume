@@ -10,18 +10,18 @@ esac
 vol_info="$(wpctl get-volume @DEFAULT_AUDIO_SINK@)"
 
 if echo "$vol_info" | grep -q '\[MUTED\]'; then
-  echo "^C5^[ 🔇 MUTE ]^d^"
+  echo "󰝟"
   exit 0
 fi
 
 vol=$(echo "$vol_info" | awk '{printf "%d", $2 * 100}')
 
 if [ "$vol" -ge 70 ]; then
-  icon="🔊"
+  icon="󰕾"
 elif [ "$vol" -ge 30 ]; then
-  icon="🔉"
+  icon="󰖀"
 else
-  icon="🔈"
+  icon="󰕿"
 fi
 
-echo "^C13^$icon^d^ $vol%^d^"
+echo "$icon"

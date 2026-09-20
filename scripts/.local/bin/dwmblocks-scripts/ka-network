@@ -7,7 +7,7 @@ case ${BLOCK_BUTTON:-${BUTTON:-0}} in
 esac
 
 wifi_icon=""
-net_icon="❌"
+net_icon=""
 tun_icon=""
 
 # Wi-Fi check
@@ -16,8 +16,15 @@ if [ -d /sys/class/net/w* ]; then
   if [ "$state" = "up" ]; then
     sig=$(awk '/^\s*w/ { print int($3 * 100 / 70) }' /proc/net/wireless | head -n1)
     sig=${sig:-0}
-    wifi_icon="📶 ^d^${sig}%"
-    net_icon=""
+    if [ "$sig" -ge 75 ]; then
+      wifi_icon="󰤨"
+    elif [ "$sig" -ge 50 ]; then
+      wifi_icon="󰤥"
+    elif [ "$sig" -ge 25 ]; then
+      wifi_icon="󰤢"
+    else
+      wifi_icon="󰤟"
+    fi
   fi
 fi
 
@@ -25,18 +32,17 @@ fi
 if [ -d /sys/class/net/e* ]; then
   estate=$(cat /sys/class/net/e*/operstate 2>/dev/null | head -n1)
   if [ "$estate" = "up" ]; then
-    net_icon="🌐"
+    net_icon="󰈀"
   fi
 fi
 
 # VPN/Tun check
 if [ -n "$(cat /sys/class/net/tun*/operstate 2>/dev/null)" ]; then
-  tun_icon=" 🔒"
+  tun_icon=" 󰌾"
 fi
 
-if [ -z "$wifi_icon" ] && [ "$net_icon" = "❌" ]; then
-  printf "^C9^❌ Offline^d^\n"
+if [ -z "$wifi_icon" ] && [ -z "$net_icon" ]; then
+  echo "󰤮"
 else
-  prefix="${wifi_icon:-$net_icon}$tun_icon"
-  printf "^C4^%s^d^\n" "$prefix"
+  echo "${wifi_icon:-$net_icon}$tun_icon"
 fi
