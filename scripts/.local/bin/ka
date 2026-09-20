@@ -97,7 +97,7 @@ cmd_notify() {
   shift || true
   case "$sub" in
     center|toggle|open)
-      setsid -f ka-notify-center >/dev/null 2>&1
+      setsid -f dwm-dropdown notify >/dev/null 2>&1
       ;;
     dnd|mute|pause)
       dunstctl set-paused toggle 2>/dev/null || true

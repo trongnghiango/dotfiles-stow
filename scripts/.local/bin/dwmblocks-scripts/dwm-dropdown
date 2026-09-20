@@ -337,6 +337,54 @@ def get_common_css(colors):
         border-radius: 0px;
         padding: 8px 12px;
     }}
+    .sidebar-box {{
+        background-color: {bg};
+        color: {fg};
+        border-left: 2px solid {accent};
+        border-top: none;
+        border-right: none;
+        border-bottom: none;
+        border-radius: 0px;
+        padding: 16px 14px;
+    }}
+    .notify-card {{
+        background-color: {card_bg};
+        border: 1px solid {border};
+        border-radius: 0px;
+        padding: 10px 12px;
+        margin-bottom: 6px;
+    }}
+    .notify-card.critical {{
+        border-left: 3px solid {red};
+    }}
+    .app-name {{
+        font-size: 10px;
+        font-weight: 700;
+        color: {accent};
+    }}
+    .time-ago {{
+        font-size: 10px;
+        color: {subtext};
+    }}
+    .summary-text {{
+        font-size: 12px;
+        font-weight: 700;
+        color: {fg};
+    }}
+    .body-text {{
+        font-size: 11px;
+        color: {fg};
+    }}
+    .close-btn {{
+        background: none;
+        border: none;
+        color: {subtext};
+        padding: 0px 4px;
+        font-size: 11px;
+    }}
+    .close-btn:hover {{
+        color: {red};
+    }}
     """
 
 
@@ -1504,6 +1552,167 @@ class ForecastDropdown(BaseDropdown):
         return False
 
 
+
+class NotifyDropdown(BaseDropdown):
+    def __init__(self):
+        super().__init__("notify", min_width=340)
+        self.main_box.get_style_context().remove_class("popover-box")
+        self.main_box.get_style_context().add_class("sidebar-box")
+
+        self.dnd_btn = Gtk.Button(label="🌙 DND")
+        self.dnd_btn.get_style_context().add_class("action-btn")
+        if self.is_dnd_active():
+            self.dnd_btn.get_style_context().add_class("is-active")
+            self.dnd_btn.set_label("󰂛 DND ON")
+        self.dnd_btn.connect("clicked", self.on_dnd_toggle)
+
+        self.clear_btn = Gtk.Button(label="󰆴 Clear")
+        self.clear_btn.get_style_context().add_class("action-btn")
+        self.clear_btn.connect("clicked", self.on_clear_all)
+
+        ctrl_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        ctrl_box.pack_start(self.dnd_btn, False, False, 0)
+        ctrl_box.pack_start(self.clear_btn, False, False, 0)
+
+        self.build_header("NOTIFICATIONS", "Notification Center", action_widget=ctrl_box)
+
+        self.scroll = Gtk.ScrolledWindow()
+        self.scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        self.scroll.set_propagate_natural_height(True)
+
+        self.cards_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+        self.scroll.add(self.cards_box)
+        self.main_box.pack_start(self.scroll, True, True, 0)
+
+        self.build_footer("Esc to close")
+        self.populate_notifications()
+
+    def is_dnd_active(self):
+        try:
+            res = subprocess.run(["dunstctl", "is-paused"], capture_output=True, text=True, check=True)
+            return res.stdout.strip() == "true"
+        except Exception:
+            return False
+
+    def on_dnd_toggle(self, btn):
+        subprocess.run(["dunstctl", "set-paused", "toggle"], check=False)
+        is_paused = self.is_dnd_active()
+        if is_paused:
+            self.dnd_btn.get_style_context().add_class("is-active")
+            self.dnd_btn.set_label("󰂛 DND ON")
+        else:
+            self.dnd_btn.get_style_context().remove_class("is-active")
+            self.dnd_btn.set_label("🌙 DND")
+        subprocess.run(["pkill", "-RTMIN+8", "dwmblocks"], check=False)
+
+    def on_clear_all(self, btn):
+        subprocess.run(["dunstctl", "history-clear"], check=False)
+        self.populate_notifications()
+        subprocess.run(["pkill", "-RTMIN+8", "dwmblocks"], check=False)
+
+    def populate_notifications(self):
+        for child in self.cards_box.get_children():
+            self.cards_box.remove(child)
+
+        notifications = []
+        try:
+            res = subprocess.run(["dunstctl", "history"], capture_output=True, text=True, check=True)
+            hist = json.loads(res.stdout)
+            notifications = hist.get("data", [[]])[0]
+        except Exception:
+            pass
+
+        count = len(notifications)
+        self.sub_lbl.set_text(f"{count} notifications")
+
+        if count == 0:
+            empty_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
+            empty_box.set_margin_top(80)
+            empty_box.set_margin_bottom(80)
+
+            icon_lbl = Gtk.Label(label="󰂚")
+            empty_box.pack_start(icon_lbl, False, False, 0)
+
+            lbl = Gtk.Label(label="Không có thông báo nào", xalign=0.5)
+            lbl.get_style_context().add_class("footer-label")
+            empty_box.pack_start(lbl, False, False, 0)
+
+            self.cards_box.pack_start(empty_box, True, True, 0)
+        else:
+            for item in notifications:
+                card = self.create_card(item)
+                self.cards_box.pack_start(card, False, False, 0)
+
+        self.cards_box.show_all()
+
+    def create_card(self, item):
+        app = item.get("appname", {}).get("data", "System")
+        summary = item.get("summary", {}).get("data", "")
+        body = item.get("body", {}).get("data", "")
+        ts = item.get("timestamp", {}).get("data", 0)
+        urgency = item.get("urgency", {}).get("data", "NORMAL").upper()
+
+        card = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+        card.get_style_context().add_class("notify-card")
+        if urgency == "CRITICAL":
+            card.get_style_context().add_class("critical")
+
+        top_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        app_lbl = Gtk.Label(label=app.upper(), xalign=0)
+        app_lbl.get_style_context().add_class("app-name")
+        top_row.pack_start(app_lbl, True, True, 0)
+
+        time_lbl = Gtk.Label(label=self.format_time_ago(ts))
+        time_lbl.get_style_context().add_class("time-ago")
+        top_row.pack_start(time_lbl, False, False, 0)
+
+        close_btn = Gtk.Button(label="✕")
+        close_btn.get_style_context().add_class("close-btn")
+        close_btn.connect("clicked", lambda b, c=card: self.remove_card(c))
+        top_row.pack_start(close_btn, False, False, 0)
+
+        card.pack_start(top_row, False, False, 0)
+
+        if summary:
+            sum_lbl = Gtk.Label(label=summary, xalign=0)
+            sum_lbl.set_line_wrap(True)
+            sum_lbl.get_style_context().add_class("summary-text")
+            card.pack_start(sum_lbl, False, False, 0)
+
+        if body:
+            body_lbl = Gtk.Label(label=body, xalign=0)
+            body_lbl.set_line_wrap(True)
+            body_lbl.get_style_context().add_class("body-text")
+            card.pack_start(body_lbl, False, False, 0)
+
+        return card
+
+    def remove_card(self, card):
+        self.cards_box.remove(card)
+        remaining = len(self.cards_box.get_children())
+        self.sub_lbl.set_text(f"{remaining} notifications")
+        if remaining == 0:
+            self.populate_notifications()
+        subprocess.run(["pkill", "-RTMIN+8", "dwmblocks"], check=False)
+
+    @staticmethod
+    def format_time_ago(ts):
+        if not ts:
+            return "vừa xong"
+        now_ts = time.time()
+        if ts > 1e11:
+            ts = ts / 1e6
+        diff = int(now_ts - ts)
+        if diff < 60:
+            return "vừa xong"
+        elif diff < 3600:
+            return f"{diff // 60}m trước"
+        elif diff < 86400:
+            return f"{diff // 3600}h trước"
+        else:
+            return f"{diff // 86400}d trước"
+
+
 # ==============================================================================
 # MAIN ROUTER
 # ==============================================================================
@@ -1581,6 +1790,8 @@ def create_dropdown(target):
         return NetworkDropdown()
     elif target in ("forecast", "weather", "weath"):
         return ForecastDropdown()
+    elif target in ("notify", "notification", "notifications", "nc"):
+        return NotifyDropdown()
     else:
         return VolumeDropdown()
 

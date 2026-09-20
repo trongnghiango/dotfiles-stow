@@ -175,9 +175,7 @@ static const Rule rules[] = {
 	RULE(.title = "ka-clip", .isfloating = 1)
 	RULE(.class = "ka-clip", .isfloating = 1)
 	RULE(.instance = "ka-clip", .isfloating = 1)
-	RULE(.title = "ka-notify-center", .isfloating = 1)
-	RULE(.class = "ka-notify-center", .isfloating = 1)
-	RULE(.instance = "ka-notify-center", .isfloating = 1)
+
 	RULE(.class = "Gimp", .tags = 1 << 4)
 	RULE(.class = "firefox", .tags = 1 << 2)
 	RULE(.class = "pavucontrol", .isfloating = 1)
@@ -373,7 +371,7 @@ static const Key keys[] = {
 	{ MODKEY|ControlMask,           XK_v,          spawn,                  SHCMD("ka clip") },
 	{ MODKEY|Mod1Mask,              XK_t,          spawn,                  SHCMD("ka-ocr") },
 	{ MODKEY|Mod1Mask,              XK_n,          spawn,                  SHCMD("ka night") },
-	{ MODKEY|ShiftMask,             XK_n,          spawn,                  SHCMD("ka notify center") },
+	{ MODKEY|ShiftMask,             XK_n,          spawn,                  SHCMD("dwm-dropdown notify") },
 	{ MODKEY,                       XK_n,	       spawn,                  {.v = themesetcmd } },
 	{ MODKEY,			XK_x,	       togglescratch,	       {.ui = 0 } },
 	{ 0, XF86XK_AudioMute,                         spawn,                  SHCMD("wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle; pkill -RTMIN+11 dwmblocks") },

@@ -494,6 +494,8 @@ dropdowntosig(const char *name)
 		return 11;
 	if (strstr(name, "clock") || strstr(name, "time") || strstr(name, "calendar"))
 		return 1;
+	if (strstr(name, "notify") || strstr(name, "notification"))
+		return 8;
 	return 0;
 }
 
@@ -1645,7 +1647,6 @@ manage(Window w, XWindowAttributes *wa)
 	updatewmhints(c);
 
 	int iscountdown = 0;
-	int isnotifycenter = 0;
 	XClassHint ch = { NULL, NULL };
 	if (XGetClassHint(dpy, w, &ch)) {
 		if ((ch.res_name && strstr(ch.res_name, "webcam-pip")) ||
@@ -1656,11 +1657,6 @@ manage(Window w, XWindowAttributes *wa)
 		if ((ch.res_name && strstr(ch.res_name, "rec-countdown")) ||
 		    (ch.res_class && strstr(ch.res_class, "rec-countdown"))) {
 			iscountdown = 1;
-			c->isfloating = 1;
-		}
-		if ((ch.res_name && strstr(ch.res_name, "ka-notify-center")) ||
-		    (ch.res_class && strstr(ch.res_class, "ka-notify-center"))) {
-			isnotifycenter = 1;
 			c->isfloating = 1;
 		}
 		if (ch.res_name)
@@ -1683,19 +1679,33 @@ manage(Window w, XWindowAttributes *wa)
 		c->bw = 0;
 		wc.border_width = 0;
 		XConfigureWindow(dpy, w, CWBorderWidth, &wc);
-		c->y = c->mon->wy;
-		if (active_block.w > 0)
-			c->x = active_block.screen_x;
-		else if (active_block.screen_x > 0)
-			c->x = active_block.screen_x;
-		else
-			c->x = c->mon->wx + c->mon->ww - WIDTH(c);
-		int max_x = c->mon->wx + c->mon->ww - WIDTH(c);
-		if (c->x > max_x)
-			c->x = max_x;
-		int min_x = c->mon->wx;
-		if (c->x < min_x)
-			c->x = min_x;
+		if (strstr(c->name, "notify")) {
+			/* Right Sidebar Mode: Full Height, responsive width */
+			int nw = (int)(c->mon->ww * 0.25);
+			if (nw < 340) nw = 340;
+			if (nw > 500) nw = 500;
+			if (nw > c->mon->ww) nw = c->mon->ww;
+			int nh = c->mon->wh;
+			c->w = nw;
+			c->h = nh;
+			c->x = c->mon->wx + c->mon->ww - nw;
+			c->y = c->mon->wy;
+		} else {
+			/* Standard Dropdown: Underneath the active block */
+			c->y = c->mon->wy;
+			if (active_block.w > 0)
+				c->x = active_block.screen_x;
+			else if (active_block.screen_x > 0)
+				c->x = active_block.screen_x;
+			else
+				c->x = c->mon->wx + c->mon->ww - WIDTH(c);
+			int max_x = c->mon->wx + c->mon->ww - WIDTH(c);
+			if (c->x > max_x)
+				c->x = max_x;
+			int min_x = c->mon->wx;
+			if (c->x < min_x)
+				c->x = min_x;
+		}
 		active_block.win = c->win;
 	} else if (c->isbottomright || strstr(c->name, "webcam-pip")) {
 		c->isfloating = 1;
@@ -1726,20 +1736,6 @@ manage(Window w, XWindowAttributes *wa)
 		c->h = nh;
 		c->x = c->mon->wx + (c->mon->ww - nw) / 2;
 		c->y = c->mon->wy + (c->mon->wh - nh) / 2;
-	} else if (isnotifycenter || strstr(c->name, "ka-notify-center")) {
-		c->isfloating = 1;
-		c->bw = 0;
-		wc.border_width = 0;
-		XConfigureWindow(dpy, w, CWBorderWidth, &wc);
-		int nw = (int)(c->mon->ww * 0.25);
-		if (nw < 340) nw = 340;
-		if (nw > 500) nw = 500;
-		if (nw > c->mon->ww) nw = c->mon->ww;
-		int nh = c->mon->wh;
-		c->w = nw;
-		c->h = nh;
-		c->x = c->mon->wx + c->mon->ww - nw;
-		c->y = c->mon->wy;
 	} else {
 		c->x = c->mon->wx + (c->mon->ww - WIDTH(c)) / 2;
 		c->y = c->mon->wy + (c->mon->wh - HEIGHT(c)) / 2;
