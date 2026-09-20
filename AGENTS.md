@@ -45,14 +45,22 @@ Each top-level directory is a Stow package containing `$HOME`-relative paths (23
   - `ka theme [nord|gruvbox-dark|catppuccin-mocha]` — Đổi theme toàn diện, hot-reload tức thì
   - `ka default [show|set <cat> <app>]` — Quản lý & chọn ứng dụng mặc định một chạm (Rofi / CLI)
   - `ka clip [menu|daemon|clear|status]` — Quản lý lịch sử clipboard tỷ lệ 2 : 3 (Text đầy đủ & Ảnh phóng to) qua GTK3 native
-  - `ka pop <module>` — Bật/Tắt thẻ popup Omarchy (volume, clock, battery, cpu, mem, net, forecast)
+  - `ka pop <module>` — Bật/Tắt thẻ popup Omarchy (volume, clock, battery, cpu, mem, net, forecast, notify)
+  - `ka night [on|off|toggle|status]` — Bật/Tắt chế độ làm việc ban đêm (Lọc ánh sáng xanh 4000K + giảm sáng 35%)
+  - `ka notify [center|dnd|clear|status|test]` — Quản lý thông báo, DND và mở Notification Center Right Sidebar
   - `ka dns [dhcp|cloudflare|google|custom <ip>]` — Chuyển đổi DNS server 1 chạm
   - `ka record [toggle|status]` — Quay video màn hình
   - `ka setup [all|suckless|stow|pkgs]` — Tự động hóa triển khai hệ thống
-- **DWM 6.8 Native C Core:**
+- **DWM 6.8 Native C Core & Omarchy 4.x.x Statusbar:**
   - Nâng cấp lên DWM 6.8 với các bản vá bảo mật upstream (heap overflow, EWMH focus, format 32 check, underflow guard)
-  - Tự động đổi con trỏ chuột thành hình bàn tay chỉ (`XC_hand2`) khi rê vào Tags (1-9) và các blocks thanh trạng thái
-  - Bộ đệm Pre-Warmed Socket Daemon (`dwm-dropdown --daemon`) giảm độ trễ mở popup từ 85ms xuống < 2ms
+  - Bố cục thanh bar 3 phân vùng chuẩn **Omarchy 4.x.x ("Quattro")**:
+    - **Left Section**: Workspace Tags (1-9), Layout Symbol (`[]=`), Tiêu đề cửa sổ (`wintitle`)
+    - **Center Section**: Khối giữa tuyệt đối `Tue · 15:35  󰖗` (Đồng hồ tối giản + Icon thời tiết nhịp sinh học ngày/đêm)
+    - **Collapsible Left-Systray**: Khay hệ thống nằm bên trái dwmblocks, thu gọn mặc định bằng chevron `` / ``, icon 15px, padding 8px đồng nhất
+    - **Right Section**: Khối chỉ báo phần cứng đơn sắc (Monochrome Glyphs: `sb-record`, `ka-volume`, `ka-battery`, `ka-network`, `ka-cpu`, `ka-memory`, `sb-notify`) neo sát mép phải
+  - Underline container alignment: Vạch gạch chân ôm sát mép container `MAX(ab_w, bh)` thẳng hàng 100% với viền popup
+  - Tự động đổi con trỏ chuột thành hình bàn tay chỉ (`XC_hand2`) khi rê vào Tags (1-9), nút thu gọn khay ``/`` và các blocks
+  - Hệ thống Notification Center Right Sidebar (Full Height, chiều rộng co giãn responsive 25%) tích hợp máy trạng thái khép kín trong `dwm-dropdown` (< 2ms)
 - **Deploy & Management:**
   - `stow-safe <package>` — Deploy an toàn (tự động backup vào `~/.local/share/dotfiles/backups/`)
   - `ka-setup suckless` — Biên dịch và cài đặt DWM 6.8, ST, Dmenu, Dwmblocks
@@ -82,6 +90,8 @@ Each top-level directory is a Stow package containing `$HOME`-relative paths (23
 | `Super + Ctrl + F` | Popover Forecast | Bật/tắt thẻ thời tiết khí quyển |
 | `Super + Ctrl + D` | Default Handlers | Bật/tắt menu chọn ứng dụng mặc định một chạm |
 | `Super + Alt + T` | Instant Screen OCR | Quét chọn vùng màn hình bóc tách chữ vào Clipboard |
+| `Super + Alt + N` | Night Working Mode | Bật/tắt chế độ ban đêm (Lọc ánh sáng xanh 4000K + giảm sáng 35%) |
+| `Super + Shift + N` | Notification Center | Mở Trung tâm thông báo dạng Right Sidebar (Full Height, responsive) |
 | `Super + Shift + Q` | Logout DWM | Thoát về TTY1 |
 | `Super + F5` | Reload Xresources | DWM nạp lại màu Xresources |
 

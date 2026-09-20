@@ -81,6 +81,7 @@ Tài liệu hướng dẫn toàn bộ tổ hợp phím tắt trên hệ thống 
 | **`Super + Ctrl + F`** | **Weather Forecast**| Thẻ thời tiết trực quan: nhiệt độ, cảm nhận, độ ẩm, gió, áp suất |
 | **`Super + Ctrl + D`** | **Default Handlers**| Trình chọn ứng dụng mặc định một chạm (Browser, Editor, File, PDF, Image, Video, Term) |
 | **`Super + Ctrl + V`** | **Clipboard Manager**| Phím tắt phụ bật/tắt giao diện quản lý clipboard 2 cột (Text & Ảnh) |
+| **`Super + Shift + N`**| **Notification Center**| Mở Trung tâm thông báo dạng Right Sidebar (Full Height, responsive 25%) |
 
 ---
 
@@ -89,6 +90,7 @@ Tài liệu hướng dẫn toàn bộ tổ hợp phím tắt trên hệ thống 
 | Tổ hợp phím | Công cụ / Chức năng | Cơ chế thực thi |
 | :--- | :--- | :--- |
 | **`Super + Alt + T`** | **Instant Screen OCR** | Quét chọn vùng màn hình $\rightarrow$ Bóc tách chữ (Anh+Việt) vào Clipboard |
+| **`Super + Alt + N`** | **Night Working Mode**  | Bật/tắt chế độ ban đêm (Lọc ánh sáng xanh 4000K + giảm sáng dịu mắt 35%) |
 | **`Print`** | **Chụp toàn màn hình** | Chụp toàn bộ màn hình lưu vào `~/Pictures/Screenshots/` |
 | **`Ctrl + Print`** | **Chụp vùng chọn** | Kéo chuột chọn vùng cần chụp lưu vào máy và clipboard |
 | **`Shift + Print`** | **Chụp cửa sổ** | Tự động chụp riêng cửa sổ đang active |
@@ -159,7 +161,22 @@ Tài liệu hướng dẫn toàn bộ tổ hợp phím tắt trên hệ thống 
 
 ---
 
+## 🖱️ 10. TƯƠNG TÁC CHUỘT TRÊN THANH STATUSBAR
+| Vùng tương tác | Hành động chuột | Tác vụ thực thi |
+| :--- | :--- | :--- |
+| **Tags (1 - 9)** | Click chuột trái | Chuyển đến Workspace tương ứng (rê chuột hiện bàn tay `XC_hand2`) |
+| **Thẻ Giữa (Tue · 15:35 󰖗)** | Click Thời gian / Thời tiết | Bật thẻ Popover Đồng hồ / Lịch hoặc Dự báo khí quyển tương ứng |
+| **Nút Thu Gọn Khay (`` / ``)** | Click chuột trái | Thu gọn hoặc mở rộng toàn bộ icon khay hệ thống (Systray) |
+| **Icon Chuông (`󰂚` / `󰂞` / `󰂛`)** | Click chuột trái | Bật/Tắt Notification Center Right Sidebar |
+| | Click chuột phải | Bật/Tắt chế độ Không làm phiền (Do Not Disturb - DND) |
+| | Click chuột giữa | Dọn sạch lịch sử thông báo (History Clear) |
+| **Các Blocks (Pin, Mạng, CPU...)** | Click chuột trái | Bật/Tắt thẻ Popover tương ứng (có gạch chân underline ôm khớp mép container) |
+
+---
+
 ## 💡 MẸO SỬ DỤNG NHANH (QUICK PRO TIPS)
 1. **Lướt web / Viết code màn hình nhỏ**: Hãy dùng **`Super + F`** để mở 100% fullscreen, tận dụng từng pixel của màn hình ThinkPad.
-2. **Dán chữ từ ảnh/video**: Bấm **`Super + Alt + T`**, kéo chuột khoanh vùng chữ $\rightarrow$ Bấm **`Ctrl + V`** dán thẳng vào trình duyệt hoặc Neovim.
-3. **Mở nhanh thông số máy**: Bấm **`Super + Ctrl + T`** để xem CPU và quạt mà không cần mở `btop`. Bấm lại lần nữa để đóng!
+2. **Làm việc ban đêm**: Bấm **`Super + Alt + N`** để lọc ánh sáng xanh 4000K và giảm độ sáng màn hình xuống 35% dịu mắt.
+3. **Xem lại thông báo lỡ**: Bấm **`Super + Shift + N`** để mở Right Sidebar kiểm tra toàn bộ thông báo hoặc bấm nút DND.
+4. **Dán chữ từ ảnh/video**: Bấm **`Super + Alt + T`**, kéo chuột khoanh vùng chữ $\rightarrow$ Bấm **`Ctrl + V`** dán thẳng vào trình duyệt hoặc Neovim.
+5. **Mở nhanh thông số máy**: Bấm **`Super + Ctrl + T`** để xem CPU và quạt mà không cần mở `btop`. Bấm lại lần nữa để đóng!

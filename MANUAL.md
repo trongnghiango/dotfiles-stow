@@ -52,20 +52,39 @@ Bạn không phải đau đầu lựa chọn cấu hình giữa hàng trăm ph�
 
 ## 3. THANH TRẠNG THÁI & THẺ POPOVER OMARCHY
 
-Thanh bar ở mép trên màn hình không phải là một thanh thông tin tĩnh nhàm chán, mà là một **trung tâm tương tác thông minh**:
+Thanh bar ở mép trên màn hình được tái thiết kế toàn diện theo chuẩn **Omarchy OS 4.x.x ("Quattro")**, đóng vai trò là **trung tâm quan sát nhẹ nhàng (quiet awareness)** kết hợp **điều khiển một chạm tức thì**:
 
-### A. Tương tác Chuột Trực Quan (Interactive Hand Cursor)
-- Khi bạn rê chuột vào các số **Workspace Tags (1 - 9)** hoặc bất kỳ **Block trạng thái** nào (Pin, Mạng, CPU, RAM, Âm lượng, Đồng hồ), con trỏ chuột sẽ **tự động chuyển thành hình bàn tay chỉ ngón trỏ (`XC_hand2`)**.
-- Khi rời khỏi thanh bar, con trỏ lập tức quay lại thành mũi tên tiêu chuẩn. Cơ chế kiểm tra trạng thái trong DWM 6.8 đảm bảo **tiêu hao 0.0% CPU**.
+```text
+┌───────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ [1][2] 3 4 5  []=  Neovim       Tue · 15:35 󰖗         []  [󰕾] [󰁹] [󰤨] [󰍛] [󰘚]  [ 󰂚 ]                 │
+│ └─────── LEFT SECTION ───────┘  └── MIDDLE SECTION ─┘   └── TRAY ──┘  └── DWMBLOCKS HARDWARE & NOTIFY ───────┘ │
+└───────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+```
 
-### B. Cơ Chế Bật Thẻ Popover (< 2ms Latency)
+### A. Bố Cục 3 Phân Vùng Chuẩn Omarchy 4.x.x
+1. **Left Section (Không gian làm việc & Cửa sổ)**:
+   - Tags (1 - 9) + Layout Symbol (`[]=`) + Tiêu đề cửa sổ active (`wintitle`).
+   - Tự động co giãn nhưng luôn nhường chỗ cho khối Middle ở giữa.
+2. **Center Section (Trung tâm màn hình — Dead-Center)**:
+   - Hiển thị theo định dạng tối giản: `Tue · 15:35  󰖗` (Thứ · Giờ:Phút kèm Icon thời tiết nhịp sinh học).
+   - Tự động đổi icon theo ngày/đêm: `󰖙` (Nắng ngày), `󰖕` (Nắng mây), `󰖔` (Trăng đêm), `󰼱` (Trăng mây), `󰖗` (Mưa đêm).
+   - Click vào giờ mở Lịch/Đồng hồ; click vào thời tiết mở Thẻ dự báo khí quyển.
+3. **Collapsible Left-Systray (Khay hệ thống thu gọn)**:
+   - Đặt sang **bên trái** khối dwmblocks: Giúp các icon phần cứng ở mép phải có **tọa độ cố định vĩnh viễn**, không bao giờ bị xê dịch khi có app mở khay.
+   - Thu gọn mặc định bằng chevron ``. Click vào sẽ bung ra thành `` và hiển thị toàn bộ icon (`ka-clip`, `fcitx5`...).
+   - Toàn bộ khoảng cách đệm (spacing) đồng nhất 8px, kích thước icon 15px tạo padding trên/dưới 5px cân đối với thanh bar 25px.
+4. **Right Section (Chỉ báo phần cứng đơn sắc & Chuông thông báo)**:
+   - Chuẩn Omarchy: **KHÔNG text %, KHÔNG emoji hoạt hình đa sắc**. Dùng Nerd Font Glyphs đơn sắc thuần khiết: `sb-record` (`🔴 REC`), `ka-volume` (`󰕾`), `ka-battery` (`󰁹`), `ka-network` (`󰤨`), `ka-cpu` (`󰍛`), `ka-memory` (`󰘚`), `sb-notify` (`󰂚`/`󰂞`/`󰂛`).
+   - Cảnh báo màu đỏ (`^C1^`) duy nhất khi pin < 15% hoặc CPU quá tải > 80%.
+
+### B. Cơ Chế Bật Thẻ Popover & Sidebar (< 2ms Latency)
 Hệ thống sử dụng tiến trình chạy nền **Pre-warmed Socket Daemon** (`dwm-dropdown --daemon` nạp sẵn trong `xinitrc`). Khi bạn click vào một block hoặc bấm phím tắt:
-- Gói tin IPC gửi qua socket Unix Domain Socket `/run/user/<UID>/dwm-dropdown-<UID>.sock`.
+- Gói tin IPC gửi qua Unix Domain Socket `/run/user/<UID>/dwm-dropdown-<UID>.sock`.
 - Thẻ popover hiện lên **ngay tức thì trong 2ms** (thay vì phải đợi 85ms khởi động Python lạnh).
-- DWM tự động kẻ **vạch gạch chân (underline)** màu cyan sáng ôm khít block đang được mở.
-- **Tự động đóng (Auto-Dismiss)**: Khi bạn click lại vào block (Toggle) hoặc click ra ngoài bất kỳ vùng trống nào trên màn hình, popup sẽ tự động biến mất.
+- DWM tự động kẻ **vạch gạch chân (underline)** màu cyan sáng ôm khít mép container `MAX(ab_w, bh)`, **thẳng hàng 100% với viền trái của cửa sổ**.
+- **Tự động đóng (Auto-Dismiss)**: Khi bạn click lại vào block (Toggle), click ra ngoài màn hình, hoặc bấm `Esc`/`q`, popup/sidebar tự động biến mất và thanh underline được xóa sạch ngay lập tức.
 
-### C. Danh Mục 7 Module Popover:
+### C. Danh Mục 8 Module Dropdown & Sidebar:
 1. **Audio (`Super + Ctrl + A`)**: Thanh trượt âm lượng mượt mà, nút Mute tức thì, danh sách chọn cổng âm thanh PipeWire.
 2. **Network (`Super + Ctrl + W`)**: Tên Wi-Fi, cường độ sóng, địa chỉ IP nội bộ, tốc độ mạng live, cùng bộ công cụ **đổi DNS nhanh** (DHCP, Cloudflare 1.1.1.1, Google 8.8.8.8, Custom IP).
 3. **Battery (`Super + Ctrl + B`)**: Mức pin phần trăm, trạng thái sạc, công suất tiêu thụ điện (W), cùng thanh trượt độ sáng màn hình.
@@ -73,6 +92,7 @@ Hệ thống sử dụng tiến trình chạy nền **Pre-warmed Socket Daemon**
 5. **CPU & Thermals (`Super + Ctrl + T`)**: Tải CPU thời gian thực, nhiệt độ vi xử lý, tốc độ quạt (RPM), bảng Top 4 tiến trình chiếm dụng CPU, nút mở `btop`.
 6. **Memory (`Super + Ctrl + M`)**: Đo dung lượng RAM thực tế, Swap, Cache, bảng Top 4 tiến trình chiếm dụng bộ nhớ, nút mở `btop`.
 7. **Forecast (`Super + Ctrl + F`)**: Thẻ thời tiết trực quan: nhiệt độ, cảm nhận thực tế, độ ẩm, sức gió, áp suất khí quyển, nút nạp lại dự báo.
+8. **Notification Center (`Super + Shift + N`)**: Trung tâm thông báo dạng Right Sidebar full height, chiều rộng co giãn responsive 25% màn hình (340px - 500px), đọc lịch sử thông báo, nút bật/tắt DND và xóa lịch sử.
 
 ---
 
@@ -112,6 +132,8 @@ ka <lệnh> [tham số...]
 | `ka pop` | Bật/Tắt thẻ popup Omarchy tương ứng | `ka pop volume` |
 | `ka dns` | Chuyển đổi nhanh DNS sang Cloudflare, Google hoặc DHCP | `ka dns cloudflare` |
 | `ka record`| Bật / Tắt quay video màn hình | `ka record toggle` |
+| `ka night` | Bật / Tắt chế độ làm việc ban đêm (Lọc ánh sáng xanh 4000K + giảm sáng) | `ka night toggle` |
+| `ka notify`| Quản lý thông báo, DND và mở Notification Center Right Sidebar | `ka notify center` |
 | `ka setup` | Tự động hóa biên dịch suckless, stow dotfiles hoặc cài packages | `ka setup suckless` |
 
 ---

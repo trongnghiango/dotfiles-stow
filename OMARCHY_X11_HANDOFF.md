@@ -69,18 +69,21 @@
   - DWM đã patch xử lý sự kiện `_NET_ACTIVE_WINDOW` trong `clientmessage()`.
   - Khi chọn cửa sổ trong ROFI (bằng `Alt + Tab` hoặc tab `WINDOWS`), DWM sẽ **tự động chuyển sang đúng Workspace/Tag đó, unhide cửa sổ nếu bị ẩn, focus bàn phím và warp con trỏ chuột vào giữa cửa sổ**.
 
-### Hệ thống Dropdown Popover Thống Nhất (`dwm-dropdown`)
-- **Triết lý Omarchy**: Mọi block trên statusbar (`dwmblocks`) khi click chuột trái đều hiển thị thẻ popup GUI sắc nét, vuông góc nguyên bản (`border-radius: 0px`), viền nổi 2px accent (`border: 2px solid @accent`), tự động nhận màu động từ `~/.config/theme/colors/current.conf`.
+### Thanh Trạng Thái Omarchy 4.x.x ("Quattro") & Hệ Thống Popover Hợp Nhất (`dwm-dropdown`)
+- **Kiến trúc 3 Phân vùng Độc lập (Omarchy 4)**:
+  - **Left Section**: Workspace Tags (1 - 9) + Layout Symbol (`[]=`) + Tiêu đề cửa sổ active (`wintitle`).
+  - **Center Section (Dead-Center)**: Hiển thị `Tue · 15:35  󰖗` (Đồng hồ tối giản + Icon thời tiết nhịp sinh học tự động nhận diện ngày/đêm `󰖙`/`󰖕`/`󰖔`/`󰼱`/`󰖗`).
+  - **Collapsible Left-Systray**: Khay hệ thống đưa sang **bên trái** dwmblocks (để các icon phần cứng cố định vĩnh viễn ở mép phải), thu gọn mặc định bằng chevron `` / ``, icon 15px, padding 8px đồng nhất.
+  - **Right Section (Anchored Hardware & Notify)**: `sb-record` (`🔴 REC`), `ka-volume` (`󰕾`), `ka-battery` (`󰁹`), `ka-network` (`󰤨`), `ka-cpu` (`󰍛`), `ka-memory` (`󰘚`), `sb-notify` (`󰂚`/`󰂞`/`󰂛`).
+- **Triết lý Máy Trạng Thái Hợp Nhất (Unified State Machine Pattern)**:
+  - Mọi block tương tác trên thanh bar đều liên kết trực tiếp với máy trạng thái C-Core (`active_block.win`, `active_block.sig`) của DWM.
+  - Vạch gạch chân (underline) màu cyan sáng ôm khít mép container `MAX(ab_w, bh)`, **thẳng hàng 100% với viền trái của cửa sổ popover/sidebar**.
+  - **Đóng mở đồng bộ 100% (Zero Stray Underline)**: Dù đóng bằng phím `Esc`, `q`, `Super + Q`, click lại vào block, click ra ngoài màn hình, hay click sang block khác, DWM đều thu hồi con trỏ và xóa `active_block.sig = 0`.
 - **Pre-Warmed Socket Daemon (< 2ms Latency)**:
   - Khởi chạy nền daemon `dwm-dropdown --daemon` trong `xinitrc`, nạp sẵn GTK3 và CSS theme vào RAM (~25MB).
   - Lắng nghe yêu cầu bật/tắt qua Unix Domain Socket `/run/user/$UID/dwm-dropdown-$UID.sock`.
   - Thời gian hiển thị giảm từ 85ms xuống dưới **2ms** (ngang ngửa tốc độ Native C của Quickshell trên Wayland).
-  - Tự động fallback chạy standalone nếu daemon chưa khởi động.
-- **Cơ chế DWM Native C**:
-  - Gạch chân (underline) màu cyan sáng ôm khít chính xác từng ký tự/icon của block được click (`drawstatusbar` tính toán động theo thời gian thực, không bị trôi vị trí khi CPU/Mạng nhảy số).
-  - Cửa sổ dropdown neo sát mép dưới statusbar (`y = m->wy`), tự động canh lề theo trục X của block và kẹp lề màn hình an toàn.
-  - Tự động đóng khi click lại vào block (Toggle) hoặc click ra ngoài màn hình (Auto-Dismiss).
-- **Danh mục 7 Dropdown Modules**:
+- **Danh mục 8 Dropdown & Sidebar Modules**:
   - `dwm-dropdown volume`: Thanh trượt âm lượng (hỗ trợ cuộn chuột), nút Mute nhanh, bộ chọn cổng ra âm thanh (PipeWire `wpctl`).
   - `dwm-dropdown clock`: Giờ hiện tại cỡ lớn, ngày tháng chi tiết, lịch tháng tương tác (`Gtk.Calendar`), thời gian hoạt động hệ thống (uptime).
   - `dwm-dropdown battery`: Thanh đo pin, trạng thái sạc/xả, công suất tiêu thụ (W), thanh trượt độ sáng màn hình (`brightnessctl`).
@@ -88,6 +91,14 @@
   - `dwm-dropdown memory`: Thanh tải RAM & Swap, dung lượng chi tiết, bảng top 4 tiến trình ngốn RAM, nút mở nhanh `btop`.
   - `dwm-dropdown network`: Thông tin Wi-Fi SSID, cường độ sóng, địa chỉ IPv4 nội bộ, tốc độ tải lên/xuống (RX/TX live throughput), nút đổi DNS trực tiếp (DHCP, Cloudflare, Google, Custom IP).
   - `dwm-dropdown forecast`: Thẻ thời tiết trực quan, nhiệt độ hiện tại & cảm nhận thực tế, độ ẩm, sức gió, áp suất khí quyển, nút nạp lại dự báo.
+  - `dwm-dropdown notify` (`Super + Shift + N`): Trung tâm thông báo dạng Right Sidebar full height, responsive width 25% màn hình (340px - 500px), đọc lịch sử thông báo, nút DND và xóa lịch sử.
+
+### Chế Độ Làm Việc Ban Đêm (Night Working Mode)
+- **Lọc ánh sáng xanh & điều hòa độ sáng một chạm**:
+  - Chuyển màn hình về nhiệt độ màu ấm dịu mắt **4000K** (qua `redshift`, `sct` hoặc native `xrandr --gamma` 0% CPU).
+  - Tự động sao lưu độ sáng hiện tại và hạ xuống **35%** dịu mắt khi bật; khôi phục 6500K và độ sáng ban ngày khi tắt.
+  - Lệnh CLI: `ka night [on|off|toggle|status]`.
+  - Phím tắt Ergonomic: **`Super + Alt + N`**.
 
 ### Bộ Lệnh Hợp Nhất Hệ Thống (`ka`) & Trích Xuất Chữ OCR (`ka-ocr`)
 - **Unified CLI (`ka`)**:
