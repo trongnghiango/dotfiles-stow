@@ -10,6 +10,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <errno.h>
 
 #include "config.h"
 #include "util.h"
@@ -156,14 +157,16 @@ int block_update(block *const block) {
     if (block->fork_pid != -1) {
         int fork_status = 0;
         if (waitpid(block->fork_pid, &fork_status, 0) == -1) {
-            (void)fprintf(stderr,
-                          "error: could not obtain exit status for \"%s\" block\n",
-                          block->command);
-            return 2;
+            if (errno != ECHILD) {
+                (void)fprintf(stderr,
+                              "error: could not obtain exit status for \"%s\" block\n",
+                              block->command);
+                return 2;
+            }
         }
         block->fork_pid = -1;
 
-        if (fork_status != 0) {
+        if (errno != ECHILD && fork_status != 0) {
             (void)fprintf(stderr,
                           "error: \"%s\" block exited with non-zero status\n",
                           block->command);

@@ -368,6 +368,21 @@ static void native_notify(char *output, size_t max_len, uint8_t button) {
 }
 
 // -----------------------------------------------------------------------------
+// 9. RECORD BLOCK (In-Process Native C)
+// -----------------------------------------------------------------------------
+static void native_record(char *output, size_t max_len, uint8_t button) {
+    if (button == 1) {
+        spawn_async("record stop");
+    }
+
+    if (access("/tmp/omarecord.pid", F_OK) == 0) {
+        snprintf(output, max_len, "^C1^🔴 REC^d^");
+    } else {
+        output[0] = '\0';
+    }
+}
+
+// -----------------------------------------------------------------------------
 // REGISTRY / ROUTER
 // -----------------------------------------------------------------------------
 native_block_fn get_native_block_fn(const char *command) {
@@ -396,6 +411,9 @@ native_block_fn get_native_block_fn(const char *command) {
     }
     if (strcmp(command, "sb-notify") == 0 || strcmp(command, "native:notify") == 0) {
         return native_notify;
+    }
+    if (strcmp(command, "sb-record") == 0 || strcmp(command, "native:record") == 0) {
+        return native_record;
     }
 
     return NULL;
