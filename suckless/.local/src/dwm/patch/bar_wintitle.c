@@ -10,10 +10,10 @@ draw_wintitle(Bar *bar, BarArg *a)
 	int x = a->x, w = a->w;
 	Monitor *m = bar->mon;
 	Client *c = m->sel;
-	if (c && (c->isdropdown || strstr(c->name, "dwm-dropdown"))) {
+	if (c && (c->isdropdown || strstr(c->name, "dwm-dropdown") || strstr(c->name, "ka-pop"))) {
 		Client *k;
 		for (k = m->stack; k; k = k->snext) {
-			if (k != c && !k->isdropdown && !strstr(k->name, "dwm-dropdown") && ISVISIBLE(k)) {
+			if (k != c && !k->isdropdown && !strstr(k->name, "dwm-dropdown") && !strstr(k->name, "ka-pop") && ISVISIBLE(k)) {
 				c = k;
 				break;
 			}

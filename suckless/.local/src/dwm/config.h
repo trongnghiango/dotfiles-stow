@@ -172,6 +172,8 @@ static const Rule rules[] = {
 	RULE(.title = "rec-countdown", .tags = ~SPTAGMASK, .isfloating = 1)
 	RULE(.class = "dwm-dropdown", .isfloating = 1, .isdropdown = 1)
 	RULE(.instance = "dwm-dropdown", .isfloating = 1, .isdropdown = 1)
+	RULE(.class = "ka-pop", .isfloating = 1, .isdropdown = 1)
+	RULE(.instance = "ka-pop", .isfloating = 1, .isdropdown = 1)
 	RULE(.title = "ka-clip", .isfloating = 1)
 	RULE(.class = "ka-clip", .isfloating = 1)
 	RULE(.instance = "ka-clip", .isfloating = 1)

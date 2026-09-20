@@ -979,7 +979,8 @@ configurerequest(XEvent *e)
 				c->oldh = c->h;
 				c->h = ev->height;
 			}
-			if (c->isdropdown) {
+			if (c->isdropdown || strstr(c->name, "dwm-dropdown") || strstr(c->name, "ka-pop")) {
+				c->isdropdown = 1;
 				c->bw = 0;
 				if (strstr(c->name, "notify")) {
 					int nw = (int)(m->ww * 0.25);
@@ -992,8 +993,11 @@ configurerequest(XEvent *e)
 					c->y = m->wy;
 				} else {
 					c->y = m->wy;
-					if (active_block.w > 0)
+					if (active_block.w > 0) {
 						c->x = active_block.screen_x;
+						if (c->x + WIDTH(c) > m->wx + m->ww)
+							c->x = active_block.screen_x + active_block.w - WIDTH(c);
+					}
 					int max_x = m->wx + m->ww - WIDTH(c);
 					if (c->x > max_x)
 						c->x = max_x;
@@ -1677,14 +1681,15 @@ manage(Window w, XWindowAttributes *wa)
 			XFree(ch.res_class);
 	}
 
-	if (c->isdropdown || strstr(c->name, "dwm-dropdown")) {
+	if (c->isdropdown || strstr(c->name, "dwm-dropdown") || strstr(c->name, "ka-pop")) {
+		c->isdropdown = 1;
 		if (!active_block.sig)
 			active_block.sig = dropdowntosig(c->name);
 		/* Close & destroy any existing dropdown window immediately */
 		Client *k, *knxt;
 		for (k = c->mon->clients; k; k = knxt) {
 			knxt = k->next;
-			if (k != c && (k->isdropdown || strstr(k->name, "dwm-dropdown"))) {
+			if (k != c && (k->isdropdown || strstr(k->name, "dwm-dropdown") || strstr(k->name, "ka-pop"))) {
 				killdropdown(k->win);
 			}
 		}
@@ -1705,12 +1710,17 @@ manage(Window w, XWindowAttributes *wa)
 		} else {
 			/* Standard Dropdown: Underneath the active block */
 			c->y = c->mon->wy;
-			if (active_block.w > 0)
+			if (active_block.w > 0) {
 				c->x = active_block.screen_x;
-			else if (active_block.screen_x > 0)
+				if (c->x + WIDTH(c) > c->mon->wx + c->mon->ww)
+					c->x = active_block.screen_x + active_block.w - WIDTH(c);
+			} else if (active_block.screen_x > 0) {
 				c->x = active_block.screen_x;
-			else
+				if (c->x + WIDTH(c) > c->mon->wx + c->mon->ww)
+					c->x = active_block.screen_x + active_block.w - WIDTH(c);
+			} else {
 				c->x = c->mon->wx + c->mon->ww - WIDTH(c);
+			}
 			int max_x = c->mon->wx + c->mon->ww - WIDTH(c);
 			if (c->x > max_x)
 				c->x = max_x;
@@ -2654,11 +2664,12 @@ unmanage(Client *c, int destroyed)
 		XUngrabServer(dpy);
 	}
 
-	if (active_block.win && c->win == active_block.win) {
+	if (c->isdropdown || strstr(c->name, "dwm-dropdown") || strstr(c->name, "ka-pop") ||
+	    (active_block.win && c->win == active_block.win)) {
 		active_block.sig = 0;
 		active_block.win = 0;
 		active_block.w = 0;
-		drawbar(m);
+		drawbars();
 	}
 
 	free(c);

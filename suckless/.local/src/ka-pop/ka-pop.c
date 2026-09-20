@@ -203,14 +203,15 @@ static gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, gpointer use
 
 static GtkWidget* create_base_window(const char *name, int min_width, GtkWidget **main_box) {
     GtkWidget *win = gtk_window_new(GTK_WINDOW_TOPLEVEL);
-    gtk_window_set_title(GTK_WINDOW(win), name);
-    gtk_window_set_wmclass(GTK_WINDOW(win), "ka-pop", "ka-pop");
+    char title_buf[64];
+    snprintf(title_buf, sizeof(title_buf), "dwm-dropdown-%s", name);
+    gtk_window_set_title(GTK_WINDOW(win), title_buf);
+    gtk_window_set_wmclass(GTK_WINDOW(win), "dwm-dropdown", "dwm-dropdown");
     gtk_window_set_decorated(GTK_WINDOW(win), FALSE);
     gtk_window_set_resizable(GTK_WINDOW(win), FALSE);
     gtk_window_set_skip_taskbar_hint(GTK_WINDOW(win), TRUE);
     gtk_window_set_skip_pager_hint(GTK_WINDOW(win), TRUE);
     gtk_window_set_type_hint(GTK_WINDOW(win), GDK_WINDOW_TYPE_HINT_DIALOG);
-    gtk_window_set_position(GTK_WINDOW(win), GTK_WIN_POS_CENTER);
 
     apply_theme_css(win, &g_theme);
 
@@ -296,7 +297,7 @@ static gboolean on_vol_scroll(GtkWidget *widget, GdkEventScroll *event, gpointer
 
 static GtkWidget* build_volume_window() {
     GtkWidget *main_box = NULL;
-    GtkWidget *win = create_base_window("ka-pop-volume", 340, &main_box);
+    GtkWidget *win = create_base_window("volume", 340, &main_box);
 
     // Read current volume
     int current_vol = 50;
@@ -362,10 +363,10 @@ static void on_bri_changed(GtkRange *range, gpointer user_data) {
 
 static GtkWidget* build_battery_window() {
     GtkWidget *main_box = NULL;
-    GtkWidget *win = create_base_window("ka-pop-battery", 340, &main_box);
+    GtkWidget *win = create_base_window("battery", 340, &main_box);
 
     int cap = 100;
-    char status[32] = "Full";
+    char status[64] = "Full";
     FILE *f_cap = fopen("/sys/class/power_supply/BAT0/capacity", "r");
     if (!f_cap) f_cap = fopen("/sys/class/power_supply/BAT1/capacity", "r");
     if (f_cap) {
@@ -375,7 +376,10 @@ static GtkWidget* build_battery_window() {
     FILE *f_st = fopen("/sys/class/power_supply/BAT0/status", "r");
     if (!f_st) f_st = fopen("/sys/class/power_supply/BAT1/status", "r");
     if (f_st) {
-        fscanf(f_st, "%31s", status);
+        if (fgets(status, sizeof(status), f_st)) {
+            char *nl = strchr(status, '\n');
+            if (nl) *nl = '\0';
+        }
         fclose(f_st);
     }
 
@@ -429,7 +433,7 @@ static GtkWidget* build_battery_window() {
 // -----------------------------------------------------------------------------
 static GtkWidget* build_clock_window() {
     GtkWidget *main_box = NULL;
-    GtkWidget *win = create_base_window("ka-pop-clock", 340, &main_box);
+    GtkWidget *win = create_base_window("clock", 340, &main_box);
 
     time_t now = time(NULL);
     struct tm *tm_info = localtime(&now);
@@ -479,7 +483,7 @@ static void on_open_btop(GtkButton *btn, gpointer user_data) {
 
 static GtkWidget* build_cpu_window() {
     GtkWidget *main_box = NULL;
-    GtkWidget *win = create_base_window("ka-pop-cpu", 360, &main_box);
+    GtkWidget *win = create_base_window("cpu", 360, &main_box);
 
     GtkWidget *btop_btn = gtk_button_new_with_label("󰍛 BTOP");
     gtk_style_context_add_class(gtk_widget_get_style_context(btop_btn), "action-btn");
@@ -537,7 +541,7 @@ static GtkWidget* build_cpu_window() {
 // -----------------------------------------------------------------------------
 static GtkWidget* build_memory_window() {
     GtkWidget *main_box = NULL;
-    GtkWidget *win = create_base_window("ka-pop-memory", 360, &main_box);
+    GtkWidget *win = create_base_window("memory", 360, &main_box);
 
     GtkWidget *btop_btn = gtk_button_new_with_label("󰘚 BTOP");
     gtk_style_context_add_class(gtk_widget_get_style_context(btop_btn), "action-btn");
@@ -603,7 +607,7 @@ static void on_dns_gg(GtkButton *b, gpointer u) { (void)b; (void)u; system("set-
 
 static GtkWidget* build_network_window() {
     GtkWidget *main_box = NULL;
-    GtkWidget *win = create_base_window("ka-pop-network", 360, &main_box);
+    GtkWidget *win = create_base_window("network", 360, &main_box);
 
     build_header(main_box, "Kết nối mạng", "Wi-Fi, Ethernet & DNS", NULL);
 
@@ -661,7 +665,7 @@ static void on_notif_clear(GtkButton *b, gpointer u) { (void)b; (void)u; system(
 
 static GtkWidget* build_notify_window() {
     GtkWidget *main_box = NULL;
-    GtkWidget *win = create_base_window("ka-pop-notify", 340, &main_box);
+    GtkWidget *win = create_base_window("notify", 340, &main_box);
 
     build_header(main_box, "Trung tâm thông báo", "Dunst Notification Hub", NULL);
 
@@ -678,6 +682,69 @@ static GtkWidget* build_notify_window() {
     gtk_box_pack_start(GTK_BOX(btn_box), btn_dnd, TRUE, TRUE, 0);
     gtk_box_pack_start(GTK_BOX(btn_box), btn_clear, TRUE, TRUE, 0);
     gtk_box_pack_start(GTK_BOX(main_box), btn_box, FALSE, FALSE, 0);
+
+    build_footer(main_box, "Esc để đóng");
+    return win;
+}
+
+// -----------------------------------------------------------------------------
+// 8. FORECAST MODULE
+// -----------------------------------------------------------------------------
+static GtkWidget* build_forecast_window() {
+    GtkWidget *main_box = NULL;
+    GtkWidget *win = create_base_window("forecast", 360, &main_box);
+
+    build_header(main_box, "Dự báo thời tiết", "Govap, Ho Chi Minh City", NULL);
+
+    const char *home = getenv("HOME");
+    char cache_path[512];
+    snprintf(cache_path, sizeof(cache_path), "%s/.cache/weatherreport", home ? home : "/tmp");
+
+    char temp_str[32] = "--°C";
+    char desc_str[64] = "Không có dữ liệu";
+    FILE *f = fopen(cache_path, "r");
+    if (f) {
+        char buf[2048];
+        if (fgets(buf, sizeof(buf), f)) {
+            char *p_temp = strstr(buf, "\"temp\":");
+            if (p_temp) {
+                float t = 0;
+                if (sscanf(p_temp, "\"temp\":%f", &t) == 1) {
+                    snprintf(temp_str, sizeof(temp_str), "%.0f°C", t);
+                }
+            }
+            char *p_desc = strstr(buf, "\"description\":\"");
+            if (p_desc) {
+                p_desc += 15;
+                char *end = strchr(p_desc, '"');
+                if (end) {
+                    size_t len = MIN((size_t)(end - p_desc), sizeof(desc_str) - 1);
+                    strncpy(desc_str, p_desc, len);
+                    desc_str[len] = '\0';
+                }
+            }
+        }
+        fclose(f);
+    }
+
+    GtkWidget *tile = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 12);
+    GtkWidget *lbl_ico = gtk_label_new("󰖕");
+    gtk_style_context_add_class(gtk_widget_get_style_context(lbl_ico), "metric-big");
+    gtk_box_pack_start(GTK_BOX(tile), lbl_ico, FALSE, FALSE, 0);
+
+    GtkWidget *t_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 2);
+    GtkWidget *lbl_t = gtk_label_new(temp_str);
+    gtk_style_context_add_class(gtk_widget_get_style_context(lbl_t), "metric-big");
+    gtk_label_set_xalign(GTK_LABEL(lbl_t), 0.0f);
+    gtk_box_pack_start(GTK_BOX(t_box), lbl_t, FALSE, FALSE, 0);
+
+    GtkWidget *lbl_d = gtk_label_new(desc_str);
+    gtk_style_context_add_class(gtk_widget_get_style_context(lbl_d), "subtitle-label");
+    gtk_label_set_xalign(GTK_LABEL(lbl_d), 0.0f);
+    gtk_box_pack_start(GTK_BOX(t_box), lbl_d, FALSE, FALSE, 0);
+
+    gtk_box_pack_start(GTK_BOX(tile), t_box, TRUE, TRUE, 0);
+    gtk_box_pack_start(GTK_BOX(main_box), tile, FALSE, FALSE, 0);
 
     build_footer(main_box, "Esc để đóng");
     return win;
@@ -712,6 +779,8 @@ int main(int argc, char *argv[]) {
         win = build_network_window();
     } else if (strcmp(target, "notify") == 0 || strcmp(target, "nc") == 0) {
         win = build_notify_window();
+    } else if (strcmp(target, "forecast") == 0 || strcmp(target, "weather") == 0 || strcmp(target, "weath") == 0) {
+        win = build_forecast_window();
     } else {
         win = build_volume_window();
     }

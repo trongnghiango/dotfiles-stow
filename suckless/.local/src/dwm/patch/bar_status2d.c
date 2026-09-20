@@ -167,6 +167,25 @@ drawstatusbar(BarArg *a, char* stext)
 			int dsig = dropdowntosig(dc->name);
 			if (dsig > 0)
 				active_block.sig = dsig;
+		} else {
+			active_block.win = 0;
+			active_block.sig = 0;
+			active_block.w = 0;
+		}
+	}
+	if (active_block.sig > 0 && !active_block.win) {
+		Client *dc = NULL;
+		for (Client *k = selmon ? selmon->clients : NULL; k; k = k->next) {
+			if (k->isdropdown || strstr(k->name, "dwm-dropdown") || strstr(k->name, "ka-pop")) {
+				dc = k;
+				active_block.win = k->win;
+				active_block.sig = dropdowntosig(k->name);
+				break;
+			}
+		}
+		if (!dc) {
+			active_block.sig = 0;
+			active_block.w = 0;
 		}
 	}
 
@@ -237,6 +256,8 @@ drawstatusbar(BarArg *a, char* stext)
 						drop_x = dc->mon->wx + dc->mon->ww - WIDTH(dc);
 					} else {
 						drop_x = active_block.screen_x;
+						if (drop_x + WIDTH(dc) > dc->mon->wx + dc->mon->ww)
+							drop_x = active_block.screen_x + active_block.w - WIDTH(dc);
 						int max_x = dc->mon->wx + dc->mon->ww - WIDTH(dc);
 						if (drop_x > max_x)
 							drop_x = max_x;
