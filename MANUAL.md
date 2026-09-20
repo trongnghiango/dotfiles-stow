@@ -147,23 +147,33 @@ bun = "latest"
 
 ---
 
-## 7. HỆ THỐNG ĐỔI THEME ĐỘNG (THEMING)
+## 7. HỆ THỐNG ĐỔI THEME ĐỘNG (KA APPEARANCE ENGINE)
 
-Hệ thống tuân thủ nguyên tắc **Single Source of Truth**: Bảng màu desktop nằm ở `~/.config/theme/colors/*.conf`.
+Hệ thống tuân thủ nghiêm ngặt nguyên tắc **Single Source of Truth** và kiến trúc **Official Base + Dynamic CSS Injection** (Loại bỏ 100% các theme trôi nổi bên ngoài):
+- Toàn bộ tham số màu sắc, font chữ, con trỏ chuột, icon và DPI nằm ở một nơi duy nhất: `~/.config/theme/colors/*.conf`.
 
-### Cách Đổi Theme:
+### A. Cách Đổi Theme:
 Chỉ cần gõ lệnh:
 ```bash
-ka theme nord             # Theme Bắc Âu dịu mắt
+ka theme nord             # Theme Bắc Âu dịu mát (Frost Cyan)
 ka theme gruvbox-dark     # Theme Gruvbox hoài cổ ấm áp
-ka theme catppuccin-mocha # Theme Pastel hiện đại
+ka theme catppuccin-mocha # Theme Pastel tím than hiện đại (Mauve)
+ka theme parchment        # Theme giấy cổ điển vàng ấm (Sepia)
 ```
 
-### Cơ Chế Hot-Reload Không Cần Restart Session:
-Khi bạn đổi theme, hệ thống sẽ:
-1. Đồng bộ màu sang `~/.config/x11/xresources.d/colors` và `rofi/colors.rasi`.
-2. Bơm palette màu vào Dunst notification daemon.
-3. Bắn tín hiệu `kill -HUP $(pidof dwm)`: **DWM lập tức nạp lại màu mới ngay trên RAM mà toàn bộ các ứng dụng bạn đang mở không hề bị gián đoạn hay tắt đi!**
+### B. Cơ Chế Bơm Màu & Hot-Reload Đa Tầng Không Cần Restart Session:
+Khi bạn đổi theme, bộ điều phối `theme-set` sẽ kích hoạt chuỗi xử lý:
+1. **Xresources (xrdb)**: Nạp màu ANSI, màu viền DWM `dwm.selbordercolor`, DPI `${XFT_DPI}` và gửi tín hiệu `kill -HUP $(pidof dwm)` $\rightarrow$ DWM và ST reload màu ngay trên RAM.
+2. **Notification (Dunst)**: Tự động bơm block màu vào `dunstrc` và reload daemon.
+3. **Menu ứng dụng (Rofi)**: Nạp màu viền và màu chọn vào `rofi/colors.rasi`.
+4. **Tầng GTK3 & GTK4 (Dynamic CSS Injection)**:
+   - Sử dụng theme gốc chính thức **`Adwaita-dark`** (hoặc `Adwaita` cho theme sáng) — tích hợp sẵn trên 100% các bản phân phối Linux mà không cần cài thêm gói ngoài.
+   - Tự động sinh `~/.config/gtk-3.0/gtk.css` và `~/.config/gtk-4.0/gtk.css` để ghi đè các biến màu `@define-color theme_bg_color`, `@define-color theme_selected_bg_color` theo palette đang chọn.
+5. **Trình duyệt Web (Brave & Brave Origin)**:
+   - Đọc cờ dùng chung `~/.config/brave-flags.conf` (và symlink `brave-origin-flags.conf`) với cờ `--force-dark-mode` và `--gtk-version=4`.
+   - Khi chọn **"Use GTK"**, toàn bộ giao diện Brave tự động đồng bộ màu với hệ thống.
+6. **Ứng dụng Qt5 & Qt6 (VLC, qBittorrent, VirtualBox, Anki)**:
+   - Nhờ biến môi trường `export QT_QPA_PLATFORMTHEME="gtk3"` trong `profile`, Qt tự động nạp plugin `libqgtk3.so` và đọc trực tiếp `gtk-3.0/gtk.css`, mang lại giao diện tối đồng nhất 100%.
 
 ---
 
@@ -199,20 +209,24 @@ Lấy cảm hứng từ tính năng `omarchy-capture-text` của DHH:
 
 ---
 
-## 10. BỘ QUẢN LÝ CLIPBOARD 2 CỘT OMARCHY (`ka clip` / `Super + V`)
+## 10. BỘ QUẢN LÝ CLIPBOARD NATIVE GTK3 MASTER-DETAIL (`ka clip` / `Super + V`)
 
-Thay thế hoàn toàn cơ chế khay hệ thống cũ (`fzf` trong terminal):
+Thay thế hoàn toàn cơ chế khay hệ thống cũ (`fzf` trong terminal và `yad` cồng kềnh):
 - **Phím tắt gọi nhanh**: Nhấn **`Super + V`** (hoặc **`Super + Ctrl + V`**, hoặc click icon khay hệ thống).
-- **Hỗ trợ đa phương tiện toàn diện**:
-  - Tự động bắt và lưu trữ cả **Văn bản (Text, code, URL)** lẫn **Hình ảnh (Screenshots từ `maim`, ảnh copy từ trình duyệt, kết quả `ka-ocr`)**.
-- **Giao diện Master-Detail 2 Cột**:
-  - **Cột bên trái**: Danh sách các mục đã copy theo thứ tự thời gian mới nhất lên đầu, icon phân loại trực quan (`󰈙` text, `󰋩` ảnh, `󰌨` url, `󰘦` code) và tiêu đề tóm tắt 1 dòng.
-  - **Cột bên phải**: Xem trước chi tiết nội dung đầy đủ (văn bản nhiều dòng, số dòng, ký tự) hoặc ảnh thumbnail phóng to sắc nét đối với hình ảnh.
-- **Thao tác một chạm**: Dùng phím mũi tên hoặc `Ctrl+j/k` để duyệt và xem trước thời gian thực $\rightarrow$ Nhấn `Enter` để nạp ngay vào bộ nhớ đệm và dán (`Ctrl + V`).
-- **Lệnh hỗ trợ dòng lệnh**:
-  - `ka clip` — Mở giao diện Rofi.
-  - `ka clip status` — Xem trạng thái daemon và số lượng bản sao đang lưu.
-  - `ka clip clear` — Dọn dẹp sạch toàn bộ lịch sử clipboard.
+- **Cửa sổ nổi căn giữa tức thì (Centered Floating)**:
+  - Tự động hiển thị nổi ở **chính giữa màn hình của Workspace hiện tại** (`ws1`, `ws2`, `ws3`...), không bị chiếm full màn hình hay kẹt ở Workspace cũ.
+- **Bố cục Master-Detail chuẩn tỷ lệ vàng 2 : 3**:
+  - **Cột bên trái (400px = 40% = 2 phần)**: Ô tìm kiếm thời gian thực, danh sách rút gọn theo thứ tự thời gian với số thứ tự `[01]`, icon phân loại trực quan (`󰈙` text, `󰋩` ảnh, `󰌨` url, `󰘦` code), giờ copy và tiêu đề tóm tắt.
+  - **Cột bên phải (600px = 60% = 3 phần)**: Xem trước chi tiết nội dung đầy đủ:
+    - *Đối với hình ảnh (Screenshot, ảnh copy, OCR)*: Hiển thị ảnh phóng to sắc nét (lên đến 540px × 320px) đúng tỷ lệ thật, thông số pixel và dung lượng.
+    - *Đối với văn bản (Code, Text, URL)*: Hiển thị 100% nội dung nhiều dòng, tự động xuống dòng (`word-wrap`), không bị cắt cụt hay che khuất.
+- **Khay hệ thống Native X11 (`Gtk.StatusIcon`)**:
+  - Tích hợp trực tiếp vào daemon `ka-clip`, tự động vẽ icon bảng kẹp theo màu theme hiện tại từ RAM (0 file rác trên đĩa, không cần cài thêm `yad`).
+- **Thao tác bàn phím thuận tiện**:
+  - Phím mũi tên lên/xuống hoặc `Ctrl+j/k` để duyệt danh sách.
+  - `Enter`: Nạp ngay bản sao vào Clipboard và dán (`Ctrl + V`).
+  - `Del`: Xóa bản sao đang chọn khỏi lịch sử.
+  - `Esc`: Đóng cửa sổ và giải phóng bộ nhớ.
 
 ---
 
@@ -223,11 +237,11 @@ Bất cứ khi nào bạn cảm thấy hệ thống có vấn đề, chỉ cần
 ```bash
 ka doctor
 ```
-Lệnh sẽ tự động kiểm tra 15 thành phần cốt lõi:
+Lệnh sẽ tự động kiểm tra 16 thành phần cốt lõi:
 - Nhị phân Suckless (DWM, ST, Dmenu, Dwmblocks).
-- Công cụ đồ họa X11 (Xorg, Picom, Maim, Slop, Xclip, Tesseract).
+- Công cụ đồ họa X11 (Xorg, Picom, Maim, Slop, Xclip, Tesseract, XDG MIME).
 - Hệ thống âm thanh PipeWire và kết nối mạng NetworkManager.
-- Bảng màu Theming và trạng thái Socket Daemon của Popover.
+- Bảng màu Theming, trạng thái Socket Popovers, và Clipboard Daemon.
 - Trình quản lý Dev Runtimes Mise.
 
 ### B. Triển Khai Dotfiles An Toàn (`stow-safe`)

@@ -44,14 +44,17 @@
 
 ## 3. Hệ thống Giao diện & Window Management
 
-### Dynamic Theming (`theme-set`)
-- **Lệnh điều khiển**: `theme-set [nord | gruvbox-dark | catppuccin-mocha]`
+### Dynamic Theming & Universal Appearance Engine (`theme-set`)
+- **Triết lý Clean Architecture**: Loại bỏ hoàn toàn sự phụ thuộc vào các theme AUR ngoài (`Arc-Gruvbox`). Áp dụng mô hình **Official Base (`Adwaita` / `Adwaita-dark`) + Dynamic CSS Injection (`gtk.css`)** có sẵn 100% trên mọi distro Linux.
+- **Nguồn sự thật hợp nhất (`colors/*.conf`)**: Quản lý 4 nhóm thuộc tính: Mode & Colors, Typography (Inter & JetBrains Mono), Cursors & Icons, Metrics & DPI.
 - **Cơ chế Hot-Reload không restart session**:
-  1. Link `colors/current.conf` trỏ vào palette tương ứng.
-  2. Sinh ra file màu `~/.config/x11/xresources.d/colors` và `~/.config/rofi/colors.rasi`.
-  3. Bơm block màu vào `~/.config/dunst/dunstrc`.
-  4. Chạy `hooks.d/10-xrdb.sh`: nạp `xrdb -merge` và bắn `kill -HUP $(pidof dwm)` $\rightarrow$ DWM reload màu ngay trên RAM mà cửa sổ làm việc không bị tắt.
-  5. Chạy `hooks.d/20-dunst.sh` và `30-dwmblocks.sh` để đồng bộ notification và statusbar.
+  1. Link `colors/current.conf` trỏ vào palette tương ứng (`catppuccin-mocha`, `nord`, `gruvbox-dark`, `parchment`).
+  2. Bơm màu động vào `~/.config/gtk-3.0/gtk.css` và `~/.config/gtk-4.0/gtk.css`.
+  3. Cập nhật `settings.ini` cho GTK 3/4 và phát tín hiệu D-Bus qua `gsettings` (`color-scheme="prefer-dark"`, `gtk-theme="Adwaita-dark"`).
+  4. Trình duyệt Brave / Brave-Origin (chế độ "Use GTK") tự động đổi màu theo palette.
+  5. Ứng dụng Qt5 & Qt6 (qua `QT_QPA_PLATFORMTHEME="gtk3"`) tự động nạp `libqgtk3.so` và mang giao diện tối đồng nhất.
+  6. Chạy `hooks.d/10-xrdb.sh`: nạp `xrdb -merge` và bắn `kill -HUP $(pidof dwm)` $\rightarrow$ DWM và ST reload màu ngay trên RAM mà cửa sổ làm việc không bị tắt.
+  7. Chạy `hooks.d/20-dunst.sh` và `30-dwmblocks.sh` để đồng bộ notification và statusbar.
 
 ### Native C Window Management (DWM 6.8)
 - **Nâng cấp DWM 6.8 Upstream**: Tích hợp các bản vá bảo mật và logic quan trọng nhất từ upstream DWM 6.8 (triệt tiêu Heap Overflow trong `getatomprop`, bảo toàn `_NET_ACTIVE_WINDOW` cho Proton/Steam trong `setfocus`, kiểm tra `format == 32` trong `getstate`, chặn unsigned underflow trong `drw_text`, bảo toàn errno trong `die`, và tự động resize fullscreen windows khi chuyển monitor trong `sendmon`).
@@ -91,7 +94,7 @@
   - Quản lý toàn bộ cấu hình, theme, DNS, popover và chẩn đoán hệ thống thông qua 1 điểm vào duy nhất.
   - Hỗ trợ `ka doctor` (quét kiểm tra toàn bộ 16 thành phần cốt lõi của máy), `ka dev [setup|status|update]` (quản lý Node, Python, Rust, Go, PNPM, Bun qua Mise).
   - Hỗ trợ `ka default [show|set]` và giao diện Rofi một chạm `Super + Ctrl + D` (học hỏi từ DHH & Chris Titus: chuyển đổi tức thì trình duyệt, trình soạn thảo, file manager, PDF, image, video, terminal mà không chạm vào cấu hình text).
-  - Hỗ trợ `ka clip [menu|daemon|clear|status]` và phím tắt **`Super + V`** / **`Super + Ctrl + V`**: Trình quản lý clipboard 2 cột Master/Detail (bên trái danh sách rút gọn theo thời gian, bên phải xem trước chi tiết nội dung text hoặc phóng to ảnh preview) hỗ trợ cả Văn bản và Hình ảnh/Screenshots.
+  - Hỗ trợ `ka clip [menu|daemon|clear|status]` và phím tắt **`Super + V`** / **`Super + Ctrl + V`**: Trình quản lý clipboard GTK3 Native Master-Detail chuẩn tỷ lệ 2 : 3 (bên trái danh sách rút gọn 400px, bên phải xem trước chi tiết văn bản không cắt cụt hoặc ảnh phóng to 540x320 sắc nét) hiển thị nổi chính giữa màn hình của Workspace hiện tại. Tích hợp khay hệ thống `Gtk.StatusIcon` native trực tiếp trong daemon (0 file rác).
 - **Instant In-Memory OCR (`ka-ocr`)**:
   - Kích hoạt qua phím tắt **`Super + Alt + T`** hoặc lệnh `ka ocr`.
   - Quét vùng màn hình qua `slop` $\rightarrow$ chụp ảnh raw stdout qua `maim` $\rightarrow$ bóc tách chữ qua `tesseract` (song ngữ Anh-Việt) $\rightarrow$ đưa thẳng vào Clipboard và phát thông báo qua `dunstify` (không ghi bất kỳ file rác nào ra đĩa SSD).

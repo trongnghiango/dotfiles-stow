@@ -72,5 +72,7 @@ Lệnh này sẽ kiểm tra:
 - [ ] Phím tắt mở cửa sổ nổi ở tâm `Super + Shift + Space` và Fullscreen `Super + F` hoạt động chuẩn xác.
 - [ ] Các thẻ popup `ka pop <module>` (volume, clock, battery, cpu, mem, net, forecast) phản hồi < 2ms qua socket daemon.
 - [ ] Trình chọn ứng dụng mặc định một chạm `ka default` (`Super + Ctrl + D`) mở giao diện Rofi mượt mà.
+- [ ] Trình quản lý clipboard GTK3 Master-Detail `ka clip` (`Super + V`) mở nổi ở giữa màn hình với tỷ lệ 2 : 3.
+- [ ] Bộ engine giao diện `ka theme [nord|catppuccin-mocha|gruvbox-dark]` nạp CSS động mượt mà cho cả GTK, Brave và Qt.
 - [ ] Bộ gõ tiếng Việt Fcitx5 hoạt động ổn định trên cả terminal `st` lẫn ứng dụng GTK.
 - [ ] Khi mọi thứ đã ổn định, merge `feature/debian-support` vào `main`.

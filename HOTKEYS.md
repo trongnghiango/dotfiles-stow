@@ -26,7 +26,7 @@ Tài liệu hướng dẫn toàn bộ tổ hợp phím tắt trên hệ thống 
 | **`Super + E`** | **Trình duyệt file LF** | LF Terminal file manager với preview ảnh nổi |
 | **`Super + Shift + E`** | **Bộ chọn Emoji** | Mở Rofi Emoji picker |
 | **`Super + C`** | **Máy tính Rofi** | Rofi Calculator tính toán nhanh |
-| **`Super + V`** | **Clipboard Manager** | Rofi 2 cột (Text & Ảnh): tóm tắt bên trái, xem chi tiết bên phải |
+| **`Super + V`** | **Clipboard Manager** | Trình quản lý clipboard 2 cột chuẩn 2 : 3 (GTK3 Native, Text & Ảnh phóng to) |
 | **`Super + D`** | **Dmenu Run** | Menu lệnh cổ điển thanh mảnh ở mép trên |
 | **`Ctrl + Shift + Space`**| **Bộ gõ Fcitx5** | Bật/tắt chế độ gõ tiếng Việt Bamboo |
 
@@ -80,7 +80,7 @@ Tài liệu hướng dẫn toàn bộ tổ hợp phím tắt trên hệ thống 
 | **`Super + Ctrl + M`** | **Memory & RAM** | Thanh tải RAM, Swap, bộ nhớ cache, Top 4 tiến trình ngốn RAM |
 | **`Super + Ctrl + F`** | **Weather Forecast**| Thẻ thời tiết trực quan: nhiệt độ, cảm nhận, độ ẩm, gió, áp suất |
 | **`Super + Ctrl + D`** | **Default Handlers**| Trình chọn ứng dụng mặc định một chạm (Browser, Editor, File, PDF, Image, Video, Term) |
-| **`Super + Ctrl + V`** | **Clipboard Manager**| Bật/tắt giao diện quản lý clipboard 2 cột (Text & Ảnh) |
+| **`Super + Ctrl + V`** | **Clipboard Manager**| Phím tắt phụ bật/tắt giao diện quản lý clipboard 2 cột (Text & Ảnh) |
 
 ---
 
