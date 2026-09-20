@@ -28,6 +28,9 @@ DOTFILES_DIR="$(cd "$_SCRIPT_DIR/../../.." && pwd)"
 TARGET_DIR="$HOME"
 BACKUP_BASE="${XDG_DATA_HOME:-$HOME/.local/share}/dotfiles/backups"
 
+# Guard against executing from a vanished/deleted directory (prevents Perl getcwd crash in GNU Stow)
+cd "$TARGET_DIR" 2>/dev/null || cd "$DOTFILES_DIR" 2>/dev/null || cd /
+
 # --- Colors ---
 RED='\033[0;31m'
 GREEN='\033[0;32m'

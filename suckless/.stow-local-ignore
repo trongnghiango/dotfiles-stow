@@ -1,0 +1,14 @@
+# Ignore compiler and build artifacts in suckless source trees
+.*\.o$
+.*\.a$
+.*\.tar\.gz$
+.*\.orig$
+.*\.rej$
+(^|/)dwm$
+(^|/)st$
+(^|/)dmenu$
+(^|/)stest$
+(^|/)dwmblocks$
+(^|/)dwm-msg$
+(^|/)build(/|$)
+\.git

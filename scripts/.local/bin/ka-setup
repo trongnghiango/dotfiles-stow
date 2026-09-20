@@ -39,6 +39,9 @@ _SCRIPT_REAL="$(readlink -f "${BASH_SOURCE[0]}")"
 _SCRIPT_DIR="$(cd "$(dirname "$_SCRIPT_REAL")" && pwd)"
 DOTFILES_DIR="$(cd "$_SCRIPT_DIR/../../.." && pwd)"
 
+# Đảm bảo working directory luôn hợp lệ tránh lỗi getcwd() nếu gọi từ thư mục bị xóa/unlinked
+cd "$HOME" 2>/dev/null || cd /
+
 # --- Phát hiện hệ điều hành (Arch Linux, Debian, Ubuntu, etc.) ---
 detect_os() {
   if [ -f /etc/os-release ]; then

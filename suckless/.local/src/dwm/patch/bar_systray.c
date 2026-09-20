@@ -1,8 +1,8 @@
 static Systray *systray = NULL;
 static unsigned long systrayorientation = _NET_SYSTEM_TRAY_ORIENTATION_HORZ;
-static int systraycollapsed = 1;
+static int systraycollapsed = 0;
 #ifndef SYSTRAY_MAX_ICONS
-#define SYSTRAY_MAX_ICONS 1
+#define SYSTRAY_MAX_ICONS 4
 #endif
 
 int
