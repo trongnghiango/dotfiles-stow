@@ -219,11 +219,11 @@ drawstatusbar(BarArg *a, char* stext)
 			}
 		}
 		if (found && ab_w > 0) {
-			active_block.bar_x = bar_start_x + ab_x;
-			active_block.w = ab_w;
-			active_block.screen_x = (selmon ? selmon->wx : 0) + active_block.bar_x;
 			int uw = MAX(ab_w, bh);
-			int ux = active_block.bar_x - (uw - ab_w) / 2;
+			int ux = (bar_start_x + ab_x) - (uw - ab_w) / 2;
+			active_block.bar_x = ux;
+			active_block.w = uw;
+			active_block.screen_x = (selmon ? selmon->wx : 0) + active_block.bar_x;
 			drw_setscheme(drw, scheme[LENGTH(colors)]);
 			drw->scheme[ColFg] = scheme[SchemeTagsSel][ColBg];
 			drw->scheme[ColBg] = scheme[SchemeTagsSel][ColBg];
