@@ -1,8 +1,10 @@
 #!/usr/bin/env sh
 
-# Ghi log khởi động X11 để debug
-exec >"$HOME/.xinitrc.log" 2>&1
-set -x
+# Ghi log khởi động X11 để debug (chỉ bật khi DEBUG=1 để tránh nghẽn I/O trên ổ cứng cũ)
+if [ -n "$DEBUG" ]; then
+  exec >"$HOME/.xinitrc.log" 2>&1
+  set -x
+fi
 
 # ==============================================================================
 # 1. KHỞI TẠO MÔI TRƯỜNG D-BUS
@@ -54,12 +56,21 @@ if [ -f "$XRESOURCES_PATH" ]; then
 fi
 
 # ==============================================================================
-# 3. CHẠY POLKIT & GNOME-KEYRING
+# 3. CHẠY POLKIT & GNOME-KEYRING (ĐA DISTRO)
 # ==============================================================================
-if [ -f /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1 ]; then
-  pgrep -f polkit-gnome-authentication-agent-1 >/dev/null || /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1 &
-elif command -v lxpolkit >/dev/null 2>&1; then
-  pgrep -x lxpolkit >/dev/null || lxpolkit &
+for polkit_path in \
+  "/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1" \
+  "/usr/libexec/polkit-gnome-authentication-agent-1" \
+  "/usr/lib/polkit-1-gnome/polkit-gnome-authentication-agent-1" \
+  "/usr/libexec/polkit-mate-authentication-agent-1" \
+  "/usr/lib/mate-polkit/polkit-mate-authentication-agent-1"; do
+  if [ -x "$polkit_path" ]; then
+    pgrep -f "$(basename "$polkit_path")" >/dev/null || "$polkit_path" &
+    break
+  fi
+done
+if ! pgrep -f "polkit.*authentication-agent-1" >/dev/null; then
+  command -v lxpolkit >/dev/null 2>&1 && ! pgrep -x lxpolkit >/dev/null && lxpolkit &
 fi
 
 if command -v gnome-keyring-daemon >/dev/null 2>&1; then
@@ -110,11 +121,14 @@ for program in $autostart; do
   fi
 done
 
-# Khởi động Dropdown Popover Daemon (Pre-warmed socket cho 0ms latency)
-command -v dwm-dropdown >/dev/null 2>&1 && dwm-dropdown --daemon &
-
-# Khởi động Clipboard Manager Daemon (Text & Image)
-command -v ka-clip >/dev/null 2>&1 && ka-clip daemon &
+# Khởi động Unified Daemon (Popovers + Clipboard với Lazy-loading & In-Memory SQLite)
+if command -v ka-daemon >/dev/null 2>&1; then
+  ka-daemon &
+else
+  # Fallback cho các bản cài đặt cũ
+  command -v dwm-dropdown >/dev/null 2>&1 && dwm-dropdown --daemon &
+  command -v ka-clip >/dev/null 2>&1 && ka-clip daemon &
+fi
 
 
 

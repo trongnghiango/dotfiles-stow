@@ -47,6 +47,7 @@ usage() {
   echo -e "  ${GREEN}notify${RESET} [center|dnd|clear|status|test]        Quản lý thông báo, DND và mở Notification Center Right Sidebar"
   echo -e "  ${GREEN}setup${RESET}  [all|suckless|stow|pkgs]              Tự động hóa triển khai gói và dotfiles"
   echo -e "  ${GREEN}stow${RESET}   <package>                             Triển khai an toàn gói cấu hình qua stow-safe"
+  echo -e "  ${GREEN}daemon${RESET}  [start|stop|restart|status]           Quản lý tiến trình nền hợp nhất (ka-daemon: Popovers + Clipboard)"
   echo -e "  ${GREEN}doctor${RESET}                                       Chẩn đoán sức khỏe, công cụ và tính toàn vẹn hệ thống"
   echo -e "  ${GREEN}version${RESET}                                      Hiển thị thông tin phiên bản"
   echo ""
@@ -223,14 +224,15 @@ cmd_doctor() {
 
   echo -e "\n${BOLD}4. Theming & Dropdown Popovers:${RESET}"
   check_item "Current Theme Config (~/.config/theme/colors/current.conf)" "test -f \$HOME/.config/theme/colors/current.conf"
-  check_item "Dropdown Script (dwm-dropdown)" "command -v dwm-dropdown || test -x \"\$_SCRIPT_DIR/dwm-dropdown\""
+  check_item "Unified System Daemon (ka-daemon)" "command -v ka-daemon || test -x \"\$_SCRIPT_DIR/ka-daemon\""
+  check_item "Dropdown Script (dwm-dropdown)" "command -v dwm-dropdown || test -x \"\$_SCRIPT_DIR/dwmblocks-scripts/dwm-dropdown\" || test -x \"\$_SCRIPT_DIR/dwm-dropdown\""
   check_item "Default Handlers Selector (ka-default)" "command -v ka-default || test -x \"\$_SCRIPT_DIR/ka-default\""
   check_item "Unified Clipboard Manager (ka-clip)" "command -v ka-clip || test -x \"\$_SCRIPT_DIR/ka-clip\""
-  local sock_path="${XDG_RUNTIME_DIR:-/tmp}/dwm-dropdown-$(id -u).sock"
-  if [[ -S "$sock_path" ]]; then
-    echo -e "  [${GREEN}PASS${RESET}] Dropdown Socket Daemon is ACTIVE (${sock_path})"
+  local daemon_sock="${XDG_RUNTIME_DIR:-/tmp}/ka-daemon-$(id -u).sock"
+  if [[ -S "$daemon_sock" ]]; then
+    echo -e "  [${GREEN}PASS${RESET}] Unified Daemon Socket is ACTIVE (${daemon_sock})"
   else
-    echo -e "  [${YELLOW}INFO${RESET}] Dropdown Socket Daemon is IDLE (falls back to standalone GTK3 smoothly)"
+    echo -e "  [${YELLOW}INFO${RESET}] Unified Daemon is IDLE (start with 'ka daemon start' or via xinitrc)"
   fi
 
   echo -e "\n${BOLD}5. Developer Runtimes:${RESET}"
@@ -252,6 +254,31 @@ cmd_doctor() {
   else
     echo -e "${BOLD}${YELLOW}⚠ Phát hiện một số công cụ chưa hoàn thiện. Chạy 'ka setup all' để hoàn tất cấu hình.${RESET}\n"
   fi
+}
+
+cmd_daemon() {
+  local action="${1:-status}"
+  case "$action" in
+    status)
+      ka-daemon status
+      ;;
+    stop)
+      ka-daemon stop
+      ;;
+    restart)
+      ka-daemon stop 2>/dev/null || true
+      sleep 0.2
+      ka-daemon --daemon &
+      echo "ka-daemon restarted."
+      ;;
+    start)
+      ka-daemon --daemon &
+      echo "ka-daemon started."
+      ;;
+    *)
+      echo "Sử dụng: ka daemon [start|stop|restart|status]"
+      ;;
+  esac
 }
 
 cmd_version() {
@@ -304,6 +331,9 @@ case "$SUBCMD" in
     ;;
   stow)
     cmd_stow "$@"
+    ;;
+  daemon)
+    cmd_daemon "$@"
     ;;
   doctor)
     cmd_doctor

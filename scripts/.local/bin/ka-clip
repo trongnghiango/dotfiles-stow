@@ -40,7 +40,9 @@ def get_runtime_dir() -> Path:
         return Path("/tmp")
 
 RUNTIME_DIR = get_runtime_dir()
-SOCKET_PATH = str(RUNTIME_DIR / f"ka-clip-{os.getuid()}.sock")
+_daemon_sock = str(RUNTIME_DIR / f"ka-daemon-{os.getuid()}.sock")
+_legacy_sock = str(RUNTIME_DIR / f"ka-clip-{os.getuid()}.sock")
+SOCKET_PATH = _daemon_sock if os.path.exists(_daemon_sock) else _legacy_sock
 PID_FILE = RUNTIME_DIR / f"ka-clip-{os.getuid()}.pid"
 
 def get_cache_base() -> Path:

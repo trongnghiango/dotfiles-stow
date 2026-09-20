@@ -42,7 +42,7 @@ DOTFILES_DIR="$(cd "$_SCRIPT_DIR/../../.." && pwd)"
 # Đảm bảo working directory luôn hợp lệ tránh lỗi getcwd() nếu gọi từ thư mục bị xóa/unlinked
 cd "$HOME" 2>/dev/null || cd /
 
-# --- Phát hiện hệ điều hành (Arch Linux, Debian, Ubuntu, etc.) ---
+# --- Phát hiện hệ điều hành (Arch Linux, Debian, Ubuntu, Void, Fedora, etc.) ---
 detect_os() {
   if [ -f /etc/os-release ]; then
     (. /etc/os-release && echo "$ID")
@@ -50,6 +50,10 @@ detect_os() {
     echo "arch"
   elif command -v apt-get &>/dev/null; then
     echo "debian"
+  elif command -v xbps-install &>/dev/null; then
+    echo "void"
+  elif command -v dnf &>/dev/null; then
+    echo "fedora"
   else
     echo "unknown"
   fi
@@ -84,6 +88,7 @@ show_help() {
   echo -e "  ${GREEN}brave${NC}          Tạo/kiểm tra brave-flags.conf tối ưu cho X11 + HD4000"
   echo -e "  ${GREEN}battery${NC}        Cấu hình ngưỡng sạc pin ThinkPad (50-60%)"
   echo -e "  ${GREEN}docker${NC}         Cấu hình Docker non-root + socket activation"
+  echo -e "  ${GREEN}sys${NC}            Tinh chỉnh Kernel, Sysctl và kích hoạt zRAM cho máy 10-15 năm tuổi"
   echo ""
   echo -e "${BOLD}DOTFILES:${NC}  ${DIM}$DOTFILES_DIR${NC}"
   echo -e "${BOLD}PACKAGES:${NC}  ${DIM}$DOTFILES_DIR/pkgs/$current_os.csv${NC}"
@@ -117,8 +122,22 @@ setup_pkgs() {
       fi
       ;;
     void)
-      log_warn "Hệ điều hành Void Linux sử dụng trình quản lý gói XBPS (xbps-install)."
-      log_info "Bạn có thể tham khảo danh mục gói tại pkgs/arch.csv để cài đặt các gói tương đương."
+      if [ -f "$_SCRIPT_DIR/setup-drivers/void.sh" ]; then
+        . "$_SCRIPT_DIR/setup-drivers/void.sh"
+        void_setup_pkgs "$target" "$DOTFILES_DIR"
+      else
+        log_error "Không tìm thấy Void driver: $_SCRIPT_DIR/setup-drivers/void.sh"
+        return 1
+      fi
+      ;;
+    fedora|rhel|centos|rocky|almalinux)
+      if [ -f "$_SCRIPT_DIR/setup-drivers/fedora.sh" ]; then
+        . "$_SCRIPT_DIR/setup-drivers/fedora.sh"
+        fedora_setup_pkgs "$target" "$DOTFILES_DIR"
+      else
+        log_error "Không tìm thấy Fedora driver: $_SCRIPT_DIR/setup-drivers/fedora.sh"
+        return 1
+      fi
       ;;
     nixos)
       log_info "Hệ điều hành NixOS được quản lý khai báo qua Nix Flake & Home-Manager."
@@ -516,6 +535,71 @@ setup_docker() {
 }
 
 # ==============================================================================
+# 7. KERNEL & zRAM PERFORMANCE TUNING (Cho máy 10-15 năm tuổi)
+# ==============================================================================
+setup_sys() {
+  log_step "Tối ưu hóa Kernel Sysctl & zRAM (Hiệu năng máy cổ 10-15 năm)..."
+
+  # 1. Sysctl tuning
+  local sysctl_file="/etc/sysctl.d/99-ka-performance.conf"
+  log_info "Cấu hình Virtual Memory & I/O cache vào $sysctl_file..."
+  sudo mkdir -p /etc/sysctl.d
+  sudo tee "$sysctl_file" >/dev/null <<'EOF'
+# ==============================================================================
+# KA PERFORMANCE TUNING (Dành cho máy tính thế hệ cũ 10-15 năm & zRAM)
+# ==============================================================================
+# Ưu tiên swap vào zRAM thay vì loại bỏ page cache của filesystem
+vm.swappiness = 180
+
+# Giữ lại dentry và inode cache trên RAM giúp duyệt file và nạp app tức thì
+vm.vfs_cache_pressure = 50
+
+# Xả dữ liệu bẩn tuần tự, gom cụm tránh nghẽn I/O trên HDD / SSD SATA cũ
+vm.dirty_background_ratio = 5
+vm.dirty_ratio = 10
+
+# Kích hoạt TCP Fast Open để tăng tốc kết nối mạng
+net.ipv4.tcp_fastopen = 3
+
+# Tối ưu hóa hàng đợi mạng cho độ trễ thấp
+net.core.default_qdisc = fq_codel
+EOF
+
+  if command -v sysctl &>/dev/null; then
+    sudo sysctl -p "$sysctl_file" &>/dev/null || sudo sysctl --system &>/dev/null || true
+    log_success "Đã áp dụng các thông số sysctl tối ưu vào kernel."
+  fi
+
+  # 2. zRAM Configuration
+  log_info "Kiểm tra và cấu hình zRAM..."
+  if [ -d /run/systemd/system ]; then
+    # Systemd-based (Arch, Debian, Fedora, Ubuntu)
+    local zram_conf="/etc/systemd/zram-generator.conf"
+    if [ ! -f "$zram_conf" ]; then
+      sudo tee "$zram_conf" >/dev/null <<'EOF'
+[zram0]
+zram-size = ram
+compression-algorithm = zstd
+swap-priority = 100
+fs-type = swap
+EOF
+      log_success "Đã tạo cấu hình zram-generator ($zram_conf)."
+    fi
+    if systemctl list-unit-files | grep -q "systemd-zram-setup@"; then
+      sudo systemctl daemon-reload
+      sudo systemctl restart "systemd-zram-setup@zram0.service" &>/dev/null || true
+      log_success "Đã kích hoạt dịch vụ zRAM trên systemd."
+    fi
+  elif command -v zramen &>/dev/null; then
+    # Void Linux with zramen
+    sudo ln -sf /etc/sv/zramen /var/service/ 2>/dev/null || true
+    log_success "Đã kích hoạt dịch vụ zramen trên runit."
+  fi
+
+  log_success "Hoàn tất tinh chỉnh Kernel & zRAM!"
+}
+
+# ==============================================================================
 # MAIN
 # ==============================================================================
 if [ $# -eq 0 ]; then
@@ -548,6 +632,9 @@ case "$1" in
   docker)
     setup_docker
     ;;
+  sys|perf)
+    setup_sys
+    ;;
   all)
     _prof="${2:-core}"
     setup_pkgs "$_prof"
@@ -565,6 +652,8 @@ case "$1" in
     setup_battery
     echo ""
     setup_docker
+    echo ""
+    setup_sys
     echo ""
     log_success "=== ka-setup all HOÀN THÀNH (Profile: $_prof) ===="
     log_warn "Nếu đây là lần cài đầu tiên: hãy REBOOT để áp dụng PAM + shell changes."

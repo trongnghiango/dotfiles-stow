@@ -1,0 +1,73 @@
+#TAG,NAME,TIER,DEPS,PURPOSE
+,@development-tools,1,base,"Essential compilation tools (gcc, make, etc.)."
+,direnv,1,base,Environment switcher loaded in env.zsh.
+,efibootmgr,1,base,Manipulates EFI Boot Manager variables.
+,grub2-efi-x64,1,base,GNU GRUB bootloader.
+,linux-firmware,1,base,Firmware files for Linux kernel.
+,lvm2,1,base,Logical Volume Manager tools.
+,man-db,1,base,Read man pages of programs.
+,NetworkManager,1,base,Manages network connections.
+,stow,1,base,GNU Stow symlink manager to manage dotfiles.
+,sudo,1,base,Users to run programs with security privileges.
+,zram-generator,1,base,Manages zram swap devices automatically.
+,dunst,2,x11,Suckless notification daemon; paired with libnotify.
+,fontconfig,2,dwm+st,Library for configuring and customizing font access.
+B,fontconfig-devel,2,dwm+st,Development files for fontconfig.
+B,harfbuzz-devel,2,st,OpenType text shaping engine required to compile st with ligatures support.
+B,imlib2-devel,2,dwm,Image loading and rendering library for DWM icon and tag preview.
+B,libX11-devel,2,dwm+st,X11 client-side library headers.
+B,libXinerama-devel,2,dwm,Xinerama multi-monitor extension library for DWM.
+B,libXft-devel,2,dwm+st,FreeType font rendering library for DWM and ST.
+B,libXrender-devel,2,dwm+st,X Rendering Extension client library headers.
+B,libxcb-devel,2,dwm,X C Binding client library headers.
+B,yajl-devel,2,dwm,Yet Another JSON Library headers for DWM IPC patch.
+B,libXext-devel,2,dwm,X11 miscellaneous extensions headers.
+,imlib2,2,dwm,Image loading library.
+,maim,2,x11,Can take quick screenshots (used by maimpick script).
+,slop,2,x11,Screen selection tool used by maim and ocr.
+,picom,2,x11,Modern X compositor for transparency and removing screen-tearing.
+,rofi,2,x11,"Window switcher, application launcher and dmenu replacement."
+,unclutter,2,x11,Hides an inactive mouse cursor after a few seconds.
+,xclip,2,x11,For copying and pasting from the command line.
+,xdotool,2,x11,Window action utilities on the command line (used in DWM scripts).
+,xorg-x11-server-Xorg,2,x11,Graphical server.
+,xorg-x11-xinit,2,x11,Starts the graphical server.
+,setxkbmap,2,x11,Keyboard layout configuration utility.
+,xprop,2,x11,Tool for detecting window properties.
+,xwininfo,2,x11,Querying information about windows.
+,xrandr,2,x11,Set resolution, mode, rate.
+,xset,2,x11,Utility for configuring and adjusting X server.
+,xsetroot,2,x11,Sets window parameters of the root window.
+,xwallpaper,2,x11,Sets the wallpaper via setbg script.
+,fcitx5,3,fcitx5,Generic input method framework.
+,fcitx5-configtool,3,fcitx5,Configures Fcitx5 layout and engines.
+,fcitx5-gtk3,3,fcitx5,GTK3 support for Fcitx5.
+,fcitx5-qt5,3,fcitx5,Qt5 support for Fcitx5.
+,fcitx5-bamboo,3,fcitx5,Vietnamese Bamboo input method.
+,clang,4,dev,C/C++ compiler and LLVM tooling.
+,git-delta,4,dev,Syntax-highlighting pager for git.
+,lua,4,dev,Lua interpreter.
+E,mise,4,dev,"Polyglot runtime manager for Node, Python, Rust, Go."
+,neovim,4,dev,"Primary text editor (EDITOR env var)."
+,bat,5,lf,Can highlight code output and display files; used for previews in lf.
+,btop,5,cli,Shows system hardware utilization.
+,fd-find,5,cli,Finds files and directories quickly.
+,fzf,5,cli,Fuzzy finder tool used for quick file location.
+,jq,5,dwmblocks,Parses JSON data for weather forecast in dwmblocks status bar.
+E,lf,5,lf,Keyboard-centric terminal file manager.
+,rsync,5,cli,Synchronizes files and folders.
+E,starship,5,zsh,"Cross-shell prompt showing git status, runtime versions, and exit codes."
+,zsh,5,zsh,Z shell.
+,zsh-syntax-highlighting,5,zsh,Syntax highlighting for Zsh.
+,wireplumber,6,audio,Session manager for PipeWire.
+,pipewire,6,audio,Audio processing engine.
+,pipewire-pulseaudio,6,audio,PulseAudio replacement daemon for PipeWire.
+,alsa-utils,6,audio,ALSA utilities and volume control.
+,brightnessctl,6,sys,Controls backlight brightness.
+,upower,6,sys,Power management abstraction.
+,tesseract,7,ocr,Optical character recognition engine.
+,tesseract-langpack-eng,7,ocr,English language data for tesseract.
+,tesseract-langpack-vie,7,ocr,Vietnamese language data for tesseract.
+,mpv,8,media,Media player.
+,zathura,8,tools,Document viewer.
+,zathura-pdf-mupdf,8,tools,PDF support for Zathura.

@@ -13,6 +13,7 @@
 
 #include "config.h"
 #include "util.h"
+#include "native_blocks.h"
 
 block block_new(const char *const icon, const char *const command,
                 const unsigned int interval, const int signal) {
@@ -53,6 +54,19 @@ int block_deinit(block *const block) {
 }
 
 int block_execute(block *const block, const uint8_t button) {
+    // Native C Zero-Fork fast path
+    native_block_fn native_fn = get_native_block_fn(block->command);
+    if (native_fn != NULL) {
+        char buffer[LEN(block->output)] = {[0] = '\0'};
+        native_fn(buffer, sizeof(buffer), button);
+
+        const size_t output_size =
+            truncate_utf8_string(buffer, LEN(buffer), MAX_BLOCK_OUTPUT_LENGTH);
+        (void)write(block->pipe[WRITE_END], buffer, output_size);
+        block->fork_pid = -1;
+        return 0;
+    }
+
     // Ensure only one child process exists per block at an instance.
     // If a background periodic update is running and user clicks, cancel background update to respond immediately.
     if (block->fork_pid != -1) {
@@ -135,21 +149,23 @@ int block_update(block *const block) {
         return 2;
     }
 
-    // Collect exit-status of the subprocess to avoid zombification.
-    int fork_status = 0;
-    if (waitpid(block->fork_pid, &fork_status, 0) == -1) {
-        (void)fprintf(stderr,
-                      "error: could not obtain exit status for \"%s\" block\n",
-                      block->command);
-        return 2;
-    }
-    block->fork_pid = -1;
+    // Collect exit-status of the subprocess to avoid zombification (only if forked).
+    if (block->fork_pid != -1) {
+        int fork_status = 0;
+        if (waitpid(block->fork_pid, &fork_status, 0) == -1) {
+            (void)fprintf(stderr,
+                          "error: could not obtain exit status for \"%s\" block\n",
+                          block->command);
+            return 2;
+        }
+        block->fork_pid = -1;
 
-    if (fork_status != 0) {
-        (void)fprintf(stderr,
-                      "error: \"%s\" block exited with non-zero status\n",
-                      block->command);
-        return 1;
+        if (fork_status != 0) {
+            (void)fprintf(stderr,
+                          "error: \"%s\" block exited with non-zero status\n",
+                          block->command);
+            return 1;
+        }
     }
 
     (void)strncpy(block->output, buffer, LEN(buffer));

@@ -28,7 +28,9 @@ import subprocess
 # FAST PATH: UNIX DOMAIN SOCKET CLIENT (< 2ms response)
 # ==============================================================================
 _xdg_runtime = os.environ.get("XDG_RUNTIME_DIR", "/tmp")
-SOCKET_PATH = os.path.join(_xdg_runtime, f"dwm-dropdown-{os.getuid()}.sock")
+_daemon_sock = os.path.join(_xdg_runtime, f"ka-daemon-{os.getuid()}.sock")
+_legacy_sock = os.path.join(_xdg_runtime, f"dwm-dropdown-{os.getuid()}.sock")
+SOCKET_PATH = _daemon_sock if os.path.exists(_daemon_sock) else _legacy_sock
 
 is_daemon = len(sys.argv) > 1 and sys.argv[1].lower() in ("--daemon", "-d", "daemon")
 
