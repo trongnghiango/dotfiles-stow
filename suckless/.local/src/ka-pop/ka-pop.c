@@ -687,6 +687,11 @@ static GtkWidget* build_notify_window() {
 // MAIN ROUTER
 // -----------------------------------------------------------------------------
 int main(int argc, char *argv[]) {
+    if (argc > 1 && (strcmp(argv[1], "-h") == 0 || strcmp(argv[1], "--help") == 0)) {
+        printf("Sử dụng: ka-pop [volume|battery|clock|cpu|memory|network|notify]\n");
+        return 0;
+    }
+
     gtk_init(&argc, &argv);
     load_theme_colors(&g_theme);
 
