@@ -44,6 +44,7 @@ usage() {
   echo -e "  ${GREEN}ocr${RESET}    [--lang eng|vie] [--stdout]           Bóc tách chữ trên màn hình bằng OCR vào Clipboard"
   echo -e "  ${GREEN}record${RESET} [toggle|status]                      Bật/Tắt quay video màn hình"
   echo -e "  ${GREEN}night${RESET}  [on|off|toggle|status]                Bật/Tắt chế độ làm việc ban đêm (Lọc ánh sáng xanh 4000K + dịu mắt)"
+  echo -e "  ${GREEN}notify${RESET} [center|dnd|clear|status|test]        Quản lý thông báo, DND và mở Notification Center Right Sidebar"
   echo -e "  ${GREEN}setup${RESET}  [all|suckless|stow|pkgs]              Tự động hóa triển khai gói và dotfiles"
   echo -e "  ${GREEN}stow${RESET}   <package>                             Triển khai an toàn gói cấu hình qua stow-safe"
   echo -e "  ${GREEN}doctor${RESET}                                       Chẩn đoán sức khỏe, công cụ và tính toàn vẹn hệ thống"
@@ -89,6 +90,44 @@ cmd_record() {
 
 cmd_night() {
   ka-night "$@"
+}
+
+cmd_notify() {
+  local sub="${1:-center}"
+  shift || true
+  case "$sub" in
+    center|toggle|open)
+      setsid -f ka-notify-center >/dev/null 2>&1
+      ;;
+    dnd|mute|pause)
+      dunstctl set-paused toggle 2>/dev/null || true
+      pkill -RTMIN+8 dwmblocks 2>/dev/null || true
+      local state
+      state=$(dunstctl is-paused 2>/dev/null || echo "unknown")
+      echo "Do Not Disturb: $state"
+      ;;
+    clear)
+      dunstctl history-clear 2>/dev/null || true
+      pkill -RTMIN+8 dwmblocks 2>/dev/null || true
+      echo "Notification history cleared."
+      ;;
+    status)
+      sb-notify
+      ;;
+    test)
+      echo "Sending test notifications across channels..."
+      notify-send -u low -i info "P3: Ephemeral" "Âm lượng đã đặt thành 50%"
+      sleep 0.3
+      notify-send -u normal -i git "P2: Dev Task" "Build Succeeded: 14/14 tests passed in 1.2s"
+      sleep 0.3
+      notify-send -u critical -i battery-caution "P0: Critical Alert" "Mức pin dưới 15%! Vui lòng cắm sạc ngay."
+      pkill -RTMIN+8 dwmblocks 2>/dev/null || true
+      echo "✔ Đã gửi 3 thông báo mẫu (Low, Normal, Critical)."
+      ;;
+    *)
+      echo "Usage: ka notify [center|dnd|clear|status|test]"
+      ;;
+  esac
 }
 
 cmd_dev() {
@@ -253,6 +292,9 @@ case "$SUBCMD" in
     ;;
   night|nightshift|redshift)
     cmd_night "$@"
+    ;;
+  notify|notification|nc)
+    cmd_notify "$@"
     ;;
   setup)
     cmd_setup "$@"

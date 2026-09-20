@@ -23,7 +23,7 @@
 
 // Định nghĩa các blocks: X(icon, cmd, interval, signal)
 // Phân đoạn 1 (Center): ka-clock, ka-forecast
-// Phân đoạn 2 (Right): sb-record, ka-volume, ka-battery, ka-network, ka-cpu, ka-memory
+// Phân đoạn 2 (Right): sb-record, ka-volume, ka-battery, ka-network, ka-cpu, ka-memory, sb-notify
 #define BLOCKS(X)                     \
     X("", "ka-clock",    60,   1)     \
     X("", "ka-forecast", 1800, 14)    \
@@ -32,6 +32,7 @@
     X("", "ka-battery",  60,   30)    \
     X("", "ka-network",  10,   4)     \
     X("", "ka-cpu",      2,    15)    \
-    X("", "ka-memory",   10,   10)
+    X("", "ka-memory",   10,   10)    \
+    X("", "sb-notify",   10,   8)
 
 #endif  // CONFIG_H

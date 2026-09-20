@@ -1,0 +1,477 @@
+#!/usr/bin/env python3
+"""
+ka-notify-center: Responsive, Cross-Distro Notification Center Sidebar.
+Native GTK3 Right Sidebar with 0px border-radius, 2px accent border,
+auto-theming from ~/.config/theme/colors/current.conf, and Dunst D-Bus integration.
+"""
+
+import os
+import sys
+import json
+import time
+import signal
+import subprocess
+
+PID_FILE = "/tmp/ka-notify-center.pid"
+
+# --- 1. SINGLE INSTANCE TOGGLE ---
+if os.path.exists(PID_FILE):
+    try:
+        with open(PID_FILE, "r") as f:
+            old_pid = int(f.read().strip())
+        os.kill(old_pid, signal.SIGTERM)
+        try:
+            os.remove(PID_FILE)
+        except OSError:
+            pass
+        sys.exit(0)
+    except (ValueError, ProcessLookupError):
+        try:
+            os.remove(PID_FILE)
+        except OSError:
+            pass
+    except Exception:
+        pass
+
+with open(PID_FILE, "w") as f:
+    f.write(str(os.getpid()))
+
+
+def cleanup_pid(*args):
+    try:
+        if os.path.exists(PID_FILE):
+            os.remove(PID_FILE)
+    except Exception:
+        pass
+    sys.exit(0)
+
+
+signal.signal(signal.SIGTERM, cleanup_pid)
+signal.signal(signal.SIGINT, cleanup_pid)
+
+import gi
+gi.require_version("Gtk", "3.0")
+gi.require_version("Gdk", "3.0")
+from gi.repository import Gtk, Gdk, GLib, Pango
+
+GLib.set_prgname("ka-notify-center")
+
+
+def load_theme_colors():
+    conf_path = os.path.expanduser("~/.config/theme/colors/current.conf")
+    colors = {
+        "BG": "2e3440",
+        "FG": "d8dee9",
+        "COLOR0": "3b4252",
+        "COLOR1": "bf616a",
+        "COLOR2": "a3be8c",
+        "COLOR3": "ebcb8b",
+        "COLOR4": "81a1c1",
+        "COLOR8": "4c566a",
+        "COLOR14": "8fbcbb",
+        "COLOR15": "eceff4",
+        "ACCENT": "88c0d0",
+        "MODE": "dark",
+    }
+    if os.path.exists(conf_path):
+        try:
+            with open(conf_path, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line or line.startswith("#") or "=" not in line:
+                        continue
+                    k, v = line.split("=", 1)
+                    k = k.strip()
+                    v = v.split("#")[0].strip().strip('"').strip("'")
+                    colors[k] = v
+        except Exception:
+            pass
+    return colors
+
+
+def format_time_ago(ts):
+    if not ts:
+        return "vừa xong"
+    now_ts = time.time()
+    # Dunst timestamps can be microseconds or seconds
+    if ts > 1e11:
+        ts = ts / 1e6
+    diff = int(now_ts - ts)
+    if diff < 60:
+        return "vừa xong"
+    elif diff < 3600:
+        return f"{diff // 60}m trước"
+    elif diff < 86400:
+        return f"{diff // 3600}h trước"
+    else:
+        return f"{diff // 86400}d trước"
+
+
+class NotificationCenterWindow(Gtk.Window):
+    def __init__(self):
+        super().__init__(type=Gtk.WindowType.TOPLEVEL)
+        self.set_wmclass("ka-notify-center", "ka-notify-center")
+        self.set_title("ka-notify-center")
+        self.set_decorated(False)
+        self.set_resizable(False)
+        self.set_skip_taskbar_hint(True)
+        self.set_skip_pager_hint(True)
+        self.set_type_hint(Gdk.WindowTypeHint.DIALOG)
+
+        self.colors = load_theme_colors()
+        self.setup_css()
+
+        # Multi-monitor responsive geometry calculation
+        self.setup_geometry()
+
+        # Main Layout Box
+        self.main_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
+        self.main_box.get_style_context().add_class("sidebar-container")
+        self.add(self.main_box)
+
+        # Header
+        self.build_header()
+
+        # Scrolled Notification List
+        self.build_list()
+
+        # Footer
+        self.build_footer()
+
+        self.connect("key-press-event", self.on_key_press)
+        self.connect("focus-out-event", self.on_focus_out)
+        self.connect("destroy", cleanup_pid)
+
+    def setup_geometry(self):
+        display = Gdk.Display.get_default()
+        if display:
+            seat = display.get_default_seat()
+            pointer = seat.get_pointer() if seat else None
+            if pointer:
+                screen, mouse_x, mouse_y = pointer.get_position()
+                monitor = display.get_monitor_at_point(mouse_x, mouse_y)
+            else:
+                monitor = display.get_primary_monitor() or display.get_monitor(0)
+
+            if monitor:
+                geom = monitor.get_geometry()
+                bar_h = 25
+                ideal_w = int(geom.width * 0.25)
+                width = max(340, min(480, ideal_w))
+                height = geom.height - bar_h
+                x = geom.x + geom.width - width
+                y = geom.y + bar_h
+                self.set_default_size(width, height)
+                self.move(x, y)
+
+    def setup_css(self):
+        bg = "#" + self.colors.get("BG", "2e3440")
+        fg = "#" + self.colors.get("FG", "d8dee9")
+        card_bg = "#" + self.colors.get("COLOR0", "3b4252")
+        accent = "#" + self.colors.get("ACCENT", "88c0d0")
+        subtext = "#" + self.colors.get("COLOR8", "4c566a")
+        red = "#" + self.colors.get("COLOR1", "bf616a")
+        green = "#" + self.colors.get("COLOR2", "a3be8c")
+
+        css = f"""
+        window, .sidebar-container {{
+            background-color: {bg};
+            color: {fg};
+            border-left: 2px solid {accent};
+            border-top: none;
+            border-right: none;
+            border-bottom: none;
+            border-radius: 0px;
+            padding: 16px 14px;
+        }}
+        .title-text {{
+            font-size: 13px;
+            font-weight: 800;
+            color: {fg};
+            letter-spacing: 0.5px;
+        }}
+        .badge {{
+            background-color: {accent};
+            color: {bg};
+            font-size: 10px;
+            font-weight: 700;
+            padding: 2px 7px;
+            border-radius: 0px;
+        }}
+        .btn-dnd {{
+            background-image: none;
+            background-color: {card_bg};
+            color: {fg};
+            border: 1px solid {subtext};
+            border-radius: 0px;
+            padding: 4px 10px;
+            font-size: 11px;
+            font-weight: 600;
+            box-shadow: none;
+        }}
+        .btn-dnd.active {{
+            background-color: {red};
+            color: #ffffff;
+            border-color: {red};
+        }}
+        .btn-action {{
+            background-image: none;
+            background-color: {card_bg};
+            color: {fg};
+            border: 1px solid {subtext};
+            border-radius: 0px;
+            padding: 4px 10px;
+            font-size: 11px;
+            font-weight: 600;
+            box-shadow: none;
+        }}
+        .btn-action:hover {{
+            background-color: {accent};
+            color: {bg};
+            border-color: {accent};
+        }}
+        .notify-card {{
+            background-color: {card_bg};
+            border: 1px solid {subtext};
+            border-radius: 0px;
+            padding: 10px 12px;
+            margin-bottom: 8px;
+        }}
+        .notify-card.critical {{
+            border-left: 3px solid {red};
+        }}
+        .app-name {{
+            font-size: 10px;
+            font-weight: 700;
+            color: {accent};
+            text-transform: uppercase;
+        }}
+        .time-ago {{
+            font-size: 10px;
+            color: {subtext};
+        }}
+        .summary-text {{
+            font-size: 12px;
+            font-weight: 700;
+            color: {fg};
+            margin-top: 2px;
+        }}
+        .body-text {{
+            font-size: 11px;
+            color: {fg};
+            margin-top: 2px;
+        }}
+        .close-btn {{
+            background: none;
+            border: none;
+            color: {subtext};
+            padding: 0px 4px;
+            font-size: 11px;
+        }}
+        .close-btn:hover {{
+            color: {red};
+        }}
+        .footer-text {{
+            font-size: 10px;
+            color: {subtext};
+        }}
+        """
+        provider = Gtk.CssProvider()
+        provider.load_from_data(css.encode("utf-8"))
+        Gtk.StyleContext.add_provider_for_screen(
+            Gdk.Screen.get_default(),
+            provider,
+            Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION,
+        )
+
+    def is_dnd_active(self):
+        try:
+            res = subprocess.run(["dunstctl", "is-paused"], capture_output=True, text=True, check=True)
+            return res.stdout.strip() == "true"
+        except Exception:
+            return False
+
+    def build_header(self):
+        header_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+
+        # Title + Badge
+        title_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        title_lbl = Gtk.Label(label="NOTIFICATIONS", xalign=0)
+        title_lbl.get_style_context().add_class("title-text")
+        title_box.pack_start(title_lbl, False, False, 0)
+
+        self.badge_lbl = Gtk.Label(label="0")
+        self.badge_lbl.get_style_context().add_class("badge")
+        title_box.pack_start(self.badge_lbl, False, False, 0)
+
+        header_box.pack_start(title_box, True, True, 0)
+
+        # DND Button
+        self.dnd_btn = Gtk.Button(label="🌙 DND")
+        self.dnd_btn.get_style_context().add_class("btn-dnd")
+        if self.is_dnd_active():
+            self.dnd_btn.get_style_context().add_class("active")
+            self.dnd_btn.set_label("󰂛 DND ON")
+        self.dnd_btn.connect("clicked", self.on_dnd_clicked)
+        header_box.pack_start(self.dnd_btn, False, False, 0)
+
+        # Clear All Button
+        clear_btn = Gtk.Button(label="󰆴 Clear")
+        clear_btn.get_style_context().add_class("btn-action")
+        clear_btn.connect("clicked", self.on_clear_clicked)
+        header_box.pack_start(clear_btn, False, False, 0)
+
+        self.main_box.pack_start(header_box, False, False, 0)
+
+        # Subtle separator
+        sep = Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL)
+        self.main_box.pack_start(sep, False, False, 2)
+
+    def build_list(self):
+        self.scroll = Gtk.ScrolledWindow()
+        self.scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        self.scroll.set_propagate_natural_height(True)
+
+        self.cards_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+        self.scroll.add(self.cards_box)
+        self.main_box.pack_start(self.scroll, True, True, 0)
+
+        self.populate_notifications()
+
+    def populate_notifications(self):
+        # Clear previous children
+        for child in self.cards_box.get_children():
+            self.cards_box.remove(child)
+
+        notifications = []
+        try:
+            res = subprocess.run(["dunstctl", "history"], capture_output=True, text=True, check=True)
+            hist = json.loads(res.stdout)
+            notifications = hist.get("data", [[]])[0]
+        except Exception:
+            pass
+
+        count = len(notifications)
+        self.badge_lbl.set_text(str(count))
+
+        if count == 0:
+            empty_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
+            empty_box.set_margin_top(80)
+            empty_box.set_margin_bottom(80)
+
+            icon_lbl = Gtk.Label(label="󰂚")
+            icon_lbl.modify_font(Pango.FontDescription("36"))
+            empty_box.pack_start(icon_lbl, False, False, 0)
+
+            lbl = Gtk.Label(label="Không có thông báo nào", xalign=0.5)
+            lbl.get_style_context().add_class("footer-text")
+            empty_box.pack_start(lbl, False, False, 0)
+
+            self.cards_box.pack_start(empty_box, True, True, 0)
+        else:
+            for item in notifications:
+                card = self.create_card(item)
+                self.cards_box.pack_start(card, False, False, 0)
+
+        self.cards_box.show_all()
+
+    def create_card(self, item):
+        app = item.get("appname", {}).get("data", "System")
+        summary = item.get("summary", {}).get("data", "")
+        body = item.get("body", {}).get("data", "")
+        ts = item.get("timestamp", {}).get("data", 0)
+        urgency = item.get("urgency", {}).get("data", "NORMAL").upper()
+        item_id = item.get("id", {}).get("data", 0)
+
+        card = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+        card.get_style_context().add_class("notify-card")
+        if urgency == "CRITICAL":
+            card.get_style_context().add_class("critical")
+
+        # Top row: App Name + Time + Close
+        top_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        app_lbl = Gtk.Label(label=app, xalign=0)
+        app_lbl.get_style_context().add_class("app-name")
+        top_row.pack_start(app_lbl, True, True, 0)
+
+        time_lbl = Gtk.Label(label=format_time_ago(ts))
+        time_lbl.get_style_context().add_class("time-ago")
+        top_row.pack_start(time_lbl, False, False, 0)
+
+        close_btn = Gtk.Button(label="✕")
+        close_btn.get_style_context().add_class("close-btn")
+        close_btn.connect("clicked", lambda b, c=card: self.remove_card(c))
+        top_row.pack_start(close_btn, False, False, 0)
+
+        card.pack_start(top_row, False, False, 0)
+
+        # Summary
+        if summary:
+            sum_lbl = Gtk.Label(label=summary, xalign=0)
+            sum_lbl.set_line_wrap(True)
+            sum_lbl.get_style_context().add_class("summary-text")
+            card.pack_start(sum_lbl, False, False, 0)
+
+        # Body
+        if body:
+            body_lbl = Gtk.Label(label=body, xalign=0)
+            body_lbl.set_line_wrap(True)
+            body_lbl.get_style_context().add_class("body-text")
+            card.pack_start(body_lbl, False, False, 0)
+
+        return card
+
+    def remove_card(self, card):
+        self.cards_box.remove(card)
+        remaining = len(self.cards_box.get_children())
+        self.badge_lbl.set_text(str(remaining))
+        if remaining == 0:
+            self.populate_notifications()
+        # Refresh statusbar
+        subprocess.run(["pkill", "-RTMIN+8", "dwmblocks"], check=False)
+
+    def on_dnd_clicked(self, btn):
+        subprocess.run(["dunstctl", "set-paused", "toggle"], check=False)
+        is_paused = self.is_dnd_active()
+        if is_paused:
+            self.dnd_btn.get_style_context().add_class("active")
+            self.dnd_btn.set_label("󰂛 DND ON")
+        else:
+            self.dnd_btn.get_style_context().remove_class("active")
+            self.dnd_btn.set_label("🌙 DND")
+        # Signal dwmblocks
+        subprocess.run(["pkill", "-RTMIN+8", "dwmblocks"], check=False)
+
+    def on_clear_clicked(self, btn):
+        subprocess.run(["dunstctl", "history-clear"], check=False)
+        self.populate_notifications()
+        # Signal dwmblocks
+        subprocess.run(["pkill", "-RTMIN+8", "dwmblocks"], check=False)
+
+    def build_footer(self):
+        footer_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=0)
+        lbl = Gtk.Label(label="Esc để đóng · Click ra ngoài để tắt", xalign=0.5)
+        lbl.get_style_context().add_class("footer-text")
+        footer_box.pack_start(lbl, True, True, 4)
+        self.main_box.pack_start(footer_box, False, False, 0)
+
+    def on_key_press(self, widget, event):
+        if event.keyval in (Gdk.KEY_Escape, Gdk.KEY_q, Gdk.KEY_Q):
+            cleanup_pid()
+            return True
+        return False
+
+    def on_focus_out(self, widget, event):
+        # Auto-dismiss when clicked outside
+        cleanup_pid()
+        return False
+
+
+def main():
+    win = NotificationCenterWindow()
+    win.show_all()
+    Gtk.main()
+
+
+if __name__ == "__main__":
+    main()

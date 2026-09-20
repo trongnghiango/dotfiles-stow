@@ -1,0 +1,27 @@
+#!/bin/sh
+# sb-notify — dwmblocks status indicator for Notification Center
+# Click left: Toggle Notification Center
+# Click middle: Clear all notifications
+# Click right: Toggle Do Not Disturb (DND)
+
+case "${BLOCK_BUTTON:-${BUTTON:-0}}" in
+  1) setsid -f ka-notify-center >/dev/null 2>&1 ;;
+  2) dunstctl history-clear 2>/dev/null; pkill -RTMIN+8 dwmblocks 2>/dev/null ;;
+  3) dunstctl set-paused toggle 2>/dev/null; pkill -RTMIN+8 dwmblocks 2>/dev/null ;;
+esac
+
+# 1. Kiểm tra trạng thái Do Not Disturb (DND)
+if [ "$(dunstctl is-paused 2>/dev/null)" = "true" ]; then
+  echo "󰂛"
+  exit 0
+fi
+
+# 2. Kiểm tra số lượng thông báo trong History
+hist_count=$(dunstctl count history 2>/dev/null || echo 0)
+hist_count=${hist_count:-0}
+
+if [ "$hist_count" -gt 0 ]; then
+  echo "󰂞"
+else
+  echo "󰂚"
+fi

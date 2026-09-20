@@ -1720,6 +1720,20 @@ manage(Window w, XWindowAttributes *wa)
 		c->h = nh;
 		c->x = c->mon->wx + (c->mon->ww - nw) / 2;
 		c->y = c->mon->wy + (c->mon->wh - nh) / 2;
+	} else if (strstr(c->name, "ka-notify-center")) {
+		c->isfloating = 1;
+		c->bw = 0;
+		wc.border_width = 0;
+		XConfigureWindow(dpy, w, CWBorderWidth, &wc);
+		int nw = (int)(c->mon->ww * 0.25);
+		if (nw < 340) nw = 340;
+		if (nw > 500) nw = 500;
+		if (nw > c->mon->ww) nw = c->mon->ww;
+		int nh = c->mon->wh;
+		c->w = nw;
+		c->h = nh;
+		c->x = c->mon->wx + c->mon->ww - nw;
+		c->y = c->mon->wy;
 	} else {
 		c->x = c->mon->wx + (c->mon->ww - WIDTH(c)) / 2;
 		c->y = c->mon->wy + (c->mon->wh - HEIGHT(c)) / 2;
