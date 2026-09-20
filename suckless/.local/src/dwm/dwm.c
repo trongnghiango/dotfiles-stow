@@ -1645,6 +1645,7 @@ manage(Window w, XWindowAttributes *wa)
 	updatewmhints(c);
 
 	int iscountdown = 0;
+	int isnotifycenter = 0;
 	XClassHint ch = { NULL, NULL };
 	if (XGetClassHint(dpy, w, &ch)) {
 		if ((ch.res_name && strstr(ch.res_name, "webcam-pip")) ||
@@ -1655,6 +1656,11 @@ manage(Window w, XWindowAttributes *wa)
 		if ((ch.res_name && strstr(ch.res_name, "rec-countdown")) ||
 		    (ch.res_class && strstr(ch.res_class, "rec-countdown"))) {
 			iscountdown = 1;
+			c->isfloating = 1;
+		}
+		if ((ch.res_name && strstr(ch.res_name, "ka-notify-center")) ||
+		    (ch.res_class && strstr(ch.res_class, "ka-notify-center"))) {
+			isnotifycenter = 1;
 			c->isfloating = 1;
 		}
 		if (ch.res_name)
@@ -1720,7 +1726,7 @@ manage(Window w, XWindowAttributes *wa)
 		c->h = nh;
 		c->x = c->mon->wx + (c->mon->ww - nw) / 2;
 		c->y = c->mon->wy + (c->mon->wh - nh) / 2;
-	} else if (strstr(c->name, "ka-notify-center")) {
+	} else if (isnotifycenter || strstr(c->name, "ka-notify-center")) {
 		c->isfloating = 1;
 		c->bw = 0;
 		wc.border_width = 0;

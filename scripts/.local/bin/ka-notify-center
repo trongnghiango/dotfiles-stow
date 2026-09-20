@@ -43,7 +43,10 @@ def cleanup_pid(*args):
             os.remove(PID_FILE)
     except Exception:
         pass
-    sys.exit(0)
+    try:
+        Gtk.main_quit()
+    except Exception:
+        sys.exit(0)
 
 
 signal.signal(signal.SIGTERM, cleanup_pid)
@@ -110,7 +113,7 @@ def format_time_ago(ts):
 class NotificationCenterWindow(Gtk.Window):
     def __init__(self):
         super().__init__(type=Gtk.WindowType.TOPLEVEL)
-        self.set_wmclass("ka-notify-center", "ka-notify-center")
+        self.set_role("ka-notify-center")
         self.set_title("ka-notify-center")
         self.set_decorated(False)
         self.set_resizable(False)
@@ -139,7 +142,6 @@ class NotificationCenterWindow(Gtk.Window):
         self.build_footer()
 
         self.connect("key-press-event", self.on_key_press)
-        self.connect("focus-out-event", self.on_focus_out)
         self.connect("destroy", cleanup_pid)
 
     def setup_geometry(self):
@@ -244,7 +246,6 @@ class NotificationCenterWindow(Gtk.Window):
             font-size: 10px;
             font-weight: 700;
             color: {accent};
-            text-transform: uppercase;
         }}
         .time-ago {{
             font-size: 10px;
@@ -277,12 +278,15 @@ class NotificationCenterWindow(Gtk.Window):
         }}
         """
         provider = Gtk.CssProvider()
-        provider.load_from_data(css.encode("utf-8"))
-        Gtk.StyleContext.add_provider_for_screen(
-            Gdk.Screen.get_default(),
-            provider,
-            Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION,
-        )
+        try:
+            provider.load_from_data(css.encode("utf-8"))
+            Gtk.StyleContext.add_provider_for_screen(
+                Gdk.Screen.get_default(),
+                provider,
+                Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION,
+            )
+        except Exception as e:
+            sys.stderr.write(f"CSS Error: {e}\n")
 
     def is_dnd_active(self):
         try:
@@ -390,7 +394,7 @@ class NotificationCenterWindow(Gtk.Window):
 
         # Top row: App Name + Time + Close
         top_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
-        app_lbl = Gtk.Label(label=app, xalign=0)
+        app_lbl = Gtk.Label(label=app.upper(), xalign=0)
         app_lbl.get_style_context().add_class("app-name")
         top_row.pack_start(app_lbl, True, True, 0)
 
@@ -457,7 +461,7 @@ class NotificationCenterWindow(Gtk.Window):
 
     def on_key_press(self, widget, event):
         if event.keyval in (Gdk.KEY_Escape, Gdk.KEY_q, Gdk.KEY_Q):
-            cleanup_pid()
+            self.destroy()
             return True
         return False
 
