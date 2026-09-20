@@ -12,7 +12,8 @@
 - **Không cõng engine nặng nề**: Tuyệt đối không cài thêm các web engine độc lập (như Helium, Electron bloat) khi DWM và Brave đã giải quyết được ở mức native.
 - **Tiêu thụ tài nguyên tối thiểu**: Khởi động hệ thống chỉ tốn **~150MB - 200MB RAM**, độ trễ gõ phím (input latency) gần như bằng 0.
 - **Low-Latency Compositor**: Giữ `picom` để chống xé hình (`vsync = true`, `use-damage = true`), nhưng **tắt bỏ blur nặng và fading trễ** để đảm bảo tốc độ phản hồi tức thì.
-- **Tối ưu màn hình ThinkPad X230 (12.5" 1366x768)**: Tránh chia nhỏ màn hình vụn vặt; ưu tiên chuyển đổi mượt mà giữa **Toàn màn hình (Fullscreen)** và **Cửa sổ nổi ở trung tâm (Centered Floating)**.
+- **Thiết lập Hardware Profile Đa Phần Cứng (`hardware/.config/hardware/`)**: Tách biệt hoàn toàn giữa cấu hình Generic Base và Profile phần cứng (`thinkpad-x230`, `thinkpad-t480`, `generic-laptop`, `generic-desktop`). Tự động nhận diện DMI/chassis để kích hoạt cấu hình tương ứng (pin, độ sáng, touchpad, cờ GPU) mà không hardcode một máy duy nhất.
+- **Tối ưu màn hình Laptop nhỏ (12.5" - 14")**: Tránh chia nhỏ màn hình vụn vặt; ưu tiên chuyển đổi mượt mà giữa **Toàn màn hình (Fullscreen)** và **Cửa sổ nổi ở trung tâm (Centered Floating)**.
 
 ### ② Omakase & Single Source of Truth
 - **Một nguồn sự thật duy nhất cho màu sắc**: Bảng màu desktop nằm ở `theme/.config/theme/colors/*.conf`. Mọi ứng dụng (DWM, ST, Rofi, Dunst) đều nhận màu từ nguồn này thông qua `theme-set`.
@@ -104,10 +105,25 @@
   - Loại bỏ hoàn toàn các lệnh `eval` runtime của Starship, Zoxide, Mise, Direnv.
   - Tự động lưu cache script khởi tạo tại `$XDG_CACHE_HOME/zsh/` (`starship_init.zsh`, `zoxide_init.zsh`, `mise_activate.zsh`, `direnv_hook.zsh`).
   - Khi mở terminal, Zsh nạp trực tiếp qua `source` với thời gian thực thi dưới **8ms** (nhanh gấp 20 lần so với chạy `eval`).
-- **Tối ưu hóa Màn hình ThinkPad X230 (1366x768 / Low-DPI) & Intel HD 4000**:
-  - **Fontconfig Subpixel RGB**: Bật `antialias`, `hinting`, `hintstyle=hintslight`, `rgba=rgb`, `lcdfilter=lcddefault`, loại bỏ font bitmap giúp chữ sắc nét tuyệt đối trên màn hình LCD 12.5" cũ.
-  - **Picom Low-Latency GLX**: Thêm cờ `glx-no-stencil = true`, `glx-no-rebind-pixmap = true`, `xrender-sync-fence = true` loại bỏ micro-stutter khi cuộn trang web trong Brave.
+- **Tối ưu hóa Màn hình Low-DPI & Kernel**:
+  - **Fontconfig Subpixel RGB**: Bật `antialias`, `hinting`, `hintstyle=hintslight`, `rgba=rgb`, `lcdfilter=lcddefault`, loại bỏ font bitmap giúp chữ sắc nét tuyệt đối trên các màn hình LCD cũ (1366x768).
+  - **Picom Low-Latency GLX**: Cấu hình `backend = "glx"`, `vsync = true`, `use-damage = true`, tắt hoàn toàn blur và fading để triệt tiêu độ trễ hiển thị và bảo vệ độ ổn định của các ứng dụng Electron/Chromium.
   - **Kernel zRAM & VM Tuning (`ka-setup sys`)**: Cấu hình zRAM nén `zstd` 1:1 với RAM vật lý kèm `vm.swappiness = 180`, `vfs_cache_pressure = 50` biến máy 4GB RAM thành ~8GB RAM hiệu dụng, không bao giờ đơ cứng vì disk swap.
+
+### Universal Hardware Profile Engine (`ka-profile` & `hardware/`)
+- **Triết lý Tách Biệt Phần Cứng**: Cấu hình chung là an toàn tuyệt đối, không hardcode cờ GPU hay tham số của riêng một máy nào vào tầng Base.
+- **Tự động nhận diện (DMI Auto-Detection)**:
+  - Quét `/sys/class/dmi/id/product_name`, `product_version`, `chassis_type` và `/etc/hostname`.
+  - Tự động phát hiện và áp dụng profile tương ứng:
+    - `thinkpad-x230.conf`: Dành cho ThinkPad X230 (Intel HD 4000, 1366x768 Low-DPI, battery threshold 50-60%).
+    - `thinkpad-t480.conf`: Dành cho ThinkPad T480 (FHD 1080p, dual battery, threshold 75-80%).
+    - `generic-laptop.conf`: Laptop bất kỳ (bật quản lý pin, độ sáng màn hình, touchpad tap-to-click).
+    - `generic-desktop.conf`: Desktop bất kỳ (ẩn module pin, tắt backlight control, tối ưu đa màn hình).
+- **Lệnh CLI (`ka profile`)**:
+  - `ka profile detect`: Quét phần cứng và kích hoạt profile phù hợp.
+  - `ka profile show`: Hiển thị thông tin phần cứng DMI và cấu hình chi tiết hiện tại.
+  - `ka profile set <name>`: Chuyển đổi thủ công sang profile chỉ định.
+  - `ka profile list`: Liệt kê danh sách profiles có sẵn.
 
 ### Chế Độ Làm Việc Ban Đêm (Night Working Mode)
 - **Lọc ánh sáng xanh & điều hòa độ sáng một chạm**:
@@ -136,11 +152,12 @@
 
 ---
 
-## 4. Cấu trúc GNU Stow Packages (23 Packages)
+## 4. Cấu trúc GNU Stow Packages (24 Packages)
 
 | Package | Mô tả cấu hình |
 | :--- | :--- |
 | `shell/` | `profile`, `aliasrc`, `inputrc`, `mise/config.toml`, `starship.toml` |
+| `hardware/` | `profiles/` (generic, generic-laptop, generic-desktop, thinkpad-x230, thinkpad-t480), `current.conf` |
 | `zsh/` | `.zshrc`, `.zprofile` (gọi `startx` tại tty1), `env.zsh` |
 | `git/` | `~/.config/git/config` với delta diff và smart aliases |
 | `yay/` | `~/.config/yay/config.json` cấu hình dọn dẹp cache |

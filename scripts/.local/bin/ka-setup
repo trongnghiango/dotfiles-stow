@@ -151,6 +151,23 @@ setup_pkgs() {
 }
 
 # ==============================================================================
+# 0.5. CẤU HÌNH HARDWARE PROFILE (LAPTOP / DESKTOP / THINKPAD)
+# ==============================================================================
+setup_profile() {
+  log_step "Nhận diện và thiết lập Hardware Profile..."
+  local prof_cmd=""
+  command -v ka-profile &>/dev/null && prof_cmd="ka-profile"
+  [ -z "$prof_cmd" ] && [ -f "$_SCRIPT_DIR/ka-profile" ] && prof_cmd="$_SCRIPT_DIR/ka-profile"
+  [ -z "$prof_cmd" ] && [ -f "$DOTFILES_DIR/scripts/.local/bin/ka-profile" ] && prof_cmd="$DOTFILES_DIR/scripts/.local/bin/ka-profile"
+
+  if [ -n "$prof_cmd" ]; then
+    "$prof_cmd" detect
+  else
+    log_info "Không tìm thấy ka-profile. Chạy sau khi stow scripts/."
+  fi
+}
+
+# ==============================================================================
 # 1. ĐẶT ZSH LÀM LOGIN SHELL
 # ==============================================================================
 setup_shell() {
@@ -469,7 +486,12 @@ EOF
 # 5. THINKPAD BATTERY THRESHOLD
 # ==============================================================================
 setup_battery() {
-  log_step "Cấu hình ngưỡng sạc pin ThinkPad..."
+  log_step "Cấu hình ngưỡng sạc pin..."
+
+  if [ ! -d /sys/class/power_supply/BAT0 ] && [ ! -d /sys/class/power_supply/BAT1 ]; then
+    log_info "Hệ thống là Desktop (hoặc không có pin). Bỏ qua cấu hình ngưỡng sạc."
+    return 0
+  fi
 
   local bt_cmd=""
   command -v battery-threshold &>/dev/null && bt_cmd="battery-threshold"
@@ -632,6 +654,9 @@ case "$1" in
   docker)
     setup_docker
     ;;
+  profile|host|hardware)
+    setup_profile
+    ;;
   sys|perf)
     setup_sys
     ;;
@@ -642,6 +667,8 @@ case "$1" in
     setup_shell
     echo ""
     setup_stow
+    echo ""
+    setup_profile
     echo ""
     setup_suckless
     echo ""

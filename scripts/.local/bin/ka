@@ -48,6 +48,7 @@ usage() {
   echo -e "  ${GREEN}setup${RESET}  [all|suckless|stow|pkgs]              Tự động hóa triển khai gói và dotfiles"
   echo -e "  ${GREEN}stow${RESET}   <package>                             Triển khai an toàn gói cấu hình qua stow-safe"
   echo -e "  ${GREEN}daemon${RESET}  [start|stop|restart|status]           Quản lý tiến trình nền hợp nhất (ka-daemon: Popovers + Clipboard)"
+  echo -e "  ${GREEN}profile${RESET} [detect|set <name>|list|show]         Quản lý & tự động nhận diện cấu hình phần cứng (Laptop/Desktop)"
   echo -e "  ${GREEN}doctor${RESET}                                       Chẩn đoán sức khỏe, công cụ và tính toàn vẹn hệ thống"
   echo -e "  ${GREEN}version${RESET}                                      Hiển thị thông tin phiên bản"
   echo ""
@@ -226,8 +227,9 @@ cmd_doctor() {
   check_item "WirePlumber Session Manager" "command -v wireplumber"
   check_item "NetworkManager (nmcli)" "command -v nmcli"
 
-  echo -e "\n${BOLD}4. Theming & Dropdown Popovers:${RESET}"
+  echo -e "\n${BOLD}4. Theming & Hardware Profile:${RESET}"
   check_item "Current Theme Config (~/.config/theme/colors/current.conf)" "test -f \$HOME/.config/theme/colors/current.conf"
+  check_item "Hardware Profile (~/.config/hardware/current.conf)" "test -f \$HOME/.config/hardware/current.conf"
   check_item "Native C Popovers (ka-pop)" "command -v ka-pop || test -x \"\$_SCRIPT_DIR/ka-pop\""
   check_item "Unified System Daemon (ka-daemon)" "command -v ka-daemon || test -x \"\$_SCRIPT_DIR/ka-daemon\""
   check_item "Dropdown Script (dwm-dropdown)" "command -v dwm-dropdown || test -x \"\$_SCRIPT_DIR/dwmblocks-scripts/dwm-dropdown\" || test -x \"\$_SCRIPT_DIR/dwm-dropdown\""
@@ -286,6 +288,10 @@ cmd_daemon() {
   esac
 }
 
+cmd_profile() {
+  ka-profile "$@"
+}
+
 cmd_version() {
   print_banner
   local detected_os="Linux"
@@ -339,6 +345,9 @@ case "$SUBCMD" in
     ;;
   daemon)
     cmd_daemon "$@"
+    ;;
+  profile|hardware|host)
+    cmd_profile "$@"
     ;;
   doctor)
     cmd_doctor

@@ -39,9 +39,20 @@ for portal_path in "/usr/lib/xdg-desktop-portal-gtk" "/usr/libexec/xdg-desktop-p
 done # <--- ĐÃ SỬA THÀNH DONE TẠI ĐÂY
 
 # ==============================================================================
-# 2. NẠP CẤU HÌNH BIẾN MÔI TRƯỜNG CÁ NHÂN & XRESOURCES
+# 2. NẠP CẤU HÌNH BIẾN MÔI TRƯỜNG CÁ NHÂN, HARDWARE PROFILE & XRESOURCES
 # ==============================================================================
 [ -f "$HOME/.config/shell/profile" ] && . "$HOME/.config/shell/profile"
+
+# Nạp Hardware Profile (Laptop / Desktop / ThinkPad)
+HW_CONF="${XDG_CONFIG_HOME:-$HOME/.config}/hardware/current.conf"
+[ -f "$HW_CONF" ] && . "$HW_CONF"
+
+# Cấu hình Touchpad nếu profile là Laptop
+if [ "${TOUCHPAD_ENABLED:-0}" = "1" ] && command -v xinput >/dev/null 2>&1; then
+  for id in $(xinput list --id-only 2>/dev/null | grep -E '^[0-9]+$'); do
+    xinput set-prop "$id" "libinput Tapping Enabled" 1 2>/dev/null || true
+  done
+fi
 
 XPROFILE_PATH="${XDG_CONFIG_HOME:-$HOME/.config}/x11/xprofile"
 if [ -f "$XPROFILE_PATH" ]; then

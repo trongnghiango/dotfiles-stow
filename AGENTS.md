@@ -8,11 +8,12 @@ Personal dotfiles managed with **GNU Stow** + Git. Primary: **Arch Linux** + **D
 
 ## Structure
 
-Each top-level directory is a Stow package containing `$HOME`-relative paths (23 packages total):
+Each top-level directory is a Stow package containing `$HOME`-relative paths (24 packages total):
 
 | Package | What |
 |---------|------|
 | `shell/` | profile, aliasrc, shortcutrc, inputrc, mise/config.toml, starship.toml |
+| `hardware/` | profiles/ (generic, generic-laptop, generic-desktop, thinkpad-x230, thinkpad-t480), current.conf |
 | `zsh/` | .zshrc, .zprofile (startx hook on tty1), env.zsh (mise activate) |
 | `nvim/` | init.lua (modularized with neovide.lua), lua/{core,plugins,utils}/ — fully tracked |
 | `tmux/` | prefix Ctrl+Space, vi nav, escape-time 0 |
@@ -47,6 +48,7 @@ Each top-level directory is a Stow package containing `$HOME`-relative paths (23
   - `ka clip [menu|daemon|clear|status]` — Quản lý lịch sử clipboard tỷ lệ 2 : 3 (Text đầy đủ & Ảnh phóng to) qua GTK3 native
   - `ka pop <module>` — Bật/Tắt thẻ popup Omarchy Native C (`ka-pop`: < 0.8ms cold launch, 0MB idle RAM)
   - `ka daemon [start|stop|restart|status]` — Quản lý tiến trình nền hợp nhất ka-daemon
+  - `ka profile [detect|set <name>|list|show]` — Quản lý & tự động nhận diện cấu hình phần cứng (Laptop / Desktop / ThinkPad)
   - `ka night [on|off|toggle|status]` — Bật/Tắt chế độ làm việc ban đêm (Lọc ánh sáng xanh 4000K + giảm sáng 35%)
   - `ka notify [center|dnd|clear|status|test]` — Quản lý thông báo, DND và mở Notification Center Right Sidebar
   - `ka dns [dhcp|cloudflare|google|custom <ip>]` — Chuyển đổi DNS server 1 chạm
