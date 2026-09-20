@@ -1,0 +1,174 @@
+#!/usr/bin/env python3
+"""
+rec-countdown — Minimalist, High-Performance Screen Recording Countdown HUD
+Displays large animated numbers (3 -> 2 -> 1 -> REC) at screen center before recording starts.
+Pressing ESC or Q cancels recording cleanly.
+"""
+import sys
+import os
+import signal
+import warnings
+warnings.filterwarnings("ignore")
+import gi
+
+gi.require_version("Gtk", "3.0")
+gi.require_version("Gdk", "3.0")
+from gi.repository import Gtk, Gdk, GLib
+
+
+def load_theme_colors():
+    conf_path = os.path.expanduser("~/.config/theme/colors/current.conf")
+    colors = {
+        "BG": "2e3440",
+        "FG": "eceff4",
+        "ACCENT": "88c0d0",
+        "COLOR1": "bf616a",
+        "COLOR2": "a3be8c",
+        "COLOR8": "4c566a",
+    }
+    if os.path.exists(conf_path):
+        with open(conf_path, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                k, v = line.split("=", 1)
+                k = k.strip()
+                v = v.split("#")[0].strip().strip('"').strip("'").lstrip("#")
+                if k and v:
+                    colors[k] = v
+    return colors
+
+
+class CountdownHUD(Gtk.Window):
+    def __init__(self, seconds=3):
+        super().__init__(type=Gtk.WindowType.TOPLEVEL)
+        self.count = seconds
+        self.cancelled = False
+
+        self.set_title("rec-countdown")
+        self.set_wmclass("rec-countdown", "rec-countdown")
+        self.set_type_hint(Gdk.WindowTypeHint.SPLASHSCREEN)
+        self.set_position(Gtk.WindowPosition.CENTER)
+        self.set_decorated(False)
+        self.set_keep_above(True)
+        self.set_skip_taskbar_hint(True)
+        self.set_skip_pager_hint(True)
+        self.set_default_size(240, 240)
+        self.set_resizable(False)
+
+        # Hỗ trợ nền trong suốt (RGBA Visual)
+        screen = self.get_screen()
+        visual = screen.get_rgba_visual()
+        if visual:
+            self.set_visual(visual)
+        self.set_app_paintable(True)
+
+        colors = load_theme_colors()
+        accent = "#" + colors.get("ACCENT", "88c0d0")
+        red = "#" + colors.get("COLOR1", "bf616a")
+        fg = "#" + colors.get("FG", "eceff4")
+
+        self.css_provider = Gtk.CssProvider()
+        css = f"""
+        window {{
+            background-color: transparent;
+        }}
+        .countdown-card {{
+            background-color: rgba(24, 28, 36, 0.90);
+            border: 3px solid {accent};
+            border-radius: 36px;
+            padding: 24px;
+        }}
+        .num-label {{
+            font-family: "JetBrains Mono", "Inter", sans-serif;
+            font-size: 88pt;
+            font-weight: 900;
+            color: {accent};
+        }}
+        .sub-label {{
+            font-family: "Inter", sans-serif;
+            font-size: 9.5pt;
+            font-weight: 700;
+            letter-spacing: 2px;
+            color: rgba(216, 222, 233, 0.65);
+        }}
+        .rec-label {{
+            font-family: "JetBrains Mono", "Inter", sans-serif;
+            font-size: 46pt;
+            font-weight: 900;
+            color: {red};
+        }}
+        """
+        self.css_provider.load_from_data(css.encode("utf-8"))
+        Gtk.StyleContext.add_provider_for_screen(
+            screen, self.css_provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
+        )
+
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+        box.get_style_context().add_class("countdown-card")
+        box.set_valign(Gtk.Align.CENTER)
+        box.set_halign(Gtk.Align.CENTER)
+        box.set_size_request(240, 240)
+
+        self.num_lbl = Gtk.Label(label=str(self.count))
+        self.num_lbl.get_style_context().add_class("num-label")
+        self.num_lbl.set_valign(Gtk.Align.CENTER)
+        self.num_lbl.set_vexpand(True)
+
+        self.sub_lbl = Gtk.Label(label="RECORDING IN · ESC TO CANCEL")
+        self.sub_lbl.get_style_context().add_class("sub-label")
+        self.sub_lbl.set_valign(Gtk.Align.END)
+
+        box.pack_start(self.num_lbl, True, True, 0)
+        box.pack_end(self.sub_lbl, False, False, 0)
+        self.add(box)
+
+        self.connect("key-press-event", self.on_key_press)
+        GLib.timeout_add(850, self.tick)
+
+    def on_key_press(self, widget, event):
+        if event.keyval in (Gdk.KEY_Escape, Gdk.KEY_q, Gdk.KEY_Q):
+            self.cancelled = True
+            Gtk.main_quit()
+            return True
+        return False
+
+    def tick(self):
+        self.count -= 1
+        if self.count > 0:
+            self.num_lbl.set_text(str(self.count))
+            return True
+        elif self.count == 0:
+            self.num_lbl.get_style_context().remove_class("num-label")
+            self.num_lbl.get_style_context().add_class("rec-label")
+            self.num_lbl.set_text("● REC")
+            self.sub_lbl.set_text("STARTING NOW...")
+            GLib.timeout_add(420, self.finish)
+            return False
+        return False
+
+    def finish(self):
+        Gtk.main_quit()
+        return False
+
+
+def main():
+    secs = 3
+    if len(sys.argv) > 1:
+        try:
+            secs = int(sys.argv[1])
+        except ValueError:
+            secs = 3
+    win = CountdownHUD(secs)
+    win.show_all()
+    signal.signal(signal.SIGINT, lambda s, f: sys.exit(1))
+    signal.signal(signal.SIGTERM, lambda s, f: sys.exit(1))
+    Gtk.main()
+    if win.cancelled:
+        sys.exit(1)
+    sys.exit(0)
+
+
+if __name__ == "__main__":
+    main()

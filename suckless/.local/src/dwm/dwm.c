@@ -1640,6 +1640,25 @@ manage(Window w, XWindowAttributes *wa)
 	updatesizehints(c);
 	updatewmhints(c);
 
+	int iscountdown = 0;
+	XClassHint ch = { NULL, NULL };
+	if (XGetClassHint(dpy, w, &ch)) {
+		if ((ch.res_name && strstr(ch.res_name, "webcam-pip")) ||
+		    (ch.res_class && strstr(ch.res_class, "webcam-pip"))) {
+			c->isbottomright = 1;
+			c->isfloating = 1;
+		}
+		if ((ch.res_name && strstr(ch.res_name, "rec-countdown")) ||
+		    (ch.res_class && strstr(ch.res_class, "rec-countdown"))) {
+			iscountdown = 1;
+			c->isfloating = 1;
+		}
+		if (ch.res_name)
+			XFree(ch.res_name);
+		if (ch.res_class)
+			XFree(ch.res_class);
+	}
+
 	if (c->isdropdown || strstr(c->name, "dwm-dropdown")) {
 		if (!active_block.sig)
 			active_block.sig = dropdowntosig(c->name);
@@ -1669,8 +1688,26 @@ manage(Window w, XWindowAttributes *wa)
 			c->x = min_x;
 		active_block.win = c->win;
 	} else if (c->isbottomright || strstr(c->name, "webcam-pip")) {
-		c->x = c->mon->wx + c->mon->ww - WIDTH(c) - 15;
-		c->y = c->mon->wy + c->mon->wh - HEIGHT(c) - 15;
+		c->isfloating = 1;
+		c->isbottomright = 1;
+		c->tags = ~SPTAGMASK & TAGMASK;
+		int nw = 240;
+		int nh = 180;
+		c->w = nw;
+		c->h = nh;
+		c->x = c->mon->wx + c->mon->ww - (nw + c->bw * 2) - 15;
+		c->y = c->mon->wy + c->mon->wh - (nh + c->bw * 2) - 15;
+	} else if (iscountdown || strstr(c->name, "rec-countdown")) {
+		c->isfloating = 1;
+		c->bw = 0;
+		wc.border_width = 0;
+		XConfigureWindow(dpy, w, CWBorderWidth, &wc);
+		int nw = 240;
+		int nh = 240;
+		c->w = nw;
+		c->h = nh;
+		c->x = c->mon->wx + (c->mon->ww - nw) / 2;
+		c->y = c->mon->wy + (c->mon->wh - nh) / 2;
 	} else if (strstr(c->name, "ka-clip")) {
 		c->isfloating = 1;
 		int nw = MIN(1000, c->mon->ww - 40);
@@ -2041,6 +2078,10 @@ restack(Monitor *m)
 				XConfigureWindow(dpy, c->win, CWSibling|CWStackMode, &wc);
 				wc.sibling = c->win;
 			}
+	}
+	for (c = m->clients; c; c = c->next) {
+		if (c->isbottomright && ISVISIBLE(c))
+			XRaiseWindow(dpy, c->win);
 	}
 	XSync(dpy, False);
 	while (XCheckMaskEvent(dpy, EnterWindowMask, &ev));

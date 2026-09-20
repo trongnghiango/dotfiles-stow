@@ -15,6 +15,8 @@
 # ==============================================================================
 set -euo pipefail
 
+_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 # --- Paths & Files ---
 RECORDINGS_DIR="${XDG_VIDEOS_DIR:-$HOME/Videos}/Recordings"
 PID_FILE="/tmp/omarecord.pid"
@@ -117,6 +119,7 @@ stop_recording() {
         [ -n "$cam_pid" ] && kill -9 "$cam_pid" 2>/dev/null || true
         rm -f "$WEBCAM_PID_FILE"
     fi
+    pkill -f "x11-name=webcam-pip" 2>/dev/null || true
 
     rm -f "$PID_FILE" "$META_FILE" "$STATUS_FILE"
 
@@ -247,6 +250,7 @@ start_recording() {
                     --geometry=240x180-15-15 \
                     --autofit=240x180 \
                     --title="webcam-pip" \
+                    --force-media-title="webcam-pip" \
                     --x11-name="webcam-pip" \
                     --ontop \
                     --no-border >/dev/null 2>&1 &
@@ -284,6 +288,30 @@ start_recording() {
     ffmpeg_cmd+=("${map_args[@]}" "${encode_opts[@]}")
     [ "${#audio_opts[@]}" -gt 0 ] && ffmpeg_cmd+=("${audio_opts[@]}")
     ffmpeg_cmd+=("$output_file")
+
+    # Đếm ngược 3 -> 2 -> 1 hiển thị số lớn giữa màn hình (Loom / Screen Studio style)
+    local countdown_bin=""
+    if command -v rec-countdown >/dev/null 2>&1; then
+        countdown_bin="rec-countdown"
+    elif [ -x "$_SCRIPT_DIR/rec-countdown" ]; then
+        countdown_bin="$_SCRIPT_DIR/rec-countdown"
+    elif [ -x "$HOME/.local/bin/rec-countdown" ]; then
+        countdown_bin="$HOME/.local/bin/rec-countdown"
+    fi
+
+    if [ -n "$countdown_bin" ]; then
+        if ! "$countdown_bin" 3; then
+            # Người dùng bấm Esc hoặc Q để hủy quay
+            notify "low" "🎬 Screen Recorder" "Recording cancelled."
+            if [ -f "$WEBCAM_PID_FILE" ]; then
+                local cam_pid; cam_pid=$(cat "$WEBCAM_PID_FILE" 2>/dev/null || true)
+                [ -n "$cam_pid" ] && kill -9 "$cam_pid" 2>/dev/null || true
+                rm -f "$WEBCAM_PID_FILE"
+            fi
+            pkill -f "x11-name=webcam-pip" 2>/dev/null || true
+            exit 0
+        fi
+    fi
 
     # Khởi chạy ngầm
     "${ffmpeg_cmd[@]}" >/tmp/omarecord.log 2>&1 &
