@@ -13,6 +13,8 @@ setup_arch/
 theme/.config/theme/colors/current.conf
 x11/.config/x11/xresources.d/
 rofi/.config/rofi/colors.rasi
+gtk/.config/gtk-3.0/gtk.css
+gtk/.config/gtk-4.0/gtk.css
 # Dynamic desktop files and mime cache
 mimeinfo.cache
 brave-*-Default.desktop
