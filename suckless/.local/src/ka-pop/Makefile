@@ -1,7 +1,7 @@
 .POSIX:
 
 BIN := ka-pop
-PREFIX ?= $(HOME)/.local
+PREFIX ?= /usr/local
 CC ?= gcc
 
 CFLAGS ?= -O3 -march=native -pipe -flto -Wall -Wextra
