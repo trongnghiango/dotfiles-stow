@@ -30,17 +30,18 @@ fi
 if [ "$THEME_MODE" = "dark" ]; then
     COLOR_SCHEME="prefer-dark"
     GTK_PREFER_DARK="1"
+    DEFAULT_GTK_THEME="Arc-Gruvbox"
 else
     COLOR_SCHEME="prefer-light"
     GTK_PREFER_DARK="0"
+    DEFAULT_GTK_THEME="Default"
 fi
+GTK_THEME="${GTK_THEME:-$DEFAULT_GTK_THEME}"
 
 # 2. Bắn tín hiệu D-Bus qua GSettings -> Brave và Antigravity lập tức đổi màu
 if command -v gsettings &>/dev/null; then
     gsettings set org.gnome.desktop.interface color-scheme "$COLOR_SCHEME" 2>/dev/null || true
-    if [ -n "${GTK_THEME:-}" ]; then
-        gsettings set org.gnome.desktop.interface gtk-theme "$GTK_THEME" 2>/dev/null || true
-    fi
+    gsettings set org.gnome.desktop.interface gtk-theme "$GTK_THEME" 2>/dev/null || true
 fi
 
 # 3. Đồng bộ vào cấu hình file GTK-3.0 và GTK-4.0 settings.ini
