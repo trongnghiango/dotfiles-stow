@@ -22,7 +22,8 @@ static const int sidepad                 = 0;  /* horizontal padding of bar (0 =
 #define ICONSPACING 10  /* space between icon and title */
 /* Status is to be shown on: -1 (all monitors), 0 (a specific monitor by index), 'A' (active monitor) */
 static const int statusmon               = 'A';
-static const unsigned int systrayspacing = 1;   /* systray spacing */
+static const unsigned int systrayspacing  = 8;   /* systray spacing */
+static const unsigned int systrayiconsize = 15;  /* systray icon size in pixels */
 static const int showsystray             = 1;   /* 0 means no systray */
 static const unsigned int ulinepad = 5;         /* horizontal padding between the underline and tag */
 static const unsigned int ulinestroke  = 2;     /* thickness / height of the underline */

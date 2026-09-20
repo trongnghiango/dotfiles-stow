@@ -26,6 +26,8 @@ width_systray(Bar *bar, BarArg *a)
 		}
 		if (w > 0)
 			w -= systrayspacing;
+		if (tw > 0 && w > 0)
+			w += systrayspacing;
 		w += tw;
 		if (!w)
 			XMoveWindow(dpy, systray->win, -systray->h, bar->by);
@@ -54,8 +56,7 @@ draw_systray(Bar *bar, BarArg *a)
 		wa.override_redirect = True;
 		wa.event_mask = ButtonPressMask|ExposureMask;
 		wa.border_pixel = 0;
-		systray->h = MAX(drw->fonts->h, 24);
-		systray->h = MIN(a->h, systray->h);
+		systray->h = a->h;
 		wa.background_pixel = scheme[SchemeNorm][ColBg].pixel;
 		systray->win = XCreateSimpleWindow(dpy, root, bar->bx + a->x, -systray->h, MIN(a->w, 1), systray->h, 0, 0, scheme[SchemeNorm][ColBg].pixel);
 		XChangeWindowAttributes(dpy, systray->win, CWOverrideRedirect|CWBackPixel|CWBorderPixel|CWEventMask, &wa);
@@ -76,6 +77,8 @@ draw_systray(Bar *bar, BarArg *a)
 			systray = NULL;
 			return 0;
 		}
+	} else {
+		systray->h = a->h;
 	}
 
 	systray->bar = bar;
@@ -114,8 +117,9 @@ draw_systray(Bar *bar, BarArg *a)
 		count++;
 	}
 
-	XMoveResizeWindow(dpy, systray->win, bar->bx + a->x + tw, (w ? bar->by + a->y + (a->h - systray->h) / 2: -systray->h), MAX(visible_w, 1), systray->h);
-	return visible_w + tw;
+	int sx = bar->bx + a->x + tw + (tw && visible_w ? systrayspacing : 0);
+	XMoveResizeWindow(dpy, systray->win, sx, (w ? bar->by + a->y + (a->h - systray->h) / 2: -systray->h), MAX(visible_w, 1), systray->h);
+	return visible_w + tw + (tw && visible_w ? systrayspacing : 0);
 }
 
 int
@@ -181,7 +185,9 @@ updatesystrayicongeom(Client *i, int w, int h)
 	if (!systray)
 		return;
 
-	int icon_height = systray->h;
+	int icon_height = systrayiconsize ? systrayiconsize : (drw->fonts && drw->fonts->h ? drw->fonts->h : 15);
+	if (systray->h && icon_height > systray->h - 4)
+		icon_height = systray->h - 4;
 	if (i) {
 		i->h = icon_height;
 		if (w == h)
