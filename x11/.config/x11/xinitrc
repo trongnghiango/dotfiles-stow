@@ -36,7 +36,7 @@ for portal_path in "/usr/lib/xdg-desktop-portal-gtk" "/usr/libexec/xdg-desktop-p
     "$portal_path" &
     break
   fi
-done # <--- ĐÃ SỬA THÀNH DONE TẠI ĐÂY
+done
 
 # ==============================================================================
 # 2. NẠP CẤU HÌNH BIẾN MÔI TRƯỜNG CÁ NHÂN, HARDWARE PROFILE & XRESOURCES
@@ -72,6 +72,7 @@ fi
 for polkit_path in \
   "/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1" \
   "/usr/libexec/polkit-gnome-authentication-agent-1" \
+  "/usr/lib/policykit-1-gnome/polkit-gnome-authentication-agent-1" \
   "/usr/lib/polkit-1-gnome/polkit-gnome-authentication-agent-1" \
   "/usr/libexec/polkit-mate-authentication-agent-1" \
   "/usr/lib/mate-polkit/polkit-mate-authentication-agent-1"; do
@@ -152,5 +153,9 @@ command -v start-dwmblocks >/dev/null 2>&1 && start-dwmblocks &
 # ==============================================================================
 # 8. KHỞI ĐỘNG WINDOW MANAGER
 # ==============================================================================
+# Tối ưu hóa Process Scheduling: Nâng độ ưu tiên cho Xorg/DWM (nice -5)
+# Đảm bảo độ trễ chuột/phím và phản hồi UI luôn đạt chuẩn Real-Time ngay cả khi CPU 100%
+renice -n -5 -p $$ 2>/dev/null || true
+
 exec ssh-agent dwm
 

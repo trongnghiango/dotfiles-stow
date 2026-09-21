@@ -23,6 +23,7 @@ brave-*-Default.desktop
 *.pyc
 # Compiled binaries
 suckless/**/ka-pop/ka-pop
+suckless/**/ka-pop/build/
 scripts/.local/bin/ka-pop
 suckless/**/dwm/dwm
 suckless/**/st/st

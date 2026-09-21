@@ -51,6 +51,13 @@ void_setup_pkgs() {
     fi
   fi
 
+  local void_arch
+  if command -v xbps-uhelper &>/dev/null; then
+    void_arch="$(xbps-uhelper arch 2>/dev/null || uname -m)"
+  else
+    void_arch="$(uname -m)"
+  fi
+  log_info "Kiến trúc hệ thống Void: ${void_arch}"
   log_step "Đang đọc danh mục gói Void Linux ($target) từ: $progs_file"
 
   local pkgs_to_install=()

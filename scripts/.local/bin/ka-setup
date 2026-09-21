@@ -59,12 +59,29 @@ detect_os() {
   fi
 }
 
+# --- Phát hiện C Runtime Library (glibc vs musl) ---
+detect_libc() {
+  if ldd --version 2>&1 | grep -qi "musl"; then
+    echo "musl"
+  elif ldd --version 2>&1 | grep -qi "gnu"; then
+    local ver
+    ver=$(getconf GNU_LIBC_VERSION 2>/dev/null | awk '{print $2}')
+    [ -z "$ver" ] && ver=$(ldd --version 2>&1 | awk 'NR==1 {print $NF}')
+    echo "glibc ${ver:-}"
+  elif [ -f /lib/ld-musl-x86_64.so.1 ] || [ -f /lib/ld-musl-aarch64.so.1 ]; then
+    echo "musl"
+  else
+    echo "unknown"
+  fi
+}
+
 show_help() {
-  local current_os
+  local current_os current_libc
   current_os="$(detect_os)"
+  current_libc="$(detect_libc)"
   echo -e "${BOLD}ka-setup — DWM/X11 System Autoconfig (ThinkPad X230)${NC}"
   echo "================================================================="
-  echo -e "${BOLD}HỆ ĐIỀU HÀNH HIỆN TẠI:${NC} ${CYAN}$current_os${NC}"
+  echo -e "${BOLD}HỆ ĐIỀU HÀNH HIỆN TẠI:${NC} ${CYAN}$current_os${NC} (${DIM}C Lib:${NC} ${GREEN}$current_libc${NC})"
   echo ""
   echo -e "${BOLD}SỬ DỤNG:${NC}"
   echo "  ka-setup <command> [options]"
@@ -570,6 +587,9 @@ setup_sys() {
 # ==============================================================================
 # KA PERFORMANCE TUNING (Dành cho máy tính thế hệ cũ 10-15 năm & zRAM)
 # ==============================================================================
+# Đọc/ghi trang nhớ đơn lẻ (4KB) cho zRAM: triệt tiêu độ trễ và micro-stutter
+vm.page-cluster = 0
+
 # Ưu tiên swap vào zRAM thay vì loại bỏ page cache của filesystem
 vm.swappiness = 180
 
@@ -597,15 +617,20 @@ EOF
   if [ -d /run/systemd/system ]; then
     # Systemd-based (Arch, Debian, Fedora, Ubuntu)
     local zram_conf="/etc/systemd/zram-generator.conf"
+    local cpu_cores=$(nproc 2>/dev/null || echo 2)
+    local zram_algo="zstd"
+    # CPU <= 2 nhân (Core 2 Duo, máy cổ) ưu tiên lz4 để giải phóng chu kỳ CPU; CPU >= 4 nhân dùng zstd
+    [ "$cpu_cores" -le 2 ] && zram_algo="lz4"
+
     if [ ! -f "$zram_conf" ]; then
-      sudo tee "$zram_conf" >/dev/null <<'EOF'
+      sudo tee "$zram_conf" >/dev/null <<EOF
 [zram0]
 zram-size = ram
-compression-algorithm = zstd
+compression-algorithm = $zram_algo
 swap-priority = 100
 fs-type = swap
 EOF
-      log_success "Đã tạo cấu hình zram-generator ($zram_conf)."
+      log_success "Đã tạo cấu hình zram-generator ($zram_conf, thuật toán: $zram_algo)."
     fi
     if systemctl list-unit-files | grep -q "systemd-zram-setup@"; then
       sudo systemctl daemon-reload

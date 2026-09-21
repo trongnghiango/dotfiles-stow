@@ -1,4 +1,7 @@
 #!/usr/bin/env sh
-# Môi trường ảo (VM) - Không khởi chạy Pipewire để tránh lỗi D-Bus/Audio Sink
-# Tránh dùng exit 0 vì file này được source (. xinitrc.artix), exit sẽ tắt luôn cả session X.
-return 0
+# ==============================================================================
+# xinitrc.artix — Engine Adapter cho Artix Linux (Runit / OpenRC / s6 / dinit)
+# ==============================================================================
+
+# Môi trường ảo (VM) / Artix tối giản — bỏ qua an toàn mà không làm gián đoạn X session
+return 0 2>/dev/null || exit 0

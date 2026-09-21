@@ -1,5 +1,12 @@
 #!/usr/bin/env sh
+# ==============================================================================
+# xinitrc.nixos — Engine Adapter cho NixOS
+# ==============================================================================
 
-# Khởi chạy âm thanh Pipewire qua Systemd User (NixOS)
-systemctl --user reset-failed pipewire wireplumber pipewire-pulse 2>/dev/null
-systemctl --user restart pipewire wireplumber pipewire-pulse
+# Đồng bộ biến môi trường X11 và khởi động Pipewire trên NixOS (chạy nền)
+if command -v systemctl >/dev/null 2>&1; then
+  (
+    systemctl --user import-environment DISPLAY XAUTHORITY 2>/dev/null
+    systemctl --user start pipewire wireplumber pipewire-pulse 2>/dev/null
+  ) &
+fi

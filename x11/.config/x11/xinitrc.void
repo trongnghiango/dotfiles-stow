@@ -1,10 +1,29 @@
 #!/usr/bin/env sh
+# ==============================================================================
+# xinitrc.void — Engine Adapter cho Void Linux (Runit / Standalone Audio)
+# ==============================================================================
 
-# Khởi chạy âm thanh Pipewire thủ công (Void - không dùng systemd)
-killall -9 pipewire pipewire-pulse wireplumber 2>/dev/null
-sleep 0.5
-pipewire &
-sleep 0.5
-wireplumber &
-sleep 0.5
-pipewire-pulse &
+# Nếu pipewire đang hoạt động bình thường, bỏ qua
+if pgrep -x pipewire >/dev/null 2>&1; then
+  return 0 2>/dev/null || exit 0
+fi
+
+# Khởi động cụm âm thanh PipeWire bất đồng bộ trong background (ZERO blocking cho X11/DWM)
+(
+  # Dọn dẹp tiến trình cũ an toàn (SIGTERM, không dùng SIGKILL)
+  pkill -x pipewire pipewire-pulse wireplumber 2>/dev/null || true
+
+  # 1. Khởi chạy core daemon
+  pipewire >/dev/null 2>&1 &
+
+  # 2. Polling socket PipeWire thay vì sleep cứng mù quáng (tối đa 150ms)
+  pw_sock="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/pipewire-0"
+  for _ in 1 2 3 4 5 6; do
+    [ -S "$pw_sock" ] && break
+    sleep 0.025
+  done
+
+  # 3. Kích hoạt session manager và pulse bridge ngay khi socket khả dụng
+  command -v wireplumber >/dev/null 2>&1 && wireplumber >/dev/null 2>&1 &
+  command -v pipewire-pulse >/dev/null 2>&1 && pipewire-pulse >/dev/null 2>&1 &
+) &

@@ -1,33 +1,26 @@
 #!/usr/bin/env sh
 # ==============================================================================
-# xinitrc.debian — Hook khởi động môi trường X11 cho Debian Linux
+# xinitrc.debian — Engine Adapter cho Debian Linux (Bookworm/Trixie/Sid)
 # ==============================================================================
 
-# 1. Khởi chạy âm thanh PipeWire qua Systemd user session (Debian 12+)
-if command -v systemctl >/dev/null 2>&1 && systemctl --user is-system-running >/dev/null 2>&1; then
-  systemctl --user start pipewire wireplumber pipewire-pulse 2>/dev/null
+# 1. Khởi chạy âm thanh PipeWire (Debian 12+) qua Systemd user session (chạy nền, non-blocking)
+if [ -d /run/systemd/system ] && command -v systemctl >/dev/null 2>&1; then
+  systemctl --user start pipewire wireplumber pipewire-pulse 2>/dev/null &
 else
-  if ! pgrep -x pipewire >/dev/null; then
-    pipewire >/dev/null 2>&1 &
-    sleep 0.1
-    wireplumber >/dev/null 2>&1 &
-    sleep 0.1
-    pipewire-pulse >/dev/null 2>&1 &
+  # Fallback nếu Debian chạy SysVinit / OpenRC
+  if command -v pipewire >/dev/null 2>&1 && ! pgrep -x pipewire >/dev/null; then
+    (
+      pipewire >/dev/null 2>&1 &
+      pw_sock="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/pipewire-0"
+      for _ in 1 2 3 4 5 6; do
+        [ -S "$pw_sock" ] && break
+        sleep 0.025
+      done
+      command -v wireplumber >/dev/null 2>&1 && wireplumber >/dev/null 2>&1 &
+      command -v pipewire-pulse >/dev/null 2>&1 && pipewire-pulse >/dev/null 2>&1 &
+    ) &
   fi
 fi
 
-# 2. Khởi chạy Polkit Authentication Agent cho Debian
-for polkit_agent in \
-  "/usr/lib/policykit-1-gnome/polkit-gnome-authentication-agent-1" \
-  "/usr/libexec/polkit-gnome-authentication-agent-1" \
-  "/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1"; do
-  if [ -x "$polkit_agent" ]; then
-    pgrep -f "$(basename "$polkit_agent")" >/dev/null || "$polkit_agent" &
-    break
-  fi
-done
-
-# 3. Đảm bảo symlink Debian CLI (batcat -> bat, fdfind -> fd) tồn tại trong ~/.local/bin
-mkdir -p "$HOME/.local/bin"
-[ -x /usr/bin/batcat ] && [ ! -e "$HOME/.local/bin/bat" ] && ln -sf /usr/bin/batcat "$HOME/.local/bin/bat"
-[ -x /usr/bin/fdfind ] && [ ! -e "$HOME/.local/bin/fd" ] && ln -sf /usr/bin/fdfind "$HOME/.local/bin/fd"
+# 2. Ngăn chặn Debian tự động thay đổi layout bàn phím ngoài ý muốn
+export DEBIAN_PREVENT_KEYBOARD_CHANGES=1

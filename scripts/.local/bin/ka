@@ -70,7 +70,19 @@ cmd_default() {
 }
 
 cmd_clip() {
-  ka-clip "$@"
+  local action="${1:-menu}"
+  case "$action" in
+    menu|toggle|"")
+      if command -v ka-pop >/dev/null 2>&1; then
+        ka-pop clip &
+      else
+        ka-clip menu &
+      fi
+      ;;
+    *)
+      ka-clip "$@"
+      ;;
+  esac
 }
 
 cmd_pop() {
@@ -103,7 +115,11 @@ cmd_notify() {
   shift || true
   case "$sub" in
     center|toggle|open)
-      setsid -f dwm-dropdown notify >/dev/null 2>&1
+      if command -v ka-pop >/dev/null 2>&1; then
+        ka-pop notify &
+      else
+        setsid -f dwm-dropdown notify >/dev/null 2>&1
+      fi
       ;;
     dnd|mute|pause)
       dunstctl set-paused toggle 2>/dev/null || true
@@ -189,6 +205,21 @@ cmd_stow() {
   stow-safe "$@"
 }
 
+detect_libc() {
+  if ldd --version 2>&1 | grep -qi "musl"; then
+    echo "musl"
+  elif ldd --version 2>&1 | grep -qi "gnu"; then
+    local ver
+    ver=$(getconf GNU_LIBC_VERSION 2>/dev/null | awk '{print $2}')
+    [ -z "$ver" ] && ver=$(ldd --version 2>&1 | awk 'NR==1 {print $NF}')
+    echo "glibc ${ver:-}"
+  elif [ -f /lib/ld-musl-x86_64.so.1 ] || [ -f /lib/ld-musl-aarch64.so.1 ]; then
+    echo "musl"
+  else
+    echo "unknown"
+  fi
+}
+
 cmd_doctor() {
   print_banner
   echo -e "${BOLD}BẮT ĐẦU CHẨN ĐOÁN HỆ THỐNG (SYSTEM INTEGRITY CHECK)...${RESET}\n"
@@ -206,14 +237,19 @@ cmd_doctor() {
     fi
   }
 
-  echo -e "${BOLD}1. Window Manager & Suckless Binaries:${RESET}"
+  local libc_type
+  libc_type="$(detect_libc)"
+  echo -e "${BOLD}1. C Runtime Environment (Libc):${RESET}"
+  echo -e "  [${GREEN}PASS${RESET}] C Library: ${CYAN}${libc_type}${RESET}"
+
+  echo -e "\n${BOLD}2. Window Manager & Suckless Binaries:${RESET}"
   check_item "DWM binary (/usr/local/bin/dwm)" "test -x /usr/local/bin/dwm"
   check_item "DWM active in PATH ($(which dwm 2>/dev/null))" "test \"$(which dwm 2>/dev/null)\" = \"/usr/local/bin/dwm\""
   check_item "ST terminal (/usr/local/bin/st)" "test -x /usr/local/bin/st"
   check_item "Dmenu (/usr/local/bin/dmenu)" "test -x /usr/local/bin/dmenu"
   check_item "Dwmblocks (/usr/local/bin/dwmblocks)" "test -x /usr/local/bin/dwmblocks"
 
-  echo -e "\n${BOLD}2. X11 Core & Visual Tools:${RESET}"
+  echo -e "\n${BOLD}3. X11 Core & Visual Tools:${RESET}"
   check_item "Xorg Server" "command -v Xorg"
   check_item "Picom Compositor" "command -v picom"
   check_item "Maim Screenshot" "command -v maim"
@@ -222,12 +258,12 @@ cmd_doctor() {
   check_item "Tesseract OCR" "command -v tesseract"
   check_item "XDG MIME Tool (xdg-mime)" "command -v xdg-mime"
 
-  echo -e "\n${BOLD}3. Audio & Network Stack:${RESET}"
+  echo -e "\n${BOLD}4. Audio & Network Stack:${RESET}"
   check_item "PipeWire Audio Server" "command -v pipewire"
   check_item "WirePlumber Session Manager" "command -v wireplumber"
   check_item "NetworkManager (nmcli)" "command -v nmcli"
 
-  echo -e "\n${BOLD}4. Theming & Hardware Profile:${RESET}"
+  echo -e "\n${BOLD}5. Theming & Hardware Profile:${RESET}"
   check_item "Current Theme Config (~/.config/theme/colors/current.conf)" "test -f \$HOME/.config/theme/colors/current.conf"
   check_item "Hardware Profile (~/.config/hardware/current.conf)" "test -f \$HOME/.config/hardware/current.conf"
   check_item "Native C Popovers (ka-pop)" "command -v ka-pop || test -x \"\$_SCRIPT_DIR/ka-pop\""
@@ -242,7 +278,7 @@ cmd_doctor() {
     echo -e "  [${YELLOW}INFO${RESET}] Unified Daemon is IDLE (start with 'ka daemon start' or via xinitrc)"
   fi
 
-  echo -e "\n${BOLD}5. Developer Runtimes:${RESET}"
+  echo -e "\n${BOLD}6. Developer Runtimes:${RESET}"
   if command -v mise >/dev/null 2>&1; then
     local mise_ver
     mise_ver=$(mise --version 2>/dev/null | awk '{print $1}')
