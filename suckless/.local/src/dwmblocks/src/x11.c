@@ -1,6 +1,7 @@
 #include "x11.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <xcb/xcb.h>
 #include <xcb/xproto.h>
@@ -31,6 +32,7 @@ int x11_set_root_name(x11_connection *const connection, const char *name) {
 
     xcb_generic_error_t *error = xcb_request_check(connection, cookie);
     if (error != NULL) {
+        free(error);
         (void)fprintf(stderr, "error: could not set X root name\n");
         return 1;
     }

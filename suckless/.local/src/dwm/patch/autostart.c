@@ -53,10 +53,11 @@ runautostart(void)
 	}
 
 	/* try the blocking script first */
-	path = ecalloc(1, strlen(pathpfx) + strlen(autostartblocksh) + 2);
+	path = ecalloc(1, strlen(pathpfx) + strlen(autostartblocksh) + 4);
 	if (sprintf(path, "%s/%s", pathpfx, autostartblocksh) <= 0) {
 		free(path);
 		free(pathpfx);
+		return;
 	}
 
 	if (access(path, X_OK) == 0)
@@ -66,6 +67,7 @@ runautostart(void)
 	if (sprintf(path, "%s/%s", pathpfx, autostartsh) <= 0) {
 		free(path);
 		free(pathpfx);
+		return;
 	}
 
 	if (access(path, X_OK) == 0)

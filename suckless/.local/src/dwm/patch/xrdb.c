@@ -112,10 +112,13 @@ xrdb(const Arg *arg)
 {
 	loadxrdb();
 	int i;
+	for (i = 0; i < LENGTH(colors) + 1; i++) {
+		if (scheme[i])
+			free(scheme[i]);
+	}
+	scheme[LENGTH(colors)] = drw_scm_create(drw, colors[0], ColCount);
 	for (i = 0; i < LENGTH(colors); i++)
-		scheme[i] = drw_scm_create(drw, colors[i],
-		ColCount
-		);
+		scheme[i] = drw_scm_create(drw, colors[i], ColCount);
 	arrange(NULL);
 	focus(NULL);
 	system("notify-send 'Xresources' 'Theme reloaded successfully'");

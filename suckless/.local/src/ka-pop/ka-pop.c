@@ -792,6 +792,8 @@ static GtkWidget* build_forecast_window() {
 // MAIN ROUTER
 // -----------------------------------------------------------------------------
 int main(int argc, char *argv[]) {
+    signal(SIGCHLD, SIG_IGN);
+
     if (argc > 1 && (strcmp(argv[1], "-h") == 0 || strcmp(argv[1], "--help") == 0)) {
         printf("Sử dụng: ka-pop [volume|battery|clock|cpu|memory|network|notify]\n");
         return 0;

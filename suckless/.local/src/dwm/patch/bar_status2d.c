@@ -56,11 +56,14 @@ drawstatusbar(BarArg *a, char* stext)
 	int x = a->x;
 	int y = a->y;
 	short isCode = 0;
+	char stack_buf[1024];
 	char *text;
 	char *p;
 	Clr oldbg, oldfg;
 	len = strlen(stext);
-	if (!(text = (char*) malloc(sizeof(char)*(len + 1))))
+	if (len + 1 <= sizeof(stack_buf))
+		text = stack_buf;
+	else if (!(text = (char*) malloc(sizeof(char)*(len + 1))))
 		die("malloc");
 	p = text;
 	copyvalidchars(text, stext);
@@ -159,7 +162,8 @@ drawstatusbar(BarArg *a, char* stext)
 		drw_text(drw, x, y, w, bh, 0, text, 0, True);
 		x += w;
 	}
-	free(p);
+	if (p != stack_buf)
+		free(p);
 
 	if (active_block.win) {
 		Client *dc = wintoclient(active_block.win);
@@ -282,11 +286,14 @@ status2dtextlength(char* stext)
 {
 	int i, w, len;
 	short isCode = 0;
+	char stack_buf[1024];
 	char *text;
 	char *p;
 
 	len = strlen(stext) + 1;
-	if (!(text = (char*) malloc(sizeof(char)*len)))
+	if (len <= sizeof(stack_buf))
+		text = stack_buf;
+	else if (!(text = (char*) malloc(sizeof(char)*len)))
 		die("malloc");
 	p = text;
 	copyvalidchars(text, stext);
@@ -312,7 +319,8 @@ status2dtextlength(char* stext)
 	}
 	if (!isCode)
 		w += TEXTWM(text) - lrpad;
-	free(p);
+	if (p != stack_buf)
+		free(p);
 	return w;
 }
 
