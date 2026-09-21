@@ -107,6 +107,7 @@ E,lazydocker,9,docker,Manages Docker status via TUI (via binary).
 ,fonts-noto-color-emoji,10,fonts,Color emoji font set.
 ,papirus-icon-theme,10,fonts,Papirus system icons.
 ,fonts-jetbrains-mono,10,fonts,JetBrains Mono monospace font.
+E,nerd-fonts-symbols,10,dwmblocks,Symbols Nerd Font (Icons & Glyphs) for DWM bar, dwmblocks, and ST.
 ,adwaita-icon-theme,10,theme,Official Adwaita base and icon theme for GTK.
 ,gettext-base,10,theme,Provides envsubst for theme-set template engine.
 ,7zip,11,system,Compresses files in 7z format.

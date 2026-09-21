@@ -292,4 +292,33 @@ debian_setup_modern_tools() {
     fi
     rm -rf "$tmp_dir"
   fi
+
+  # 5. Symbols Nerd Font (Debian không có package chính thức trong APT, cần bootstrap)
+  debian_setup_nerd_fonts
+}
+
+# ------------------------------------------------------------------------------
+# 5. CÀI ĐẶT SYMBOLS NERD FONT CHO DWM, ST & DWMBLOCKS (CHỐNG TOFU / Ô VUÔNG)
+# ------------------------------------------------------------------------------
+debian_setup_nerd_fonts() {
+  local font_dir="${XDG_DATA_HOME:-$HOME/.local/share}/fonts"
+  local font_file="$font_dir/SymbolsNerdFont-Regular.ttf"
+
+  if [ -f "$font_file" ]; then
+    log_dim "Symbols Nerd Font đã tồn tại tại $font_dir."
+    return 0
+  fi
+
+  log_info "Đang tải Symbols Nerd Font (Icons & Glyphs) vào $font_dir..."
+  mkdir -p "$font_dir"
+  local font_url="https://github.com/ryanoasis/nerd-fonts/releases/latest/download/NerdFontsSymbolsOnly.tar.xz"
+  local tmp_dir="$(mktemp -d)"
+  if curl -fsSL "$font_url" -o "$tmp_dir/symbols.tar.xz"; then
+    tar -xf "$tmp_dir/symbols.tar.xz" -C "$font_dir" SymbolsNerdFont-Regular.ttf SymbolsNerdFontMono-Regular.ttf 2>/dev/null ||     tar -xf "$tmp_dir/symbols.tar.xz" -C "$font_dir" 2>/dev/null
+    command -v fc-cache >/dev/null 2>&1 && fc-cache -f "$font_dir" 2>/dev/null || true
+    log_success "Đã cài đặt Symbols Nerd Font và cập nhật font cache."
+  else
+    log_warn "Không thể tải Nerd Fonts tự động. Vui lòng tải thủ công SymbolsNerdFont-Regular.ttf vào $font_dir."
+  fi
+  rm -rf "$tmp_dir"
 }
