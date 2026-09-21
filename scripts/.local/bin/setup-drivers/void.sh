@@ -14,6 +14,42 @@ if ! type -t log_info &>/dev/null; then
   log_dim()     { echo -e "\033[2m  $1\033[0m"; }
 fi
 
+void_setup_suckless_deps() {
+  log_step "Kiểm tra thư viện phát triển (headers) để biên dịch Suckless trên Void..."
+  local build_pkgs=(
+    base-devel
+    pkg-config
+    libX11-devel
+    libXinerama-devel
+    libXft-devel
+    libimlib2-devel
+    libxcb-devel
+    harfbuzz-devel
+    fontconfig-devel
+    libXrender-devel
+    yajl-devel
+    libXext-devel
+    alsa-lib-devel
+    libXfixes-devel
+    gtk+3-devel
+  )
+
+  local missing_build=()
+  for pkg in "${build_pkgs[@]}"; do
+    if ! xbps-query -s "$pkg" | grep -q "^[*] $pkg-[0-9]"; then
+      missing_build+=("$pkg")
+    fi
+  done
+
+  if [ ${#missing_build[@]} -gt 0 ]; then
+    log_info "Thiếu ${#missing_build[@]} thư viện C/X11 build headers: ${missing_build[*]}"
+    sudo xbps-install -y "${missing_build[@]}"
+    log_success "Đã cài đặt đầy đủ build dependencies cho Suckless."
+  else
+    log_success "Toàn bộ thư viện build headers cho DWM 6.8 và ST đã đầy đủ."
+  fi
+}
+
 void_setup_pkgs() {
   local target="${1:-}"
   local dotfiles_root="${2:-$DOTFILES_DIR}"

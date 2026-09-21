@@ -20,6 +20,9 @@
 ,libxft,2,dwm+st,FreeType font rendering library for DWM and ST.
 ,libxinerama,2,dwm,Xinerama multi-monitor extension library for DWM.
 ,libxrender,2,dwm+st,X Rendering Extension client library.
+,alsa-lib,2,dwmblocks,ALSA library required for dwmblocks native volume.
+,libxfixes,2,dwm,XFixes library required for ka-clipd.
+,gtk3,2,dwm,GTK3 library required for ka-pop.
 ,maim,2,x11,Can take quick screenshots (used by maimpick script).
 ,slop,2,x11,Screen selection tool used by maim and ocr.
 ,picom,2,x11,Modern X compositor for transparency and removing screen-tearing; uses glx backend with vsync.
@@ -117,7 +120,6 @@ A,lazydocker-bin,9,docker,Manages Docker status via TUI.
 ,bluez-utils,11,bluetooth,Bluetoothctl to manage Bluetooth devices via btmgr.
 ,bmon,11,system,Bmon utility.
 ,brightnessctl,11,dwmblocks,Enables changing screen brightness (used by ka-battery and sb-battery scripts).
-,clipmenu,11,system,Shows clipboard history menu via Rofi.
 A,code-marketplace,11,vscode,Enables MS marketplace extensions inside code.
 ,dash,11,system,Runs shell script POSIX commands fast.
 ,dosfstools,11,system,Your computer to access dos-like filesystems.

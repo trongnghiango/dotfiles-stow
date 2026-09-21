@@ -363,6 +363,21 @@ setup_suckless() {
       . "$_SCRIPT_DIR/setup-drivers/debian.sh"
       debian_setup_suckless_deps
     fi
+  elif [[ "$current_os" =~ ^(arch|artix|endeavouros|manjaro)$ ]]; then
+    if [ -f "$_SCRIPT_DIR/setup-drivers/arch.sh" ]; then
+      . "$_SCRIPT_DIR/setup-drivers/arch.sh"
+      arch_setup_suckless_deps
+    fi
+  elif [ "$current_os" = "void" ]; then
+    if [ -f "$_SCRIPT_DIR/setup-drivers/void.sh" ]; then
+      . "$_SCRIPT_DIR/setup-drivers/void.sh"
+      void_setup_suckless_deps
+    fi
+  elif [[ "$current_os" =~ ^(fedora|rhel|centos|rocky|almalinux)$ ]]; then
+    if [ -f "$_SCRIPT_DIR/setup-drivers/fedora.sh" ]; then
+      . "$_SCRIPT_DIR/setup-drivers/fedora.sh"
+      fedora_setup_suckless_deps
+    fi
   fi
 
   local src_dir="$HOME/.local/src"

@@ -44,6 +44,42 @@ arch_get_aur_helper() {
   return 1
 }
 
+arch_setup_suckless_deps() {
+  log_step "Kiểm tra thư viện phát triển (headers) để biên dịch Suckless trên Arch..."
+  local build_pkgs=(
+    base-devel
+    pkgconf
+    libx11
+    libxinerama
+    libxft
+    imlib2
+    libxcb
+    harfbuzz
+    fontconfig
+    libxrender
+    yajl
+    libxext
+    alsa-lib
+    libxfixes
+    gtk3
+  )
+
+  local missing_build=()
+  for pkg in "${build_pkgs[@]}"; do
+    if ! pacman -Qi "$pkg" &>/dev/null 2>&1; then
+      missing_build+=("$pkg")
+    fi
+  done
+
+  if [ ${#missing_build[@]} -gt 0 ]; then
+    log_info "Thiếu ${#missing_build[@]} thư viện C/X11 build dependencies: ${missing_build[*]}"
+    sudo pacman -S --needed --noconfirm "${missing_build[@]}"
+    log_success "Đã cài đặt đầy đủ build dependencies cho Suckless."
+  else
+    log_success "Toàn bộ thư viện build headers cho DWM 6.8 và ST đã đầy đủ."
+  fi
+}
+
 arch_setup_pkgs() {
   local target="${1:-}"
   local dotfiles_root="${2:-$DOTFILES_DIR}"

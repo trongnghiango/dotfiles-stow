@@ -22,6 +22,9 @@ B,libXrender-devel,2,dwm+st,X Rendering Extension client library headers.
 B,libxcb-devel,2,dwm,X C Binding client library headers.
 B,yajl-devel,2,dwm,Yet Another JSON Library headers for DWM IPC patch.
 B,libXext-devel,2,dwm,X11 miscellaneous extensions headers.
+B,alsa-lib-devel,2,dwmblocks,ALSA development headers for dwmblocks native volume.
+B,libXfixes-devel,2,dwm,XFixes development headers for ka-clipd.
+B,gtk+3-devel,2,dwm,GTK3 development headers for ka-pop.
 ,libimlib2,2,dwm,Image loading library.
 ,maim,2,x11,Can take quick screenshots (used by maimpick script).
 ,slop,2,x11,Screen selection tool used by maim and ocr.
