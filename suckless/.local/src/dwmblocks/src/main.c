@@ -3,6 +3,35 @@
 #include <errno.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <signal.h>
+#include <sys/types.h>
+
+static char g_pid_path[128] = {0};
+
+static void remove_pid_file(void) {
+    if (g_pid_path[0]) {
+        unlink(g_pid_path);
+    }
+}
+
+static void create_pid_file(void) {
+    const char *runtime_dir = getenv("XDG_RUNTIME_DIR");
+    if (runtime_dir && runtime_dir[0]) {
+        snprintf(g_pid_path, sizeof(g_pid_path), "%s/dwmblocks.pid", runtime_dir);
+    } else {
+        snprintf(g_pid_path, sizeof(g_pid_path), "/tmp/dwmblocks-%d.pid", getuid());
+    }
+
+    FILE *f = fopen(g_pid_path, "w");
+    if (f) {
+        fprintf(f, "%d\n", getpid());
+        fclose(f);
+        atexit(remove_pid_file);
+    }
+}
 
 #include "block.h"
 #include "cli.h"
@@ -120,6 +149,8 @@ static int event_loop(block *const blocks, const unsigned short block_count,
 int main(const int argc, const char *const argv[]) {
     // Prevent zombie processes from background jobs / popups
     signal(SIGCHLD, SIG_IGN);
+
+    create_pid_file();
 
     const cli_arguments cli_args = cli_parse_arguments(argv, argc);
     if (errno != 0) {

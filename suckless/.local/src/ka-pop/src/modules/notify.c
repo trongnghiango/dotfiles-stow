@@ -6,8 +6,8 @@
 #include "ui.h"
 #include "util.h"
 
-static void on_notif_dnd(GtkButton *b, gpointer u) { (void)b; (void)u; system("dunstctl set-paused toggle"); gtk_main_quit(); }
-static void on_notif_clear(GtkButton *b, gpointer u) { (void)b; (void)u; system("dunstctl history-clear"); gtk_main_quit(); }
+static void on_notif_dnd(GtkButton *b, gpointer u) { (void)b; (void)u; char *args[] = {(char *)"dunstctl", (char *)"set-paused", (char *)"toggle", NULL}; spawn_cmd(args); gtk_main_quit(); }
+static void on_notif_clear(GtkButton *b, gpointer u) { (void)b; (void)u; char *args[] = {(char *)"dunstctl", (char *)"history-clear", NULL}; spawn_cmd(args); gtk_main_quit(); }
 
 GtkWidget* build_notify_window(void) {
     GtkWidget *main_box = NULL;

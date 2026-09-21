@@ -9,11 +9,8 @@
 static void on_open_btop_cpu(GtkButton *btn, gpointer user_data) {
     (void)btn;
     (void)user_data;
-    if (fork() == 0) {
-        setsid();
-        execlp("st", "st", "-e", "btop", NULL);
-        _exit(0);
-    }
+    char *args[] = {(char *)"st", (char *)"-e", (char *)"btop", NULL};
+    spawn_cmd(args);
     gtk_main_quit();
 }
 
@@ -50,10 +47,18 @@ GtkWidget* build_cpu_window(void) {
     gtk_label_set_xalign(GTK_LABEL(p_header), 0.0f);
     gtk_box_pack_start(GTK_BOX(procs_box), p_header, FALSE, FALSE, 0);
 
-    FILE *p_ps = popen("ps -eo comm,%cpu --sort=-%cpu | head -n 5 | tail -n 4", "r");
-    if (p_ps) {
-        char line[128];
-        while (fgets(line, sizeof(line), p_ps)) {
+    char ps_buf[1024] = {0};
+    char *ps_args[] = {(char *)"ps", (char *)"-eo", (char *)"comm,%cpu", (char *)"--sort=-%cpu", NULL};
+    if (exec_capture(ps_args, ps_buf, sizeof(ps_buf)) == 0) {
+        char *line = ps_buf;
+        char *next_line = strchr(line, '\n');
+        if (next_line) line = next_line + 1; // Skip header
+
+        int count = 0;
+        while (line && *line && count < 4) {
+            next_line = strchr(line, '\n');
+            if (next_line) *next_line = '\0';
+
             char comm[64];
             float cpu_p = 0;
             if (sscanf(line, "%63s %f", comm, &cpu_p) >= 2) {
@@ -62,9 +67,10 @@ GtkWidget* build_cpu_window(void) {
                 GtkWidget *lbl_r = gtk_label_new(row_str);
                 gtk_label_set_xalign(GTK_LABEL(lbl_r), 0.0f);
                 gtk_box_pack_start(GTK_BOX(procs_box), lbl_r, FALSE, FALSE, 0);
+                count++;
             }
+            line = next_line ? next_line + 1 : NULL;
         }
-        pclose(p_ps);
     }
     gtk_box_pack_start(GTK_BOX(main_box), procs_box, FALSE, FALSE, 0);
 

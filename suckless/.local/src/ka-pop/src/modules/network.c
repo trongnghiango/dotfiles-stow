@@ -6,9 +6,9 @@
 #include "ui.h"
 #include "util.h"
 
-static void on_dns_dhcp(GtkButton *b, gpointer u) { (void)b; (void)u; system("set-dns dhcp"); gtk_main_quit(); }
-static void on_dns_cf(GtkButton *b, gpointer u) { (void)b; (void)u; system("set-dns cloudflare"); gtk_main_quit(); }
-static void on_dns_gg(GtkButton *b, gpointer u) { (void)b; (void)u; system("set-dns google"); gtk_main_quit(); }
+static void on_dns_dhcp(GtkButton *b, gpointer u) { (void)b; (void)u; char *args[] = {(char *)"set-dns", (char *)"dhcp", NULL}; spawn_cmd(args); gtk_main_quit(); }
+static void on_dns_cf(GtkButton *b, gpointer u) { (void)b; (void)u; char *args[] = {(char *)"set-dns", (char *)"cloudflare", NULL}; spawn_cmd(args); gtk_main_quit(); }
+static void on_dns_gg(GtkButton *b, gpointer u) { (void)b; (void)u; char *args[] = {(char *)"set-dns", (char *)"google", NULL}; spawn_cmd(args); gtk_main_quit(); }
 
 GtkWidget* build_network_window(void) {
     GtkWidget *main_box = NULL;
@@ -17,13 +17,13 @@ GtkWidget* build_network_window(void) {
     build_header(main_box, "Kết nối mạng", "Wi-Fi, Ethernet & DNS", NULL);
 
     char ip_buf[64] = "127.0.0.1";
-    FILE *p = popen("ip -4 route get 1.1.1.1 2>/dev/null | awk '{print $7}'", "r");
-    if (p) {
-        if (fgets(ip_buf, sizeof(ip_buf), p)) {
-            char *nl = strchr(ip_buf, '\n');
-            if (nl) *nl = '\0';
+    char out_buf[256] = {0};
+    char *ip_args[] = {(char *)"ip", (char *)"-4", (char *)"route", (char *)"get", (char *)"1.1.1.1", NULL};
+    if (exec_capture(ip_args, out_buf, sizeof(out_buf)) == 0) {
+        char *p_src = strstr(out_buf, "src ");
+        if (p_src) {
+            sscanf(p_src + 4, "%63s", ip_buf);
         }
-        pclose(p);
     }
 
     char net_info[128];

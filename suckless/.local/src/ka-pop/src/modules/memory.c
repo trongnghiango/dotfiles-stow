@@ -5,15 +5,13 @@
 #include "modules.h"
 #include "ui.h"
 #include "util.h"
+#include <dirent.h>
 
 static void on_open_btop_mem(GtkButton *btn, gpointer user_data) {
     (void)btn;
     (void)user_data;
-    if (fork() == 0) {
-        setsid();
-        execlp("st", "st", "-e", "btop", NULL);
-        _exit(0);
-    }
+    char *args[] = {(char *)"st", (char *)"-e", (char *)"btop", NULL};
+    spawn_cmd(args);
     gtk_main_quit();
 }
 
@@ -54,21 +52,63 @@ GtkWidget* build_memory_window(void) {
     gtk_label_set_xalign(GTK_LABEL(p_header), 0.0f);
     gtk_box_pack_start(GTK_BOX(procs_box), p_header, FALSE, FALSE, 0);
 
-    FILE *p_ps = popen("ps -eo comm,%mem --sort=-%mem | head -n 5 | tail -n 4", "r");
-    if (p_ps) {
-        char line[128];
-        while (fgets(line, sizeof(line), p_ps)) {
-            char comm[64];
-            float mem_p = 0;
-            if (sscanf(line, "%63s %f", comm, &mem_p) >= 2) {
-                char row_str[128];
-                snprintf(row_str, sizeof(row_str), "  %-20s %5.1f%%", comm, mem_p);
-                GtkWidget *lbl_r = gtk_label_new(row_str);
-                gtk_label_set_xalign(GTK_LABEL(lbl_r), 0.0f);
-                gtk_box_pack_start(GTK_BOX(procs_box), lbl_r, FALSE, FALSE, 0);
+    /* Native C /proc memory scanner (Zero-Fork, Zero-Shell, 0.002s) */
+    typedef struct {
+        char comm[64];
+        unsigned long rss_pages;
+    } ProcMem;
+
+    ProcMem top[4] = {{{0}, 0}};
+    DIR *dir = opendir("/proc");
+    if (dir) {
+        struct dirent *ent;
+        while ((ent = readdir(dir))) {
+            if (ent->d_name[0] >= '0' && ent->d_name[0] <= '9') {
+                char path[128];
+                snprintf(path, sizeof(path), "/proc/%s/statm", ent->d_name);
+                FILE *f = fopen(path, "r");
+                if (!f) continue;
+                unsigned long total_p = 0, rss = 0;
+                if (fscanf(f, "%lu %lu", &total_p, &rss) == 2 && rss > 0) {
+                    fclose(f);
+                    snprintf(path, sizeof(path), "/proc/%s/comm", ent->d_name);
+                    f = fopen(path, "r");
+                    char comm[64] = "unknown";
+                    if (f) {
+                        if (fgets(comm, sizeof(comm), f)) {
+                            char *nl = strchr(comm, '\n');
+                            if (nl) *nl = '\0';
+                        }
+                        fclose(f);
+                    }
+
+                    for (int i = 0; i < 4; i++) {
+                        if (rss > top[i].rss_pages) {
+                            for (int j = 3; j > i; j--) top[j] = top[j-1];
+                            top[i].rss_pages = rss;
+                            strncpy(top[i].comm, comm, sizeof(top[i].comm)-1);
+                            top[i].comm[sizeof(top[i].comm)-1] = '\0';
+                            break;
+                        }
+                    }
+                } else {
+                    fclose(f);
+                }
             }
         }
-        pclose(p_ps);
+        closedir(dir);
+    }
+
+    for (int i = 0; i < 4; i++) {
+        if (top[i].rss_pages > 0) {
+            unsigned long rss_mb = (top[i].rss_pages * 4) / 1024;
+            float mem_p = total_ram > 0 ? ((float)(top[i].rss_pages * 4) * 100.0f / (float)total_ram) : 0.0f;
+            char row_str[128];
+            snprintf(row_str, sizeof(row_str), "  %-18s %4lu MB (%4.1f%%)", top[i].comm, rss_mb, mem_p);
+            GtkWidget *lbl_r = gtk_label_new(row_str);
+            gtk_label_set_xalign(GTK_LABEL(lbl_r), 0.0f);
+            gtk_box_pack_start(GTK_BOX(procs_box), lbl_r, FALSE, FALSE, 0);
+        }
     }
     gtk_box_pack_start(GTK_BOX(main_box), procs_box, FALSE, FALSE, 0);
 

@@ -6,15 +6,66 @@
 #include <time.h>
 #include <unistd.h>
 #include <dirent.h>
+#include <fcntl.h>
 #include <sys/types.h>
 
-static void spawn_async(const char *cmd) {
+/* Direct async spawn without /bin/sh (1 fork, 0 subshells) */
+static void spawn_cmd(char *const argv[]) {
     pid_t pid = fork();
     if (pid == 0) {
         setsid();
-        execl("/bin/sh", "sh", "-c", cmd, (char *)NULL);
-        _exit(0);
+        int devnull = open("/dev/null", O_RDWR);
+        if (devnull >= 0) {
+            dup2(devnull, STDIN_FILENO);
+            dup2(devnull, STDOUT_FILENO);
+            dup2(devnull, STDERR_FILENO);
+            close(devnull);
+        }
+        execvp(argv[0], argv);
+        _exit(127);
     }
+}
+
+/* Fast popover launcher */
+static void spawn_pop(const char *module) {
+    char *args[] = {(char *)"ka-pop", (char *)module, NULL};
+    spawn_cmd(args);
+}
+
+/* Direct stdout capture without /bin/sh or popen (1 fork, 0 shell pipes) */
+static int exec_capture(char *const argv[], char *output, size_t max_len) {
+    int pfd[2];
+    if (pipe(pfd) != 0) return -1;
+
+    pid_t pid = fork();
+    if (pid < 0) {
+        close(pfd[0]);
+        close(pfd[1]);
+        return -1;
+    }
+    if (pid == 0) {
+        close(pfd[0]);
+        dup2(pfd[1], STDOUT_FILENO);
+        int devnull = open("/dev/null", O_WRONLY);
+        if (devnull >= 0) {
+            dup2(devnull, STDERR_FILENO);
+            close(devnull);
+        }
+        close(pfd[1]);
+        execvp(argv[0], argv);
+        _exit(127);
+    }
+
+    close(pfd[1]);
+    ssize_t total = 0;
+    while (total < (ssize_t)max_len - 1) {
+        ssize_t r = read(pfd[0], output + total, max_len - 1 - total);
+        if (r <= 0) break;
+        total += r;
+    }
+    output[total] = '\0';
+    close(pfd[0]);
+    return 0;
 }
 
 // -----------------------------------------------------------------------------
@@ -22,9 +73,9 @@ static void spawn_async(const char *cmd) {
 // -----------------------------------------------------------------------------
 static void native_cpu(char *output, size_t max_len, uint8_t button) {
     if (button == 1) {
-        spawn_async("setsid -f ka-pop cpu >/dev/null 2>&1 || setsid -f dwm-dropdown cpu >/dev/null 2>&1");
+        spawn_pop("cpu");
     } else if (button == 3) {
-        spawn_async("INFO=$(sensors 2>/dev/null | awk '/^fan1:/ { printf \"🌪️ Fan: %s RPM\\n\", $2 } /^CPU:/ { printf \"🔥 CPU: %s\\n\", $2 } /^Core 0:/ { printf \"1️⃣ Core 0: %s\\n\", $3 } /^Core 1:/ { printf \"2️⃣ Core 1: %s\\n\", $3 }'); notify-send '🌡️ Sensors' \"$INFO\"");
+        spawn_pop("cpu");
     }
 
     static unsigned long long prev_total = 0, prev_idle = 0;
@@ -72,9 +123,10 @@ static void native_cpu(char *output, size_t max_len, uint8_t button) {
 // -----------------------------------------------------------------------------
 static void native_memory(char *output, size_t max_len, uint8_t button) {
     if (button == 1) {
-        spawn_async("setsid -f ka-pop memory >/dev/null 2>&1 || setsid -f dwm-dropdown memory >/dev/null 2>&1");
+        spawn_pop("memory");
     } else if (button == 2) {
-        spawn_async("setsid -f st -e btop >/dev/null 2>&1");
+        char *args[] = {(char *)"st", (char *)"-e", (char *)"btop", NULL};
+        spawn_cmd(args);
     }
 
     snprintf(output, max_len, "󰘚");
@@ -85,11 +137,13 @@ static void native_memory(char *output, size_t max_len, uint8_t button) {
 // -----------------------------------------------------------------------------
 static void native_battery(char *output, size_t max_len, uint8_t button) {
     if (button == 1) {
-        spawn_async("setsid -f ka-pop battery >/dev/null 2>&1 || setsid -f dwm-dropdown battery >/dev/null 2>&1");
+        spawn_pop("battery");
     } else if (button == 4) {
-        spawn_async("brightnessctl -q set +1% >/dev/null 2>&1");
+        char *args[] = {(char *)"brightnessctl", (char *)"-q", (char *)"set", (char *)"+1%", NULL};
+        spawn_cmd(args);
     } else if (button == 5) {
-        spawn_async("brightnessctl -q set 1%- >/dev/null 2>&1");
+        char *args[] = {(char *)"brightnessctl", (char *)"-q", (char *)"set", (char *)"1%-", NULL};
+        spawn_cmd(args);
     }
 
     const char *bat_paths[] = {
@@ -149,9 +203,10 @@ static void native_battery(char *output, size_t max_len, uint8_t button) {
 // -----------------------------------------------------------------------------
 static void native_network(char *output, size_t max_len, uint8_t button) {
     if (button == 1) {
-        spawn_async("setsid -f ka-pop network >/dev/null 2>&1 || setsid -f dwm-dropdown network >/dev/null 2>&1");
+        spawn_pop("network");
     } else if (button == 3) {
-        spawn_async("setsid -f st -e nmtui >/dev/null 2>&1");
+        char *args[] = {(char *)"st", (char *)"-e", (char *)"nmtui", NULL};
+        spawn_cmd(args);
     }
 
     const char *wifi_icon = NULL;
@@ -225,7 +280,7 @@ static void native_network(char *output, size_t max_len, uint8_t button) {
 // -----------------------------------------------------------------------------
 static void native_clock(char *output, size_t max_len, uint8_t button) {
     if (button == 1) {
-        spawn_async("setsid -f ka-pop clock >/dev/null 2>&1 || setsid -f dwm-dropdown clock >/dev/null 2>&1");
+        spawn_pop("clock");
     }
 
     time_t now = time(NULL);
@@ -236,32 +291,32 @@ static void native_clock(char *output, size_t max_len, uint8_t button) {
 }
 
 // -----------------------------------------------------------------------------
-// 6. VOLUME BLOCK (In-Process Native C)
+// 6. VOLUME BLOCK (In-Process Native C - Zero Shell)
 // -----------------------------------------------------------------------------
 static void native_volume(char *output, size_t max_len, uint8_t button) {
     if (button == 1) {
-        spawn_async("setsid -f ka-pop volume >/dev/null 2>&1 || setsid -f dwm-dropdown volume >/dev/null 2>&1");
+        spawn_pop("volume");
     } else if (button == 2) {
-        spawn_async("wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle");
+        char *args[] = {(char *)"wpctl", (char *)"set-mute", (char *)"@DEFAULT_AUDIO_SINK@", (char *)"toggle", NULL};
+        spawn_cmd(args);
     } else if (button == 4) {
-        spawn_async("wpctl set-volume @DEFAULT_AUDIO_SINK@ 1%+");
+        char *args[] = {(char *)"wpctl", (char *)"set-volume", (char *)"@DEFAULT_AUDIO_SINK@", (char *)"1%+", NULL};
+        spawn_cmd(args);
     } else if (button == 5) {
-        spawn_async("wpctl set-volume @DEFAULT_AUDIO_SINK@ 1%-");
+        char *args[] = {(char *)"wpctl", (char *)"set-volume", (char *)"@DEFAULT_AUDIO_SINK@", (char *)"1%-", NULL};
+        spawn_cmd(args);
     }
 
     int vol = 50;
     int is_muted = 0;
-    FILE *p = popen("wpctl get-volume @DEFAULT_AUDIO_SINK@ 2>/dev/null", "r");
-    if (p) {
-        char buf[128];
-        if (fgets(buf, sizeof(buf), p)) {
-            float v = 0.5f;
-            if (sscanf(buf, "Volume: %f", &v) >= 1) {
-                vol = (int)(v * 100.0f + 0.5f);
-            }
-            if (strstr(buf, "[MUTED]")) is_muted = 1;
+    char buf[128] = {0};
+    char *get_vol_args[] = {(char *)"wpctl", (char *)"get-volume", (char *)"@DEFAULT_AUDIO_SINK@", NULL};
+    if (exec_capture(get_vol_args, buf, sizeof(buf)) == 0) {
+        float v = 0.5f;
+        if (sscanf(buf, "Volume: %f", &v) >= 1) {
+            vol = (int)(v * 100.0f + 0.5f);
         }
-        pclose(p);
+        if (strstr(buf, "[MUTED]")) is_muted = 1;
     }
 
     if (is_muted) {
@@ -280,7 +335,7 @@ static void native_volume(char *output, size_t max_len, uint8_t button) {
 // -----------------------------------------------------------------------------
 static void native_forecast(char *output, size_t max_len, uint8_t button) {
     if (button == 1) {
-        spawn_async("setsid -f ka-pop forecast >/dev/null 2>&1 || setsid -f dwm-dropdown forecast >/dev/null 2>&1");
+        spawn_pop("forecast");
     }
 
     const char *home = getenv("HOME");
@@ -323,27 +378,26 @@ static void native_forecast(char *output, size_t max_len, uint8_t button) {
 }
 
 // -----------------------------------------------------------------------------
-// 8. NOTIFY BLOCK (In-Process Native C)
+// 8. NOTIFY BLOCK (In-Process Native C - Zero Shell)
 // -----------------------------------------------------------------------------
 static void native_notify(char *output, size_t max_len, uint8_t button) {
     if (button == 1) {
-        spawn_async("setsid -f ka-pop notify >/dev/null 2>&1 || setsid -f dwm-dropdown notify >/dev/null 2>&1");
+        spawn_pop("notify");
     } else if (button == 2) {
-        spawn_async("dunstctl history-clear 2>/dev/null; pkill -RTMIN+8 dwmblocks 2>/dev/null");
+        char *args[] = {(char *)"dunstctl", (char *)"history-clear", NULL};
+        spawn_cmd(args);
     } else if (button == 3) {
-        spawn_async("dunstctl set-paused toggle 2>/dev/null; pkill -RTMIN+8 dwmblocks 2>/dev/null");
+        char *args[] = {(char *)"dunstctl", (char *)"set-paused", (char *)"toggle", NULL};
+        spawn_cmd(args);
     }
 
     int is_paused = 0;
     int hist_count = 0;
+    char buf[32] = {0};
 
-    FILE *p = popen("dunstctl is-paused 2>/dev/null", "r");
-    if (p) {
-        char buf[32];
-        if (fgets(buf, sizeof(buf), p) && strstr(buf, "true")) {
-            is_paused = 1;
-        }
-        pclose(p);
+    char *paused_args[] = {(char *)"dunstctl", (char *)"is-paused", NULL};
+    if (exec_capture(paused_args, buf, sizeof(buf)) == 0 && strstr(buf, "true")) {
+        is_paused = 1;
     }
 
     if (is_paused) {
@@ -351,13 +405,9 @@ static void native_notify(char *output, size_t max_len, uint8_t button) {
         return;
     }
 
-    p = popen("dunstctl count history 2>/dev/null", "r");
-    if (p) {
-        char buf[32];
-        if (fgets(buf, sizeof(buf), p)) {
-            hist_count = atoi(buf);
-        }
-        pclose(p);
+    char *hist_args[] = {(char *)"dunstctl", (char *)"count", (char *)"history", NULL};
+    if (exec_capture(hist_args, buf, sizeof(buf)) == 0) {
+        hist_count = atoi(buf);
     }
 
     if (hist_count > 0) {
@@ -372,7 +422,8 @@ static void native_notify(char *output, size_t max_len, uint8_t button) {
 // -----------------------------------------------------------------------------
 static void native_record(char *output, size_t max_len, uint8_t button) {
     if (button == 1) {
-        spawn_async("record stop");
+        char *args[] = {(char *)"record", (char *)"stop", NULL};
+        spawn_cmd(args);
     }
 
     if (access("/tmp/omarecord.pid", F_OK) == 0) {

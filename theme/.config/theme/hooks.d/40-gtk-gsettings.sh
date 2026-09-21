@@ -80,8 +80,19 @@ gtk-xft-hintstyle="hintmedium"
 gtk-xft-rgba="rgb"
 EOF
 
-# 5. Bắn tín hiệu D-Bus qua GSettings (Brave, Portal, Web Apps nhận tức thì)
-if command -v gsettings &>/dev/null; then
+# 5. Bắn tín hiệu D-Bus qua DConf/GSettings (Batch Load: 1 IPC transaction thay vì 7 lần gọi subprocess)
+if command -v dconf &>/dev/null; then
+    dconf load /org/gnome/desktop/interface/ <<EOF 2>/dev/null || true
+[/]
+color-scheme='$COLOR_SCHEME'
+gtk-theme='$GTK_THEME_BASE'
+icon-theme='$ICON_THEME'
+font-name='$FONT_UI $FONT_UI_SIZE'
+monospace-font-name='$FONT_MONO $FONT_MONO_SIZE'
+cursor-theme='$CURSOR_THEME'
+cursor-size=$CURSOR_SIZE
+EOF
+elif command -v gsettings &>/dev/null; then
     gsettings set org.gnome.desktop.interface color-scheme "$COLOR_SCHEME" 2>/dev/null || true
     gsettings set org.gnome.desktop.interface gtk-theme "$GTK_THEME_BASE" 2>/dev/null || true
     gsettings set org.gnome.desktop.interface icon-theme "$ICON_THEME" 2>/dev/null || true

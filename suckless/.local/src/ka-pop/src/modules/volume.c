@@ -45,7 +45,8 @@ static void on_vol_changed(GtkRange *range, gpointer user_data) {
 static void on_vol_mute_toggle(GtkButton *btn, gpointer user_data) {
     (void)btn;
     (void)user_data;
-    system("wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle");
+    char *args[] = {(char *)"wpctl", (char *)"set-mute", (char *)"@DEFAULT_AUDIO_SINK@", (char *)"toggle", NULL};
+    spawn_cmd(args);
     gtk_main_quit();
 }
 
@@ -80,17 +81,14 @@ GtkWidget* build_volume_window(void) {
 
     int current_vol = 50;
     int is_muted = 0;
-    FILE *p = popen("wpctl get-volume @DEFAULT_AUDIO_SINK@", "r");
-    if (p) {
-        char buf[128];
-        if (fgets(buf, sizeof(buf), p)) {
-            float v = 0.5f;
-            if (sscanf(buf, "Volume: %f", &v) >= 1) {
-                current_vol = (int)(v * 100.0f + 0.5f);
-            }
-            if (strstr(buf, "[MUTED]")) is_muted = 1;
+    char buf[128] = {0};
+    char *args[] = {(char *)"wpctl", (char *)"get-volume", (char *)"@DEFAULT_AUDIO_SINK@", NULL};
+    if (exec_capture(args, buf, sizeof(buf)) == 0) {
+        float v = 0.5f;
+        if (sscanf(buf, "Volume: %f", &v) >= 1) {
+            current_vol = (int)(v * 100.0f + 0.5f);
         }
-        pclose(p);
+        if (strstr(buf, "[MUTED]")) is_muted = 1;
     }
 
     GtkWidget *mute_btn = gtk_button_new_with_label(is_muted ? "󰝟 UNMUTE" : "󰕾 MUTE");

@@ -45,7 +45,11 @@ done
 
 # Nạp Hardware Profile (Laptop / Desktop / ThinkPad)
 HW_CONF="${XDG_CONFIG_HOME:-$HOME/.config}/hardware/current.conf"
-[ -f "$HW_CONF" ] && . "$HW_CONF"
+if [ -f "$HW_CONF" ]; then
+  . "$HW_CONF"
+  [ -n "$MESA_LOADER_DRIVER_OVERRIDE" ] && export MESA_LOADER_DRIVER_OVERRIDE
+  [ -n "$LIBGL_DRI3_ENABLE" ] && export LIBGL_DRI3_ENABLE
+fi
 
 # Cấu hình Touchpad nếu profile là Laptop
 if [ "${TOUCHPAD_ENABLED:-0}" = "1" ] && command -v xinput >/dev/null 2>&1; then
@@ -133,8 +137,11 @@ for program in $autostart; do
   fi
 done
 
-# Khởi động Unified Daemon (Popovers + Clipboard với Lazy-loading & In-Memory SQLite)
-if command -v ka-daemon >/dev/null 2>&1; then
+# Khởi động Daemon nền (Ưu tiên Native C, triệt tiêu 60MB RAM Python daemon)
+if command -v ka-pop >/dev/null 2>&1; then
+  # Popovers chạy Native C On-Demand (0MB idle RAM, <15ms launch), không cần ka-daemon
+  command -v ka-clip >/dev/null 2>&1 && ka-clip daemon &
+elif command -v ka-daemon >/dev/null 2>&1; then
   ka-daemon &
 else
   # Fallback cho các bản cài đặt cũ
