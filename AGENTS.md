@@ -87,7 +87,7 @@ Each top-level directory is a Stow package containing `$HOME`-relative paths (24
   - `ka theme [nord|gruvbox-dark|catppuccin-mocha]` — Đổi theme toàn diện, hot-reload tức thì
   - `ka default [show|set <cat> <app>]` — Quản lý & chọn ứng dụng mặc định một chạm (Rofi / CLI)
   - `ka clip [menu|daemon|clear|status]` — Quản lý lịch sử clipboard tỷ lệ 2 : 3 (Text đầy đủ & Ảnh phóng to) qua GTK3 native
-  - `ka pop <module>` — Bật/Tắt thẻ popup Omarchy Native C (`ka-pop`: < 0.8ms cold launch, 0MB idle RAM)
+  - `ka pop <module>` — Bật/Tắt thẻ popup Omarchy Native C (`ka-pop`: < 15ms cold launch, 0MB idle RAM, 9 modules bao gồm Clipboard)
   - `ka daemon [start|stop|restart|status]` — Quản lý tiến trình nền hợp nhất ka-daemon
   - `ka profile [detect|set <name>|list|show]` — Quản lý & tự động nhận diện cấu hình phần cứng (Laptop / Desktop / ThinkPad)
   - `ka night [on|off|toggle|status]` — Bật/Tắt chế độ làm việc ban đêm (Lọc ánh sáng xanh 4000K + giảm sáng 35%)
@@ -108,7 +108,7 @@ Each top-level directory is a Stow package containing `$HOME`-relative paths (24
 - **Deploy & Management:**
   - `stow-safe <package>` — Deploy an toàn (tự động backup vào `~/.local/share/dotfiles/backups/`)
   - `ka-setup suckless` — Biên dịch và cài đặt DWM 6.8, ST, Dmenu, Dwmblocks, ka-pop
-  - `ka-setup sys` — Tự động cấu hình zRAM (`zstd`) + Sysctl Virtual Memory tuning (`vm.swappiness = 180`)
+  - `ka-setup sys` — Tự động cấu hình zRAM thích ứng (`lz4` cho <=2 nhân, `zstd` cho >=4 nhân) + Sysctl VM tuning (`vm.swappiness = 180`, `vm.page-cluster = 0`)
   - Session start: auto via `zsh/.config/zsh/.zprofile` → `startx "$XINITRC"` → `exec ssh-agent dwm`
 
 ## Essential Ergonomic Hotkeys

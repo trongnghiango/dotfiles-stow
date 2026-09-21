@@ -119,24 +119,26 @@
   - Cập nhật trực tiếp vào in-memory buffer: **0 system calls qua pipe VFS**, 0 lần fork định kỳ, tiêu thụ 0.0% CPU liên tục.
   - Triệt tiêu zombie hoàn toàn bằng `signal(SIGCHLD, SIG_IGN)` và xử lý chuẩn POSIX `errno == ECHILD`.
 - **Hệ Thống Popover C Native (`ka-pop`)**:
-  - Viết bằng C thuần + GTK3 (`suckless/.local/src/ka-pop/`): Khởi chạy lạnh cực nhanh **< 0.8ms**, tiêu thụ **0MB RAM khi idle** (< 4MB khi mở).
+  - Viết bằng C thuần + GTK3 (`suckless/.local/src/ka-pop/`): Khởi chạy lạnh cực nhanh **< 15ms**, tiêu thụ **0MB RAM khi idle** (< 4MB khi mở).
   - Tự động nạp màu sắc từ `~/.config/theme/colors/current.conf` qua `apply_theme_css()`, kế thừa trọn vẹn typography `JetBrains Mono` và bộ icon `Nerd Font`.
   - Cơ chế Debounce 50ms trên slider Volume và Brightness loại bỏ hoàn toàn fork-storm khi người dùng kéo chuột.
+  - **Kiến trúc Module hóa & An toàn bộ nhớ**: Tách biệt thành 18 file mã nguồn (`include/` & `src/modules/`), áp dụng chuẩn `SAFE_FREE`, dọn dẹp triệt để timer khi hủy window và hỗ trợ `make debug` với AddressSanitizer (ASan) triệt tiêu 100% rò rỉ bộ nhớ.
 - **Triết lý Máy Trạng Thái Hợp Nhất & Căn Lề Chuẩn Xác (Edge-Flush Alignment)**:
   - Mọi block tương tác trên thanh bar đều liên kết trực tiếp với máy trạng thái C-Core (`active_block.win`, `active_block.sig`) của DWM.
   - **Căn lề Edge-Flush 100%**:
     - Với các block Bên Trái hoặc Ở Giữa (như Clock, Forecast): Mép TRÁI của popup dính chặt 100% với mép TRÁI của vạch underline (`c->x = active_block.screen_x`).
     - Với các block Bên Phải (như Volume, Battery, Network, CPU, Mem) khi chạm mép màn hình: Mép PHẢI của popup ôm khít 100% với mép PHẢI của vạch underline (`c->x = active_block.screen_x + active_block.w - WIDTH(c)`).
   - **Triệt tiêu 100% Underline ma (Zero Stray Underline)**: Khi popup đóng (bằng `Esc`, `q`, phím tắt, click ra ngoài), DWM lập tức xóa sạch `active_block.sig = 0` và vẽ lại thanh bar, không để lại bất kỳ vạch gạch chân nào khi popup đã biến mất.
-- **Danh mục 8 Dropdown & Sidebar Modules**:
+- **Danh mục 9 Dropdown & Sidebar Modules**:
   - `ka-pop volume`: Thanh trượt âm lượng (hỗ trợ cuộn chuột, debounce 50ms), nút Mute nhanh.
   - `ka-pop clock`: Giờ hiện tại cỡ lớn, ngày tháng chi tiết, lịch tháng tương tác (`Gtk.Calendar`), thời gian hoạt động hệ thống (uptime).
   - `ka-pop battery`: Thanh đo pin, trạng thái sạc/xả chi tiết, thanh trượt độ sáng màn hình (`brightnessctl`, debounce 50ms).
-  - `ka-pop cpu`: Nhiệt độ phần cứng, bảng top 4 tiến trình ngốn CPU, nút mở nhanh `btop`.
-  - `ka-pop memory`: Dung lượng RAM chi tiết, bảng top 4 tiến trình ngốn RAM, nút mở nhanh `btop`.
+  - `ka-pop cpu`: Nhiệt độ phần cứng từ sysfs, bảng top 4 tiến trình ngốn CPU, nút mở nhanh `btop`.
+  - `ka-pop memory`: Dung lượng RAM chi tiết (/proc/meminfo), bảng top 4 tiến trình ngốn RAM, nút mở nhanh `btop`.
   - `ka-pop network`: Địa chỉ IPv4 nội bộ, bộ 3 nút đổi DNS trực tiếp (DHCP, Cloudflare, Google).
   - `ka-pop forecast`: Thẻ thời tiết trực quan, nhiệt độ hiện tại, trạng thái bầu trời từ cache.
   - `ka-pop notify` (`Super + Shift + N`): Trung tâm thông báo, nút DND và nút xóa sạch lịch sử thông báo Dunst.
+  - `ka-pop clip` (`Super + V`): Trình quản lý clipboard Master-Detail chuẩn tỉ lệ vàng 2 : 3 (C-Native, xem trước ảnh sắc nét + full text, 0MB idle RAM).
 
 ### Tối Ưu Hóa Khởi Động Shell & Hiển Thị Phần Cứng
 - **Shell Startup < 8ms (Static Pre-compiled Caching)**:
@@ -146,7 +148,10 @@
 - **Tối ưu hóa Màn hình Low-DPI & Kernel**:
   - **Fontconfig Subpixel RGB**: Bật `antialias`, `hinting`, `hintstyle=hintslight`, `rgba=rgb`, `lcdfilter=lcddefault`, loại bỏ font bitmap giúp chữ sắc nét tuyệt đối trên các màn hình LCD cũ (1366x768).
   - **Picom Low-Latency GLX**: Cấu hình `backend = "glx"`, `vsync = true`, `use-damage = true`, tắt hoàn toàn blur và fading để triệt tiêu độ trễ hiển thị và bảo vệ độ ổn định của các ứng dụng Electron/Chromium.
-  - **Kernel zRAM & VM Tuning (`ka-setup sys`)**: Cấu hình zRAM nén `zstd` 1:1 với RAM vật lý kèm `vm.swappiness = 180`, `vfs_cache_pressure = 50` biến máy 4GB RAM thành ~8GB RAM hiệu dụng, không bao giờ đơ cứng vì disk swap.
+  - **Kernel zRAM & VM Tuning (`ka-setup sys`)**: Cấu hình zRAM nén thích ứng phần cứng (`lz4` cho CPU <= 2 nhân để giảm tải CPU, `zstd` cho CPU >= 4 nhân) kèm `vm.swappiness = 180`, `vm.page-cluster = 0` (đọc/ghi 4KB đơn lẻ triệt tiêu micro-stutter), `vfs_cache_pressure = 50` biến máy 4GB RAM thành ~8GB RAM hiệu dụng, không bao giờ đơ cứng vì disk swap.
+  - **Tối ưu hóa Process Scheduling (`xinitrc`)**: Áp dụng `renice -n -5` cho Xorg và DWM đảm bảo độ nhạy chuột/phím và phản hồi UI luôn đạt chuẩn Real-Time ngay cả khi CPU chạm 100%.
+  - **Tự thích ứng C Runtime (Glibc vs Musl)**: Tự động phát hiện C Library qua hàm `detect_libc` trong `ka doctor`, `ka-setup` và `setup-drivers/void.sh` đảm bảo tương thích 100% trên Void musl, Alpine và các bản phân phối glibc.
+  - **Engine Adapters Khởi Động Không Chặn (Non-blocking X11)**: `xinitrc.void` dùng socket polling bất đồng bộ triệt tiêu 1.5s sleep; `xinitrc.debian` gỡ bỏ thao tác symlink lặp lại trong hot path; chuẩn hóa âm thanh PipeWire nền.
 
 ### Universal Hardware Profile Engine (`ka-profile` & `hardware/`)
 - **Triết lý Tách Biệt Phần Cứng**: Cấu hình chung là an toàn tuyệt đối, không hardcode cờ GPU hay tham số của riêng một máy nào vào tầng Base.
