@@ -211,6 +211,7 @@ debian_setup_suckless_deps() {
     build-essential
     pkg-config
     libx11-dev
+    libx11-xcb-dev
     libxinerama-dev
     libxft-dev
     libimlib2-dev
@@ -221,6 +222,9 @@ debian_setup_suckless_deps() {
     libxrender-dev
     libyajl-dev
     libxext-dev
+    libasound2-dev
+    libxfixes-dev
+    libgtk-3-dev
   )
 
   local missing_build=()

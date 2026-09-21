@@ -16,6 +16,7 @@ B,libfontconfig1-dev,2,dwm+st,Development files for fontconfig.
 B,libharfbuzz-dev,2,st,OpenType text shaping engine required to compile st with ligatures support.
 B,libimlib2-dev,2,dwm,Image loading and rendering library for DWM icon and tag preview.
 B,libx11-dev,2,dwm+st,X11 client-side library headers.
+B,libx11-xcb-dev,2,dwm,X11 XCB binary compatibility library headers (required for swallow patch).
 B,libxinerama-dev,2,dwm,Xinerama multi-monitor extension library for DWM.
 B,libxft-dev,2,dwm+st,FreeType font rendering library for DWM and ST.
 B,libxrender-dev,2,dwm+st,X Rendering Extension client library headers.
@@ -23,6 +24,9 @@ B,libxcb1-dev,2,dwm,X C Binding client library headers.
 B,libxcb-res0-dev,2,dwm,X C Binding resource extension headers (swallow patch).
 B,libyajl-dev,2,dwm,Yet Another JSON Library headers for DWM IPC patch.
 B,libxext-dev,2,dwm,X11 miscellaneous extensions headers.
+B,libasound2-dev,2,dwmblocks,ALSA sound library development headers (required for dwmblocks native volume).
+B,libxfixes-dev,2,dwm,XFixes extension library headers (required for ka-clipd).
+B,libgtk-3-dev,2,dwm,GTK3 development headers (required for ka-pop).
 ,libimlib2,2,dwm,Image loading library.
 ,maim,2,x11,Can take quick screenshots (used by maimpick script).
 ,slop,2,x11,Screen selection tool used by maim and ocr.
@@ -113,7 +117,6 @@ E,lazydocker,9,docker,Manages Docker status via TUI (via binary).
 ,bluez,11,bluetooth,Bluetooth services protocol stack.
 ,bmon,11,system,Bmon bandwidth monitor.
 ,brightnessctl,11,dwmblocks,Screen brightness controller.
-,clipmenu,11,system,Clipboard history menu via Rofi.
 ,dash,11,system,Fast POSIX shell.
 ,dosfstools,11,system,FAT/DOS filesystem tools.
 ,git,11,system,Tracks code changes with git.
@@ -122,11 +125,11 @@ E,lazydocker,9,docker,Manages Docker status via TUI (via binary).
 ,hugo,11,system,Static site generator.
 ,intel-media-va-driver,11,intel,Hardware video acceleration for Intel GPUs.
 ,libnotify-bin,11,x11,Desktop notification delivery tool (notify-send).
+,lxpolkit,11,system,Lightweight Polkit authentication GUI agent (Debian 12/13+).
 ,nsxiv,11,system,Neo Simple X Image Viewer.
 ,ntfs-3g,11,system,Accessing NTFS partitions.
 ,pass,11,otp,Standard UNIX password manager.
 ,pass-extension-otp,11,otp,GPG-based 2FA one-time password extension for pass.
-,policykit-1-gnome,11,system,Polkit authentication GUI agent.
 ,smartmontools,11,system,Tests hard drive S.M.A.R.T. health.
 ,udiskie,11,system,Removable media automounter with tray support.
 ,unrar-free,11,system,Extracts RAR archives.
