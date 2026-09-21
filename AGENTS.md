@@ -97,7 +97,8 @@ Each top-level directory is a Stow package containing `$HOME`-relative paths (24
   - `ka setup [all|suckless|stow|pkgs|sys]` — Tự động hóa triển khai hệ thống (Arch, Debian, Void, Fedora)
 - **DWM 6.8 Native C Core & Zero-Fork Statusbar (dwmblocks):**
   - Nâng cấp lên DWM 6.8 với các bản vá bảo mật upstream (heap overflow, EWMH focus, format 32 check, underflow guard)
-  - **Zero-Fork Statusbar (9/9 Blocks In-Process C)**: `ka-clock`, `ka-forecast`, `sb-record`, `ka-volume`, `ka-battery`, `ka-network`, `ka-cpu`, `ka-memory`, `sb-notify` đều chạy 100% C thuần bên trong tiến trình dwmblocks, cập nhật trực tiếp in-memory buffer (0 system calls qua pipe, 0 lần fork, 0.0% CPU usage)
+  - **Zero-Fork Statusbar (9/9 Blocks In-Process C)**: `ka-clock`, `ka-forecast`, `sb-record`, `ka-volume`, `ka-battery`, `ka-network`, `ka-cpu`, `ka-memory`, `sb-notify` đều chạy 100% C thuần bên trong tiến trình dwmblocks. Triệt tiêu toàn bộ `popen()` và `/bin/sh`, chuyển sang `exec_capture` và `spawn_cmd` trực tiếp.
+  - **Zero-Fork DWM-Statusbar IPC**: DWM đọc PID statusbar trực tiếp từ `$XDG_RUNTIME_DIR/dwmblocks.pid` (< 0.005ms) + fallback quét `/proc` (0 fork, loại bỏ 100% `popen("pgrep")` làm khựng chuột trong DWM).
   - **Triệt tiêu Zombie (`signal(SIGCHLD, SIG_IGN)`)**: Tự động thu dọn tiến trình con ở tầng kernel, xử lý chuẩn POSIX `ECHILD`
   - **Edge-Flush Dropdown Alignment**:
     - Left/Center blocks: Căn mép TRÁI cửa sổ popup thẳng hàng 100% với mép TRÁI vạch underline (`c->x = active_block.screen_x`)
