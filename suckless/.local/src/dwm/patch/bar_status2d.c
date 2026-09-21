@@ -180,7 +180,7 @@ drawstatusbar(BarArg *a, char* stext)
 	if (active_block.sig > 0 && !active_block.win) {
 		Client *dc = NULL;
 		for (Client *k = selmon ? selmon->clients : NULL; k; k = k->next) {
-			if (k->isdropdown || strstr(k->name, "dwm-dropdown") || strstr(k->name, "ka-pop")) {
+			if (k->isdropdown) {
 				dc = k;
 				active_block.win = k->win;
 				active_block.sig = dropdowntosig(k->name);

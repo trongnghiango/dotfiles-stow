@@ -979,8 +979,7 @@ configurerequest(XEvent *e)
 				c->oldh = c->h;
 				c->h = ev->height;
 			}
-			if (c->isdropdown || strstr(c->name, "dwm-dropdown") || strstr(c->name, "ka-pop")) {
-				c->isdropdown = 1;
+			if (c->isdropdown) {
 				c->bw = 0;
 				if (strstr(c->name, "notify")) {
 					int nw = (int)(m->ww * 0.25);
@@ -1681,15 +1680,14 @@ manage(Window w, XWindowAttributes *wa)
 			XFree(ch.res_class);
 	}
 
-	if (c->isdropdown || strstr(c->name, "dwm-dropdown") || strstr(c->name, "ka-pop")) {
-		c->isdropdown = 1;
+	if (c->isdropdown) {
 		if (!active_block.sig)
 			active_block.sig = dropdowntosig(c->name);
 		/* Close & destroy any existing dropdown window immediately */
 		Client *k, *knxt;
 		for (k = c->mon->clients; k; k = knxt) {
 			knxt = k->next;
-			if (k != c && (k->isdropdown || strstr(k->name, "dwm-dropdown") || strstr(k->name, "ka-pop"))) {
+			if (k != c && k->isdropdown) {
 				killdropdown(k->win);
 			}
 		}
@@ -2664,8 +2662,7 @@ unmanage(Client *c, int destroyed)
 		XUngrabServer(dpy);
 	}
 
-	if (c->isdropdown || strstr(c->name, "dwm-dropdown") || strstr(c->name, "ka-pop") ||
-	    (active_block.win && c->win == active_block.win)) {
+	if (c->isdropdown || (active_block.win && c->win == active_block.win)) {
 		active_block.sig = 0;
 		active_block.win = 0;
 		active_block.w = 0;
