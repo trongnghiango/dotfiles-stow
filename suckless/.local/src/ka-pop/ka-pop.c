@@ -206,7 +206,6 @@ static GtkWidget* create_base_window(const char *name, int min_width, GtkWidget 
     char title_buf[64];
     snprintf(title_buf, sizeof(title_buf), "dwm-dropdown-%s", name);
     gtk_window_set_title(GTK_WINDOW(win), title_buf);
-    gtk_window_set_wmclass(GTK_WINDOW(win), "dwm-dropdown", "dwm-dropdown");
     gtk_window_set_decorated(GTK_WINDOW(win), FALSE);
     gtk_window_set_resizable(GTK_WINDOW(win), FALSE);
     gtk_window_set_skip_taskbar_hint(GTK_WINDOW(win), TRUE);
@@ -793,6 +792,8 @@ static GtkWidget* build_forecast_window() {
 // -----------------------------------------------------------------------------
 int main(int argc, char *argv[]) {
     signal(SIGCHLD, SIG_IGN);
+    g_set_prgname("dwm-dropdown");
+    g_set_application_name("dwm-dropdown");
 
     if (argc > 1 && (strcmp(argv[1], "-h") == 0 || strcmp(argv[1], "--help") == 0)) {
         printf("Sử dụng: ka-pop [volume|battery|clock|cpu|memory|network|notify]\n");
