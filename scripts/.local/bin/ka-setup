@@ -464,10 +464,45 @@ setup_pam() {
     return 0
   fi
 
+  # Kiểm tra module pam_gnome_keyring.so trên các distro (Debian tách riêng gói libpam-gnome-keyring)
+  local pam_module_found=false
+  for p in /lib/security/pam_gnome_keyring.so \
+           /usr/lib/security/pam_gnome_keyring.so \
+           /lib/*/security/pam_gnome_keyring.so \
+           /usr/lib/*/security/pam_gnome_keyring.so; do
+    if [ -f "$p" ]; then
+      pam_module_found=true
+      break
+    fi
+  done
+
+  if [ "$pam_module_found" = false ]; then
+    log_warn "Không tìm thấy pam_gnome_keyring.so trên hệ thống."
+    if command -v apt-get &>/dev/null; then
+      log_info "Đang cài đặt libpam-gnome-keyring qua apt..."
+      sudo apt-get update -y && sudo apt-get install -y libpam-gnome-keyring 2>/dev/null || true
+    fi
+  fi
+
   log_info "Cần quyền root để ghi vào $pam_file..."
   sudo cp "$pam_file" "${pam_file}.bak"
-  sudo sed -i '/auth\s\+include\s\+system-local-login/a auth       optional     pam_gnome_keyring.so' "$pam_file"
-  sudo sed -i '/session\s\+include\s\+system-local-login/a session    optional     pam_gnome_keyring.so auto_start' "$pam_file"
+
+  # Hỗ trợ đa distro: Debian/Ubuntu (@include common-*), Arch (system-local-login), Void (system-login), Fedora (system-auth)
+  if grep -q "@include.*common-auth" "$pam_file"; then
+    # Debian / Ubuntu style
+    sudo sed -i '/@include.*common-auth/a auth       optional     pam_gnome_keyring.so' "$pam_file"
+    sudo sed -i '/@include.*common-session/a session    optional     pam_gnome_keyring.so auto_start' "$pam_file"
+  elif grep -qE "auth[[:space:]]+(include|substack)[[:space:]]+(system-local-login|system-login|system-auth)" "$pam_file"; then
+    # Arch, Void, Fedora style
+    sudo sed -i -E '/auth[[:space:]]+(include|substack)[[:space:]]+(system-local-login|system-login|system-auth)/a auth       optional     pam_gnome_keyring.so' "$pam_file"
+    sudo sed -i -E '/session[[:space:]]+(include|substack)[[:space:]]+(system-local-login|system-login|system-auth)/a session    optional     pam_gnome_keyring.so auto_start' "$pam_file"
+  else
+    # Fallback cho các cấu hình PAM tùy biến khác
+    sudo tee -a "$pam_file" >/dev/null <<'EOF'
+auth       optional     pam_gnome_keyring.so
+session    optional     pam_gnome_keyring.so auto_start
+EOF
+  fi
 
   if grep -q "pam_gnome_keyring.so" "$pam_file"; then
     log_success "Đã cấu hình PAM gnome-keyring thành công."

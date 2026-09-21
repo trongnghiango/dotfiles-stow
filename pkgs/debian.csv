@@ -122,6 +122,7 @@ E,nerd-fonts-symbols,10,dwmblocks,Symbols Nerd Font (Icons & Glyphs) for DWM bar
 ,dosfstools,11,system,FAT/DOS filesystem tools.
 ,git,11,system,Tracks code changes with git.
 ,gnome-keyring,11,system,System keyring daemon for Brave and secrets.
+,libpam-gnome-keyring,11,system,PAM module to unlock gnome-keyring automatically on TTY login.
 ,gvfs-backends,11,system,GVFS backend for MTP and remote filesystems.
 ,hugo,11,system,Static site generator.
 ,intel-media-va-driver,11,intel,Hardware video acceleration for Intel GPUs.
