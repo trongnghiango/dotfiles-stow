@@ -26,6 +26,44 @@
 
 ---
 
+## 1.5. 7 Nguyên Tắc Thép Cho Bộ Khung Gầm Đa Distro & Kỷ Luật Sửa Lỗi
+
+> **QUY ĐỊNH BẮT BUỘC CHO MỌI AI AGENT:** 
+> Tuyệt đối không code theo kiểu "thấy lỗi là vá víu tạm bợ" (monkey-patching) làm phát sinh rác code, ô nhiễm môi trường và suy giảm hiệu năng. Phải tuân thủ 7 nguyên tắc thép:
+
+1. **Tam Giác Cô Lập Kiến Trúc (Architectural Isolation)**:
+   - **Tầng Engine (Distro OS)**: Chỉ quản lý tải gói, nằm riêng tại `pkgs/*.csv` và `scripts/.local/bin/setup-drivers/`.
+   - **Tầng Chassis (Hardware Profile)**: Quản lý đặc tính vật lý (DPI, pin, touchpad, cờ GPU), nằm riêng tại `hardware/.config/hardware/`.
+   - **Tầng Cockpit (Userland Dotfiles)**: DWM, ST, Zsh, Neovim, Theme. Tầng này **hoàn toàn mù (agnostic) về Distro**.
+   - **CẤM**: Không viết `if [ "$DISTRO" = "arch" ]` hoặc kiểm tra distro trong UI, scripts, dwm, theme.
+2. **Zero-Binary trong Git (Biên dịch Cục bộ)**:
+   - **CẤM**: Tuyệt đối KHÔNG commit file thực thi nhị phân compiled ELF (`dwm`, `st`, `dmenu`, `ka-pop`, `*.o`) vào Git repository.
+   - Mọi binary C Native phải được biên dịch tại máy đích qua `ka-setup suckless` để tối ưu theo vi kiến trúc CPU cục bộ (`-march=native -O3 -flto`) và tương thích đúng thư viện C (glibc vs musl).
+3. **Zero-Cost Shim Layer (Giải quyết phân mảnh tên Binary FHS)**:
+   - Khi distro đổi tên binary (như Debian đổi `bat` thành `batcat`, `fd` thành `fdfind`), xử lý bằng symlink 1 lần duy nhất trong `setup-drivers/` trỏ về `~/.local/bin/bat` và `~/.local/bin/fd`.
+   - **CẤM**: Không viết `if command -v batcat; then ...` lặp đi lặp lại trong scripts hay config.
+4. **Init-Agnostic & Zero Systemd Lock-in**:
+   - Dotfiles phải chạy trơn tru trên cả **Void Linux (runit)**, **Alpine (OpenRC)** và **Systemd**.
+   - **CẤM**: Không gọi cứng `systemctl --user` nếu không bọc điều kiện kiểm tra `[ -d /run/systemd/system ]`.
+   - Mọi daemon (`ka-daemon`, `dunst`, `picom`) phải chạy được bằng tiến trình POSIX nền thuần túy (`setsid` / `&`).
+5. **Dynamic Path Resolution (Không hardcode đường dẫn hệ thống)**:
+   - **CẤM**: Không chạy thẳng đường dẫn tuyệt đối như `/usr/lib/polkit-gnome/...` vì Void/Fedora dùng `/usr/libexec/...`.
+   - Luôn dùng vòng lặp dò tìm danh sách đường dẫn khả dĩ hoặc `command -v`.
+6. **Hư Hỏng Có Kiểm Soát (Graceful Degradation)**:
+   - Lệnh thăm dò phần cứng (`sensors`, `brightnessctl`, `/sys/class/power_supply`) luôn phải có fallback an toàn (`|| true` hoặc `|| echo fallback`). Không để `set -e` làm sập script khi chạy trên máy không có pin hoặc thiếu cảm biến.
+7. **XDG Base Directory 100% & Idempotency**:
+   - Config vào `~/.config/`, Data vào `~/.local/share/`, Cache vào `~/.cache/`. Không tạo file rác tại `$HOME`.
+   - `ka-setup` chạy 1 lần hay 100 lần kết quả phải đồng nhất, không ghi đè cấu hình cá nhân, không tạo symlink trùng lặp.
+
+### Kỷ Luật Sửa Lỗi (Bug-Fixing Discipline):
+- **Phân tích nguyên nhân gốc rễ (RCA)**: Dùng `coredumpctl`, `gdb`, log X11 để xác định con trỏ lỗi hoặc race condition cụ thể. Tuyệt đối không đoán mò.
+- **Không tự ý thêm cờ thử nghiệm (No Speculative Flags)**: Không thêm các cờ render lạ vào Picom hay Mesa khi chưa đo lường; tránh gây crash dây chuyền cho các ứng dụng Electron/Chromium.
+- **Triệt tiêu Zombie & Leak**: Mọi lệnh chạy nền bất đồng bộ phải dùng `signal(SIGCHLD, SIG_IGN)` hoặc thu dọn tiến trình con đầy đủ, tránh để lại zombie processes (`<defunct>`).
+- **Debounce trên GUI Events**: Mọi thao tác kéo thả slider trên giao diện (Volume, Brightness) phải có bộ đệm (Debounce/Throttle ~50ms), không gọi `system()` liên tục làm nghẽn CPU.
+- **Tôn trọng Single Source of Truth**: Bảng màu chỉ lấy từ `colors/*.conf` qua `theme-set`. Không hardcode mã màu hex trong mã nguồn C hay scripts.
+
+---
+
 ## 2. Quản lý Môi trường & Gói phần mềm
 
 ### Runtime Lập trình: Dùng `mise` (Không dùng Pacman cho dev runtimes)
