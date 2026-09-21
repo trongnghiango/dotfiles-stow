@@ -380,9 +380,21 @@ setup_suckless() {
     fi
   fi
 
-  local src_dir="$HOME/.local/src"
+  # Ưu tiên lấy trực tiếp từ DOTFILES_DIR (độc lập với việc đã stow hay chưa)
+  local src_dir="$DOTFILES_DIR/suckless/.local/src"
+  if [ ! -d "$src_dir" ] && [ -d "$HOME/.local/src" ]; then
+    src_dir="$HOME/.local/src"
+  fi
+
   if [ ! -d "$src_dir" ]; then
-    log_warn "Không tìm thấy thư mục $src_dir. Chắc chắn rằng package suckless đã được stow."
+    log_error "Không tìm thấy mã nguồn Suckless tại $src_dir hoặc $HOME/.local/src."
+    return 1
+  fi
+
+  # Xác thực sudo trước khi bắt đầu build loop để tránh bị timeout/hủy ngầm khi redirect stdout/stderr
+  log_info "Xác thực quyền sudo để cài đặt nhị phân vào /usr/local/bin..."
+  if ! sudo -v; then
+    log_error "Không có quyền sudo để cài đặt suckless tools vào /usr/local/bin."
     return 1
   fi
 
@@ -395,15 +407,24 @@ setup_suckless() {
     fi
 
     if [ -d "$src_dir/$tool" ]; then
-      log_info "Đang biên dịch $tool..."
+      log_info "Đang biên dịch và cài đặt $tool..."
       (
         cd "$src_dir/$tool"
         local make_log="/tmp/make-${tool}.log"
+        # Khắc phục quyền sở hữu nếu lần trước từng chạy nhầm bằng sudo make
+        if [ ! -w . ] || [ -d build -a ! -w build ]; then
+          sudo chown -R "$USER:$USER" . 2>/dev/null || true
+        fi
         # Compile dưới user (tránh file .o owned by root), chỉ install bằng sudo
-        if make clean >"$make_log" 2>&1 && make >>"$make_log" 2>&1 && sudo make install >>"$make_log" 2>&1; then
-          log_dim "Đã biên dịch $tool thành công"
+        if make clean >"$make_log" 2>&1 && make -j"$(nproc 2>/dev/null || echo 2)" >>"$make_log" 2>&1; then
+          if sudo make install >>"$make_log" 2>&1; then
+            log_success "Đã cài đặt $tool vào /usr/local/bin thành công."
+          else
+            log_error "Lỗi khi cài đặt $tool (sudo make install). Xem chi tiết tại $make_log:"
+            cat "$make_log" >&2
+          fi
         else
-          log_error "Lỗi khi biên dịch $tool. Xem chi tiết tại $make_log:"
+          log_error "Lỗi khi biên dịch $tool (make). Xem chi tiết tại $make_log:"
           cat "$make_log" >&2
         fi
       )
@@ -742,25 +763,25 @@ case "$1" in
     ;;
   all)
     _prof="${2:-core}"
-    setup_pkgs "$_prof"
+    setup_pkgs "$_prof" || log_warn "Một số gói cài đặt gặp lỗi hoặc bị bỏ qua."
     echo ""
-    setup_shell
+    setup_shell || log_warn "Bỏ qua cấu hình login shell (có thể chạy lại với: ka-setup shell)."
     echo ""
-    setup_stow
+    setup_stow || log_warn "Một số gói stow gặp lỗi (có thể chạy lại với: ka-setup stow)."
     echo ""
-    setup_profile
+    setup_profile || true
     echo ""
-    setup_suckless
+    setup_suckless || log_error "Biên dịch suckless gặp lỗi. Xem log chi tiết ở trên."
     echo ""
-    setup_pam
+    setup_pam || true
     echo ""
-    setup_brave
+    setup_brave || true
     echo ""
-    setup_battery
+    setup_battery || true
     echo ""
-    setup_docker
+    setup_docker || true
     echo ""
-    setup_sys
+    setup_sys || true
     echo ""
     log_success "=== ka-setup all HOÀN THÀNH (Profile: $_prof) ===="
     log_warn "Nếu đây là lần cài đầu tiên: hãy REBOOT để áp dụng PAM + shell changes."
