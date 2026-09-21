@@ -103,3 +103,37 @@ sigstatusbar(const Arg *arg)
 	sv.sival_int = arg->i;
 	sigqueue(statuspid, SIGRTMIN+statussig, sv);
 }
+
+void
+volume_change(const Arg *arg)
+{
+	pid_t pid = fork();
+	if (pid == 0) {
+		setsid();
+		int devnull = open("/dev/null", O_RDWR);
+		if (devnull >= 0) {
+			dup2(devnull, STDIN_FILENO);
+			dup2(devnull, STDOUT_FILENO);
+			dup2(devnull, STDERR_FILENO);
+			close(devnull);
+		}
+		if (arg->i == 0) {
+			execlp("wpctl", "wpctl", "set-mute", "@DEFAULT_AUDIO_SINK@", "toggle", (char *)NULL);
+		} else if (arg->i > 0) {
+			char step[16];
+			snprintf(step, sizeof(step), "%d%%+", arg->i);
+			execlp("wpctl", "wpctl", "set-volume", "@DEFAULT_AUDIO_SINK@", step, (char *)NULL);
+		} else {
+			char step[16];
+			snprintf(step, sizeof(step), "%d%%-", -arg->i);
+			execlp("wpctl", "wpctl", "set-volume", "@DEFAULT_AUDIO_SINK@", step, (char *)NULL);
+		}
+		_exit(127);
+	}
+
+	/* Direct statusbar signaling: 0 pkill, 0 /proc scan */
+	pid_t sb_pid = getstatusbarpid();
+	if (sb_pid > 0) {
+		sigqueue(sb_pid, SIGRTMIN + 11, (union sigval){.sival_int = 0});
+	}
+}

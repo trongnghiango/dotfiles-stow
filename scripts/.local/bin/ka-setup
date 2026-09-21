@@ -371,7 +371,7 @@ setup_suckless() {
     return 1
   fi
 
-  for tool in dwm st dmenu dwmblocks ka-pop; do
+  for tool in dwm st dmenu dwmblocks ka-pop ka-clipd; do
     # Dọn dẹp binary rác nếu tồn tại trong ~/.local/bin đè lên /usr/local/bin
     if [ -f "$HOME/.local/bin/$tool" ] && [ ! -L "$HOME/.local/bin/$tool" ]; then
       log_warn "Phát hiện binary cũ $HOME/.local/bin/$tool đang đè lên /usr/local/bin/$tool. Đang sao lưu và gỡ bỏ..."
@@ -643,7 +643,47 @@ EOF
     log_success "Đã kích hoạt dịch vụ zramen trên runit."
   fi
 
-  log_success "Hoàn tất tinh chỉnh Kernel & zRAM!"
+  # 3. Transparent Huge Pages (THP) Tuning (Chống micro-stutter trên máy ít RAM <= 4GB)
+  log_info "Cấu hình Transparent Huge Pages (THP madvise/defer)..."
+  if [ -d /run/systemd/system ]; then
+    sudo mkdir -p /etc/tmpfiles.d
+    sudo tee /etc/tmpfiles.d/99-ka-thp.conf >/dev/null <<'EOF'
+# Vô hiệu hóa THP gom trang 2MB trên máy ít RAM, ngăn kcompactd gây khựng chuột
+w /sys/kernel/mm/transparent_hugepage/enabled - - - - madvise
+w /sys/kernel/mm/transparent_hugepage/defrag - - - - defer
+EOF
+    log_success "Đã tạo cấu hình /etc/tmpfiles.d/99-ka-thp.conf."
+  fi
+  # Áp dụng trực tiếp vào kernel sysfs tức thì nếu có quyền
+  if [ -w /sys/kernel/mm/transparent_hugepage/enabled ]; then
+    echo madvise | sudo tee /sys/kernel/mm/transparent_hugepage/enabled >/dev/null || true
+    echo defer | sudo tee /sys/kernel/mm/transparent_hugepage/defrag >/dev/null || true
+    log_success "Đã áp dụng THP madvise vào kernel đang chạy."
+  fi
+
+  # 4. I/O Scheduler Udev Rules (Tối ưu theo loại ổ đĩa: HDD bfq, SSD mq-deadline, NVMe none)
+  log_info "Cấu hình I/O Scheduler udev rules..."
+  sudo mkdir -p /etc/udev/rules.d
+  sudo tee /etc/udev/rules.d/60-ka-ioschedulers.rules >/dev/null <<'EOF'
+# ==============================================================================
+# KA I/O SCHEDULER RULES (Tối ưu độ trễ đĩa theo phần cứng)
+# ==============================================================================
+# HDD (quay cơ khí): bfq để ưu tiên độ mượt mà của ứng dụng tương tác GUI
+ACTION=="add|change", KERNEL=="sd[a-z]*", ATTR{queue/rotational}=="1", ATTR{queue/scheduler}="bfq"
+
+# SATA SSD: mq-deadline giảm độ trễ ngắt và nhẹ tải CPU
+ACTION=="add|change", KERNEL=="sd[a-z]*", ATTR{queue/rotational}=="0", ATTR{queue/scheduler}="mq-deadline"
+
+# NVMe: none (không cần scheduler trung gian, tối đa thông lượng)
+ACTION=="add|change", KERNEL=="nvme[0-9]*", ATTR{queue/scheduler}="none"
+EOF
+  if command -v udevadm &>/dev/null; then
+    sudo udevadm control --reload 2>/dev/null || true
+    sudo udevadm trigger --subsystem-match=block 2>/dev/null || true
+    log_success "Đã kích hoạt I/O Scheduler udev rules."
+  fi
+
+  log_success "Hoàn tất tinh chỉnh Kernel, zRAM, THP & I/O Scheduler!"
 }
 
 # ==============================================================================

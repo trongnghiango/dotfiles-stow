@@ -32,8 +32,8 @@ stty stop undef             # disable ctrl-s freeze
 
 # History file location & sizes
 export HISTFILE="${XDG_DATA_HOME:-$HOME/.local/share}/zsh/history"
-export HISTSIZE=10000000
-export SAVEHIST=10000000
+export HISTSIZE=50000
+export SAVEHIST=50000
 
 # Ensure history directory exists
 mkdir -p "${XDG_DATA_HOME:-$HOME/.local/share}/zsh"

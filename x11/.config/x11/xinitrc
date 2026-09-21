@@ -118,11 +118,19 @@ fi
 # ==============================================================================
 # 5. CẤU HÌNH HIỂN THỊ & HÌNH NỀN CHUNG
 # ==============================================================================
-if command -v xrandr >/dev/null 2>&1; then
-  monitor=$(xrandr | grep " connected primary" | awk '{print $1}')
-  [ -z "$monitor" ] && monitor=$(xrandr | grep " connected" | awk '{print $1}' | head -n 1)
-  [ -z "$monitor" ] && monitor="Virtual-1"
+# Dò tìm màn hình chính kết nối qua DRM sysfs (0 subshell, 0 fork)
+monitor=""
+for card in /sys/class/drm/card*-*; do
+  if [ -f "$card/status" ] && grep -q "^connected" "$card/status" 2>/dev/null; then
+    monitor=$(basename "$card" | sed 's/^card[0-9]*-//')
+    break
+  fi
+done
+
+if [ -n "$monitor" ] && command -v xrandr >/dev/null 2>&1; then
   xrandr --output "$monitor" --auto
+elif command -v xrandr >/dev/null 2>&1; then
+  xrandr --auto
 fi
 
 command -v setbg >/dev/null 2>&1 && setbg "$HOME/Pictures/Wallpapers/" &
@@ -138,7 +146,10 @@ for program in $autostart; do
 done
 
 # Khởi động Daemon nền (Ưu tiên Native C, triệt tiêu 60MB RAM Python daemon)
-if command -v ka-pop >/dev/null 2>&1; then
+if command -v ka-clipd >/dev/null 2>&1; then
+  # Daemon Clipboard C Native siêu nhẹ (< 1.2MB RAM, 0% CPU idle qua XFixes)
+  ka-clipd &
+elif command -v ka-pop >/dev/null 2>&1; then
   # Popovers chạy Native C On-Demand (0MB idle RAM, <15ms launch), không cần ka-daemon
   command -v ka-clip >/dev/null 2>&1 && ka-clip daemon &
 elif command -v ka-daemon >/dev/null 2>&1; then

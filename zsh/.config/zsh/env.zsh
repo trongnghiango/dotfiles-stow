@@ -4,8 +4,8 @@
 # File này chỉ chứa config zsh-specific hoặc tool cần lazy-load trong shell.
 
 # History size (HISTFILE = $XDG_DATA_HOME/zsh/history, set bởi profile — không override ở đây)
-HISTSIZE=10000000
-SAVEHIST=10000000
+HISTSIZE=50000
+SAVEHIST=50000
 
 # FZF — fuzzy finder options
 export FZF_DEFAULT_OPTS="

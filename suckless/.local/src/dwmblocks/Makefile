@@ -7,7 +7,7 @@ INC_DIR := include
 
 DEBUG := 0
 VERBOSE := 0
-LIBS := xcb-atom
+LIBS := xcb-atom alsa
 
 PREFIX := /usr/local
 CFLAGS := -O3 -march=native -pipe -flto -I. -I$(INC_DIR) -std=c99
