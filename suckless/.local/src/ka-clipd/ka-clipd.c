@@ -40,6 +40,12 @@ static void handle_signal(int sig) {
     g_running = 0;
 }
 
+static int handle_x_error(Display *dpy, XErrorEvent *ee) {
+    (void)dpy;
+    (void)ee;
+    return 0;
+}
+
 static int handle_x_io_error(Display *dpy) {
     (void)dpy;
     g_running = 0;
@@ -310,6 +316,7 @@ int main(int argc, char *argv[]) {
     signal(SIGINT, handle_signal);
     signal(SIGTERM, handle_signal);
     signal(SIGCHLD, SIG_IGN);
+    XSetErrorHandler(handle_x_error);
     XSetIOErrorHandler(handle_x_io_error);
 
     init_paths();
