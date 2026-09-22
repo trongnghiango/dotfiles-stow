@@ -559,6 +559,13 @@ applyrules(Client *c)
 		XFree(ch.res_class);
 	if (ch.res_name)
 		XFree(ch.res_name);
+
+	/* Resilient check: always recognize ka-pop dropdowns even if GTK WM_CLASS was delayed */
+	if (strncmp(c->name, "dwm-dropdown-", 13) == 0) {
+		c->isdropdown = 1;
+		c->isfloating = 1;
+	}
+
 	c->tags = c->tags & TAGMASK ? c->tags & TAGMASK : (c->mon->tagset[c->mon->seltags] & ~SPTAGMASK);
 }
 
@@ -720,6 +727,7 @@ buttonpress(XEvent *e)
 			active_block.win = 0;
 			active_block.sig = 0;
 			active_block.w = 0;
+			active_block.screen_x = 0;
 			drawbar(selmon);
 		}
 	}
@@ -1114,6 +1122,7 @@ destroynotify(XEvent *e)
 		active_block.win = 0;
 		active_block.sig = 0;
 		active_block.w = 0;
+		active_block.screen_x = 0;
 		drawbars();
 	}
 
@@ -1692,6 +1701,8 @@ manage(Window w, XWindowAttributes *wa)
 	if (c->isdropdown) {
 		if (!active_block.sig)
 			active_block.sig = dropdowntosig(c->name);
+		if (active_block.w <= 0 && active_block.sig > 0)
+			calblockpos(c->mon, active_block.sig, &active_block.screen_x, &active_block.w);
 		/* Close & destroy any existing dropdown window immediately */
 		Client *k, *knxt;
 		for (k = c->mon->clients; k; k = knxt) {
@@ -1717,11 +1728,7 @@ manage(Window w, XWindowAttributes *wa)
 		} else {
 			/* Standard Dropdown: Underneath the active block */
 			c->y = c->mon->wy;
-			if (active_block.w > 0) {
-				c->x = active_block.screen_x;
-				if (c->x + WIDTH(c) > c->mon->wx + c->mon->ww)
-					c->x = active_block.screen_x + active_block.w - WIDTH(c);
-			} else if (active_block.screen_x > 0) {
+			if (active_block.w > 0 && active_block.screen_x > 0) {
 				c->x = active_block.screen_x;
 				if (c->x + WIDTH(c) > c->mon->wx + c->mon->ww)
 					c->x = active_block.screen_x + active_block.w - WIDTH(c);
@@ -2675,6 +2682,7 @@ unmanage(Client *c, int destroyed)
 		active_block.sig = 0;
 		active_block.win = 0;
 		active_block.w = 0;
+		active_block.screen_x = 0;
 		drawbars();
 	}
 
@@ -2696,6 +2704,7 @@ unmapnotify(XEvent *e)
 		active_block.win = 0;
 		active_block.sig = 0;
 		active_block.w = 0;
+		active_block.screen_x = 0;
 		drawbars();
 	}
 

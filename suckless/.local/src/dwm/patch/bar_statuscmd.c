@@ -44,13 +44,14 @@ click_statuscmd(Bar *bar, Arg *arg, BarArg *a)
 {
 	int res = click_statuscmd_text(arg, a->x - (lrpad / 2), rawstext_right[0] ? rawstext_right : rawstext);
 	if (statussig > 0) {
-		/* Toggle: Nếu click vào block đang mở dropdown (hoặc đang mở), đóng nó và trả về -1 */
+		/* Toggle: Nếu click vào block đang mở dropdown, đóng nó và trả về -1 */
 		if (active_block.sig == statussig) {
 			if (active_block.win)
 				killdropdown(active_block.win);
 			active_block.sig = 0;
 			active_block.win = 0;
 			active_block.w = 0;
+			active_block.screen_x = 0;
 			drawbar(bar->mon);
 			return -1;
 		}
@@ -62,8 +63,9 @@ click_statuscmd(Bar *bar, Arg *arg, BarArg *a)
 			killdropdown(old_win);
 		}
 
-		/* Ghi nhận signal của block và vẽ lại statusbar */
+		/* Ghi nhận signal và tính toán ngay tọa độ của block */
 		active_block.sig = statussig;
+		calblockpos(bar->mon, statussig, &active_block.screen_x, &active_block.w);
 		drawbar(bar->mon);
 	}
 	return res;
@@ -80,6 +82,7 @@ click_statuscmd_center(Bar *bar, Arg *arg, BarArg *a)
 			active_block.sig = 0;
 			active_block.win = 0;
 			active_block.w = 0;
+			active_block.screen_x = 0;
 			drawbar(bar->mon);
 			return -1;
 		}
@@ -91,6 +94,7 @@ click_statuscmd_center(Bar *bar, Arg *arg, BarArg *a)
 		}
 
 		active_block.sig = statussig;
+		calblockpos(bar->mon, statussig, &active_block.screen_x, &active_block.w);
 		drawbar(bar->mon);
 	}
 	return res;

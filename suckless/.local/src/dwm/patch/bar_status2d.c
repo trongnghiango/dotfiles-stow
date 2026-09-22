@@ -175,21 +175,16 @@ drawstatusbar(BarArg *a, char* stext)
 			active_block.win = 0;
 			active_block.sig = 0;
 			active_block.w = 0;
+			active_block.screen_x = 0;
 		}
 	}
 	if (active_block.sig > 0 && !active_block.win) {
-		Client *dc = NULL;
 		for (Client *k = selmon ? selmon->clients : NULL; k; k = k->next) {
 			if (k->isdropdown) {
-				dc = k;
 				active_block.win = k->win;
 				active_block.sig = dropdowntosig(k->name);
 				break;
 			}
-		}
-		if (!dc) {
-			active_block.sig = 0;
-			active_block.w = 0;
 		}
 	}
 
@@ -299,5 +294,149 @@ status2dtextlength(char* stext)
 	if (p != stack_buf)
 		free(p);
 	return w;
+}
+
+int
+calblockpos(Monitor *m, int sig, int *out_screen_x, int *out_w)
+{
+	if (!m || sig <= 0)
+		return 0;
+
+	/* 1. Thử tìm trong rawstext_center */
+	if (rawstext_center[0]) {
+		char rtext[1024];
+		strncpy(rtext, rawstext_center, sizeof(rtext) - 1);
+		rtext[sizeof(rtext) - 1] = '\0';
+		char *t = rtext;
+		int bx = 0, ti = -1, cur_sig = -1;
+		int found = 0, ab_x = 0, ab_w = 0;
+
+		while (t[++ti]) {
+			if ((unsigned char)t[ti] < ' ') {
+				char ch = t[ti];
+				t[ti] = '\0';
+				if (cur_sig > 0) {
+					int tw = status2dtextlength(t);
+					if (cur_sig == sig) {
+						char trimmed[1024];
+						strncpy(trimmed, t, sizeof(trimmed) - 1);
+						trimmed[sizeof(trimmed) - 1] = '\0';
+						int tlen = strlen(trimmed);
+						while (tlen > 0 && trimmed[tlen - 1] == ' ')
+							trimmed[--tlen] = '\0';
+						ab_x = bx;
+						ab_w = status2dtextlength(trimmed);
+						found = 1;
+						break;
+					}
+					bx += tw;
+				}
+				t[ti] = ch;
+				t += ti + 1;
+				ti = -1;
+				cur_sig = (unsigned char)ch;
+			}
+		}
+		if (!found && cur_sig > 0) {
+			if (cur_sig == sig) {
+				char trimmed[1024];
+				strncpy(trimmed, t, sizeof(trimmed) - 1);
+				trimmed[sizeof(trimmed) - 1] = '\0';
+				int tlen = strlen(trimmed);
+				while (tlen > 0 && trimmed[tlen - 1] == ' ')
+					trimmed[--tlen] = '\0';
+				ab_x = bx;
+				ab_w = status2dtextlength(trimmed);
+				found = 1;
+			}
+		}
+		if (found && ab_w > 0) {
+			int bar_x = 0;
+			for (Bar *bar = m->bar; bar; bar = bar->next) {
+				for (int r = 0; r < LENGTH(barrules); r++) {
+					if (barrules[r].drawfunc == draw_status2d_center) {
+						bar_x = bar->x[r];
+						break;
+					}
+				}
+			}
+			int bar_start_x = bar_x + (lrpad / 2);
+			int uw = MAX(ab_w, bh);
+			int ux = (bar_start_x + ab_x) - (uw - ab_w) / 2;
+			if (out_screen_x) *out_screen_x = m->wx + ux;
+			if (out_w) *out_w = uw;
+			return 1;
+		}
+	}
+
+	/* 2. Thử tìm trong rawstext_right (hoặc rawstext) */
+	char *right_text = rawstext_right[0] ? rawstext_right : rawstext;
+	if (right_text && right_text[0]) {
+		char rtext[1024];
+		strncpy(rtext, right_text, sizeof(rtext) - 1);
+		rtext[sizeof(rtext) - 1] = '\0';
+		char *t = rtext;
+		int bx = 0, ti = -1, cur_sig = -1;
+		int found = 0, ab_x = 0, ab_w = 0;
+
+		while (t[++ti]) {
+			if ((unsigned char)t[ti] < ' ') {
+				char ch = t[ti];
+				t[ti] = '\0';
+				if (cur_sig > 0) {
+					int tw = status2dtextlength(t);
+					if (cur_sig == sig) {
+						char trimmed[1024];
+						strncpy(trimmed, t, sizeof(trimmed) - 1);
+						trimmed[sizeof(trimmed) - 1] = '\0';
+						int tlen = strlen(trimmed);
+						while (tlen > 0 && trimmed[tlen - 1] == ' ')
+							trimmed[--tlen] = '\0';
+						ab_x = bx;
+						ab_w = status2dtextlength(trimmed);
+						found = 1;
+						break;
+					}
+					bx += tw;
+				}
+				t[ti] = ch;
+				t += ti + 1;
+				ti = -1;
+				cur_sig = (unsigned char)ch;
+			}
+		}
+		if (!found && cur_sig > 0) {
+			if (cur_sig == sig) {
+				char trimmed[1024];
+				strncpy(trimmed, t, sizeof(trimmed) - 1);
+				trimmed[sizeof(trimmed) - 1] = '\0';
+				int tlen = strlen(trimmed);
+				while (tlen > 0 && trimmed[tlen - 1] == ' ')
+					trimmed[--tlen] = '\0';
+				ab_x = bx;
+				ab_w = status2dtextlength(trimmed);
+				found = 1;
+			}
+		}
+		if (found && ab_w > 0) {
+			int bar_x = 0;
+			for (Bar *bar = m->bar; bar; bar = bar->next) {
+				for (int r = 0; r < LENGTH(barrules); r++) {
+					if (barrules[r].drawfunc == draw_status2d) {
+						bar_x = bar->x[r];
+						break;
+					}
+				}
+			}
+			int bar_start_x = bar_x + (lrpad / 2);
+			int uw = MAX(ab_w, bh);
+			int ux = (bar_start_x + ab_x) - (uw - ab_w) / 2;
+			if (out_screen_x) *out_screen_x = m->wx + ux;
+			if (out_w) *out_w = uw;
+			return 1;
+		}
+	}
+
+	return 0;
 }
 
