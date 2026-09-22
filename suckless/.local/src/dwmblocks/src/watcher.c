@@ -51,12 +51,23 @@ int watcher_poll(watcher* watcher, const int timeout_ms) {
         return 1;
     }
 
+    if (event_count <= 0) {
+        watcher->got_signal = false;
+        watcher->active_block_count = 0;
+        return 0;
+    }
+
     watcher->got_signal = watcher_fd_is_readable(&watcher->fds[SIGNAL_FD]);
 
-    watcher->active_block_count = event_count - (int)watcher->got_signal;
+    unsigned short active_count = (unsigned short)(event_count - (int)watcher->got_signal);
+    if (active_count > BLOCK_COUNT) {
+        active_count = BLOCK_COUNT;
+    }
+    watcher->active_block_count = active_count;
+
     unsigned short i = 0;
     unsigned short j = 0;
-    while (i < event_count && j < LEN(watcher->active_blocks)) {
+    while (i < active_count && j < BLOCK_COUNT) {
         if (watcher_fd_is_readable(&watcher->fds[j])) {
             watcher->active_blocks[i] = j;
             ++i;
