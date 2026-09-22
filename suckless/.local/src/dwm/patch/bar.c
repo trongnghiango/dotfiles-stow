@@ -26,6 +26,13 @@ barhover(XEvent *e, Bar *bar)
 		break;
 	}
 
+	if (!hand && hover_block.sig > 0) {
+		hover_block.sig = 0;
+		hover_block.bar_x = 0;
+		hover_block.w = 0;
+		drawbar(bar->mon);
+	}
+
 	int cur = hand ? CurHand : CurNormal;
 	if (bar->cursor != cur) {
 		XDefineCursor(dpy, bar->win, cursor[cur]->cursor);

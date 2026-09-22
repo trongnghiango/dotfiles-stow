@@ -1,36 +1,46 @@
 int
-getsigbypos(int rel_x, char *text)
+find_block_at(int rel_x, const char *rawtext, int *out_x, int *out_w)
 {
-	int i = -1, x = 0;
-	char ch;
-	int sig = -1;
-
-	if (rel_x < 0 || !text)
+	if (!rawtext || rel_x < 0)
 		return 0;
 
-	while (text[++i]) {
-		if ((unsigned char)text[i] < ' ') {
-			ch = text[i];
-			text[i] = '\0';
-			int w = status2dtextlength(text);
-			x += w;
-			text[i] = ch;
-			text += i + 1;
-			i = -1;
-			if (x >= rel_x && sig != -1)
-				break;
-			sig = ch;
+	char buf[1024];
+	strncpy(buf, rawtext, sizeof(buf) - 1);
+	buf[sizeof(buf) - 1] = '\0';
+
+	char *p = buf;
+	int cur_x = 0;
+	int cur_sig = 0;
+
+	while (*p) {
+		if ((unsigned char)*p < ' ') {
+			cur_sig = (unsigned char)*p;
+			p++;
+			char *start = p;
+			while (*p && (unsigned char)*p >= ' ')
+				p++;
+			char saved = *p;
+			*p = '\0';
+			int w = status2dtextlength(start);
+			*p = saved;
+
+			if (rel_x >= cur_x && rel_x < cur_x + w) {
+				if (out_x) *out_x = cur_x;
+				if (out_w) *out_w = w;
+				return cur_sig;
+			}
+			cur_x += w;
+		} else {
+			p++;
 		}
 	}
-	if (sig > 0) {
-		int w = status2dtextlength(text);
-		x += w;
-		if (rel_x > x)
-			sig = 0;
-	} else {
-		sig = 0;
-	}
-	return sig > 0 ? sig : 0;
+	return 0;
+}
+
+int
+getsigbypos(int rel_x, char *text)
+{
+	return find_block_at(rel_x, text, NULL, NULL);
 }
 
 int
@@ -39,6 +49,7 @@ click_statuscmd_text(Arg *arg, int rel_x, char *text)
 	statussig = getsigbypos(rel_x, text);
 	return ClkStatusText;
 }
+
 int
 click_statuscmd(Bar *bar, Arg *arg, BarArg *a)
 {
@@ -116,12 +127,58 @@ copyvalidchars(char *text, char *rawtext)
 int
 hover_statuscmd(Bar *bar, BarArg *a, XMotionEvent *ev)
 {
-	return getsigbypos(a->x - (lrpad / 2), rawstext_right[0] ? rawstext_right : rawstext) > 0;
+	int bx = 0, bw = 0;
+	int rel_x = a->x - (lrpad / 2);
+	char *text = rawstext_right[0] ? rawstext_right : rawstext;
+	int sig = find_block_at(rel_x, text, &bx, &bw);
+
+	if (sig > 0 && bw > 0) {
+		int uw = MAX(bw, bar->bh);
+		int bar_module_x = ev->x - a->x;
+		int final_bar_x = bar_module_x + (a->x - rel_x + bx) - (uw - bw) / 2;
+
+		if (hover_block.sig != sig || hover_block.bar_x != final_bar_x || hover_block.w != uw) {
+			hover_block.sig = sig;
+			hover_block.bar_x = final_bar_x;
+			hover_block.w = uw;
+			drawbar(bar->mon);
+		}
+		return 1;
+	} else if (hover_block.sig > 0) {
+		hover_block.sig = 0;
+		hover_block.bar_x = 0;
+		hover_block.w = 0;
+		drawbar(bar->mon);
+	}
+	return 0;
 }
 
 int
 hover_statuscmd_center(Bar *bar, BarArg *a, XMotionEvent *ev)
 {
-	return getsigbypos(a->x - (lrpad / 2), rawstext_center) > 0;
+	int bx = 0, bw = 0;
+	int rel_x = a->x - (lrpad / 2);
+	char *text = rawstext_center;
+	int sig = find_block_at(rel_x, text, &bx, &bw);
+
+	if (sig > 0 && bw > 0) {
+		int uw = MAX(bw, bar->bh);
+		int bar_module_x = ev->x - a->x;
+		int final_bar_x = bar_module_x + (a->x - rel_x + bx) - (uw - bw) / 2;
+
+		if (hover_block.sig != sig || hover_block.bar_x != final_bar_x || hover_block.w != uw) {
+			hover_block.sig = sig;
+			hover_block.bar_x = final_bar_x;
+			hover_block.w = uw;
+			drawbar(bar->mon);
+		}
+		return 1;
+	} else if (hover_block.sig > 0) {
+		hover_block.sig = 0;
+		hover_block.bar_x = 0;
+		hover_block.w = 0;
+		drawbar(bar->mon);
+	}
+	return 0;
 }
 

@@ -188,6 +188,11 @@ drawstatusbar(BarArg *a, char* stext)
 		}
 	}
 
+	if (hover_block.sig > 0 && hover_block.sig != active_block.sig && hover_block.w > 0) {
+		drw_setscheme(drw, scheme[SchemeTagsNorm]);
+		drw_rect(drw, hover_block.bar_x, bh - ulinestroke - ulinevoffset, hover_block.w, ulinestroke, 1, 0);
+	}
+
 	if (active_block.sig > 0) {
 		char rtext[1024];
 		strncpy(rtext, stext, sizeof(rtext) - 1);

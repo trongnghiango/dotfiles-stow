@@ -436,6 +436,12 @@ struct ActiveBlock {
 	Window win;
 } active_block = {0, 0, 0, 0, 0};
 
+struct HoverBlock {
+	int sig;
+	int bar_x;
+	int w;
+} hover_block = {0, 0, 0};
+
 static void
 closewindow(Window win)
 {
