@@ -51,16 +51,19 @@ if command -v envsubst &>/dev/null && [ -f "$TEMPLATES_DIR/gtk-colors.css.tpl" ]
     done
 fi
 
-# 3. Đồng bộ settings.ini cho GTK-3.0 và GTK-4.0
+# 3. Đồng bộ settings.ini cho GTK-3.0 và GTK-4.0 (bảo toàn tính bất biến của Stow symlink)
 if command -v envsubst &>/dev/null && [ -f "$TEMPLATES_DIR/gtk-settings.ini.tpl" ]; then
     for gtk_ver in "gtk-3.0" "gtk-4.0"; do
         target_dir="${XDG_CONFIG_HOME:-$HOME/.config}/$gtk_ver"
         mkdir -p "$target_dir"
-        envsubst < "$TEMPLATES_DIR/gtk-settings.ini.tpl" > "$target_dir/settings.ini"
+        if [ ! -L "$target_dir/settings.ini" ]; then
+            envsubst < "$TEMPLATES_DIR/gtk-settings.ini.tpl" > "$target_dir/settings.ini"
+        fi
     done
 fi
 
-# 4. Cập nhật GTK2 legacy config (~/.gtkrc-2.0)
+# 4. Cập nhật GTK2 legacy config (~/.gtkrc-2.0, không ghi đè nếu là Stow symlink)
+if [ ! -L "$HOME/.gtkrc-2.0" ]; then
 cat > "$HOME/.gtkrc-2.0" << EOF
 include "~/.gtkrc-2.0.mine"
 gtk-theme-name="$GTK_THEME_BASE"
@@ -79,6 +82,7 @@ gtk-xft-hinting=1
 gtk-xft-hintstyle="hintmedium"
 gtk-xft-rgba="rgb"
 EOF
+fi
 
 # 5. Bắn tín hiệu D-Bus qua DConf/GSettings (Batch Load: 1 IPC transaction thay vì 7 lần gọi subprocess)
 if command -v dconf &>/dev/null; then

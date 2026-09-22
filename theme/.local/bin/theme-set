@@ -95,15 +95,11 @@ _generate() {
     envsubst < "$TEMPLATES_DIR/rofi-colors.rasi.tpl" > "$rofi_colors"
     log_ok "  → $rofi_colors"
 
-    # 3. Dunst urgency — inject vào managed block trong dunstrc
-    local dunstrc="${XDG_CONFIG_HOME:-$HOME/.config}/dunst/dunstrc"
-    if [ -f "$dunstrc" ]; then
-        local block; block=$(envsubst < "$TEMPLATES_DIR/dunst-urgency.tpl")
-        _inject_managed_block "$dunstrc" "$block"
-        log_ok "  → $dunstrc (managed block)"
-    else
-        log_warn "  dunstrc không tìm thấy, bỏ qua dunst"
-    fi
+    # 3. Dunst urgency — drop-in config file (không đè vào dunstrc được Stow theo dõi)
+    local dunst_dropin="${XDG_CONFIG_HOME:-$HOME/.config}/dunst/dunstrc.d/10-theme-urgency.conf"
+    mkdir -p "$(dirname "$dunst_dropin")"
+    envsubst < "$TEMPLATES_DIR/dunst-urgency.tpl" > "$dunst_dropin"
+    log_ok "  → $dunst_dropin"
 
     # 4. Alacritty (tùy chọn — chỉ generate nếu alacritty được cài)
     if command -v alacritty &>/dev/null; then
@@ -170,25 +166,6 @@ _update_state() {
   "wallpaper": "$wallpaper"
 }
 EOF
-}
-
-# Chèn block màu vào dunstrc giữa 2 marker, hoặc thêm cuối file nếu chưa có
-_inject_managed_block() {
-    local file="$1" block="$2"
-    local begin="# BEGIN THEME MANAGED BLOCK"
-    local end="# END THEME MANAGED BLOCK"
-
-    python3 - "$file" "$block" "$begin" "$end" << 'PYEOF'
-import sys, re
-path, block, begin, end = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
-text = open(path).read()
-new_block = f"{begin}\n{block}\n{end}"
-if begin in text and end in text:
-    text = re.sub(re.escape(begin) + r".*?" + re.escape(end), new_block, text, flags=re.S)
-else:
-    text = text.rstrip("\n") + "\n\n" + new_block + "\n"
-open(path, "w").write(text)
-PYEOF
 }
 
 _run_hooks() {
