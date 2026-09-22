@@ -77,12 +77,11 @@ Thanh bar ở mép trên màn hình được tái thiết kế toàn diện theo
    - Chuẩn Omarchy: **KHÔNG text %, KHÔNG emoji hoạt hình đa sắc**. Dùng Nerd Font Glyphs đơn sắc thuần khiết: `sb-record` (`🔴 REC`), `ka-volume` (`󰕾`), `ka-battery` (`󰁹`), `ka-network` (`󰤨`), `ka-cpu` (`󰍛`), `ka-memory` (`󰘚`), `sb-notify` (`󰂚`/`󰂞`/`󰂛`).
    - Cảnh báo màu đỏ (`^C1^`) duy nhất khi pin < 15% hoặc CPU quá tải > 80%.
 
-### B. Cơ Chế Bật Thẻ Popover & Sidebar (< 2ms Latency)
-Hệ thống sử dụng tiến trình chạy nền **Pre-warmed Socket Daemon** (`dwm-dropdown --daemon` nạp sẵn trong `xinitrc`). Khi bạn click vào một block hoặc bấm phím tắt:
-- Gói tin IPC gửi qua Unix Domain Socket `/run/user/<UID>/dwm-dropdown-<UID>.sock`.
-- Thẻ popover hiện lên **ngay tức thì trong 2ms** (thay vì phải đợi 85ms khởi động Python lạnh).
+### B. Cơ Chế Bật Thẻ Popover & Sidebar (`ka-pop` C Native)
+Hệ thống sử dụng bộ tiện ích **`ka-pop`** viết bằng C và GTK3 (`suckless/.local/src/ka-pop`). Khi bạn click vào một block hoặc bấm phím tắt:
+- DWM thực thi trực tiếp nhị phân `ka-pop <module>` (0 shell fork, khởi động lạnh < 15ms, tiêu thụ **0MB RAM khi idle**).
 - DWM tự động kẻ **vạch gạch chân (underline)** màu cyan sáng ôm khít mép container `MAX(ab_w, bh)`, **thẳng hàng 100% với viền trái của cửa sổ**.
-- **Tự động đóng (Auto-Dismiss)**: Khi bạn click lại vào block (Toggle), click ra ngoài màn hình, hoặc bấm `Esc`/`q`, popup/sidebar tự động biến mất và thanh underline được xóa sạch ngay lập tức.
+- **Tự động đóng (Auto-Dismiss)**: Khi bạn click lại vào block (Toggle), click ra ngoài màn hình, hoặc bấm `Esc`/`q`, DWM gửi ClientMessage `WM_DELETE_WINDOW` để đóng popup êm dịu và vạch underline được xóa sạch ngay lập tức.
 
 ### C. Danh Mục 8 Module Dropdown & Sidebar:
 1. **Audio (`Super + Ctrl + A`)**: Thanh trượt âm lượng mượt mà, nút Mute tức thì, danh sách chọn cổng âm thanh PipeWire.

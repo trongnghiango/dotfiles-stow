@@ -68,7 +68,7 @@ Tài liệu hướng dẫn toàn bộ tổ hợp phím tắt trên hệ thống 
 
 ## 🪟 4. CÁC THẺ POPOVER OMARCHY (OMARCHY DIRECT POPOVERS)
 
-*Nhờ cơ chế **Pre-warmed Socket Daemon** (`dwm-dropdown --daemon`), các thẻ popover này bật/tắt tức thì trong **< 2ms**.*
+*Các thẻ popover được kích hoạt trực tiếp qua `ka-pop` (C Native, 0MB RAM khi idle, khởi động < 15ms).*
 
 | Tổ hợp phím | Thẻ Popover | Chức năng & Tương tác |
 | :--- | :--- | :--- |
