@@ -98,11 +98,15 @@ draw_systray(Bar *bar, BarArg *a)
 	wc.sibling = bar->win;
 	XConfigureWindow(dpy, systray->win, CWSibling|CWStackMode, &wc);
 
-	/* Synchronize systray container background with bar SchemeNorm */
-	wa.background_pixel = scheme[SchemeNorm][ColBg].pixel;
-	XChangeWindowAttributes(dpy, systray->win, CWBackPixel, &wa);
-	XSetWindowBackground(dpy, systray->win, scheme[SchemeNorm][ColBg].pixel);
-	XClearWindow(dpy, systray->win);
+	/* Synchronize systray container background with bar SchemeNorm only on color change */
+	static unsigned long last_systray_bg = 0;
+	if (last_systray_bg != scheme[SchemeNorm][ColBg].pixel) {
+		last_systray_bg = scheme[SchemeNorm][ColBg].pixel;
+		wa.background_pixel = last_systray_bg;
+		XChangeWindowAttributes(dpy, systray->win, CWBackPixel, &wa);
+		XSetWindowBackground(dpy, systray->win, last_systray_bg);
+		XClearWindow(dpy, systray->win);
+	}
 
 	/* Broadcast tray colors for monochrome/symbolic icon tinting */
 	XColor norm_fg;
@@ -130,8 +134,6 @@ draw_systray(Bar *bar, BarArg *a)
 	for (w = 0, i = systray->icons; i; i = i->next) {
 		wa.background_pixel = scheme[SchemeNorm][ColBg].pixel;
 		XChangeWindowAttributes(dpy, i->win, CWBackPixel, &wa);
-		XSetWindowBackground(dpy, i->win, scheme[SchemeNorm][ColBg].pixel);
-		XClearWindow(dpy, i->win);
 		XMapRaised(dpy, i->win);
 		i->x = w;
 		XMoveResizeWindow(dpy, i->win, i->x, (systray->h - i->h) / 2, i->w, i->h);

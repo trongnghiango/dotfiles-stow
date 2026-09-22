@@ -19,12 +19,14 @@ gtk/.config/gtk-4.0/gtk.css
 # Dynamic desktop files and mime cache
 mimeinfo.cache
 brave-*-Default.desktop
+userapp-*.desktop
 # Python cache
 **/__pycache__/
 *.pyc
 # Compiled binaries
 suckless/**/ka-pop/ka-pop
 suckless/**/ka-pop/build/
+suckless/**/ka-clipd/ka-clipd
 scripts/.local/bin/ka-pop
 suckless/**/dwm/dwm
 suckless/**/st/st
