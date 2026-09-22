@@ -33,6 +33,6 @@
     X("", "ka-network",  10,   4)     \
     X("", "ka-cpu",      2,    15)    \
     X("", "ka-memory",   10,   10)    \
-    X("", "sb-notify",   10,   8)
+    X("", "sb-notify",   0,    8)
 
 #endif  // CONFIG_H
