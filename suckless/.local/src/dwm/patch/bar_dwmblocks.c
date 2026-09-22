@@ -109,6 +109,8 @@ volume_change(const Arg *arg)
 {
 	pid_t pid = fork();
 	if (pid == 0) {
+		if (dpy)
+			close(ConnectionNumber(dpy));
 		setsid();
 		int devnull = open("/dev/null", O_RDWR);
 		if (devnull >= 0) {

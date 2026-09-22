@@ -88,6 +88,7 @@ int block_execute(block *const block, const uint8_t button) {
     }
 
     if (block->fork_pid == 0) {
+        signal(SIGCHLD, SIG_DFL);
         const int write_fd = block->pipe[WRITE_END];
         int status = close(block->pipe[READ_END]);
 
@@ -119,7 +120,8 @@ int block_execute(block *const block, const uint8_t button) {
         buffer[length] = null;
 
         // Exit if command execution failed or if file could not be closed.
-        if (pclose(file) != 0) {
+        int pclose_res = pclose(file);
+        if (pclose_res != 0 && errno != ECHILD) {
             (void)write(write_fd, &null, sizeof(null));
             exit(EXIT_FAILURE);
         }

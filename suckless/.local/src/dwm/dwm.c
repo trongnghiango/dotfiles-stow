@@ -457,13 +457,15 @@ killdropdown(Window win)
 {
 	if (!win)
 		return;
-	XGrabServer(dpy);
-	XSetErrorHandler(xerrordummy);
-	XSetCloseDownMode(dpy, DestroyAll);
-	XKillClient(dpy, win);
-	XSync(dpy, False);
-	XSetErrorHandler(xerror);
-	XUngrabServer(dpy);
+	if (!sendevent(win, wmatom[WMDelete], NoEventMask, wmatom[WMDelete], CurrentTime, 0, 0, 0)) {
+		XGrabServer(dpy);
+		XSetErrorHandler(xerrordummy);
+		XSetCloseDownMode(dpy, DestroyAll);
+		XKillClient(dpy, win);
+		XSync(dpy, False);
+		XSetErrorHandler(xerror);
+		XUngrabServer(dpy);
+	}
 }
 
 static int
@@ -1107,6 +1109,13 @@ destroynotify(XEvent *e)
 {
 	Client *c;
 	XDestroyWindowEvent *ev = &e->xdestroywindow;
+
+	if (active_block.win && ev->window == active_block.win) {
+		active_block.win = 0;
+		active_block.sig = 0;
+		active_block.w = 0;
+		drawbars();
+	}
 
 	if ((c = wintoclient(ev->window)))
 		unmanage(c, 1);
@@ -2682,6 +2691,13 @@ unmapnotify(XEvent *e)
 {
 	Client *c;
 	XUnmapEvent *ev = &e->xunmap;
+
+	if (active_block.win && ev->window == active_block.win) {
+		active_block.win = 0;
+		active_block.sig = 0;
+		active_block.w = 0;
+		drawbars();
+	}
 
 	if ((c = wintoclient(ev->window))) {
 		if (ev->send_event)

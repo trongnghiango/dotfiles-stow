@@ -77,6 +77,39 @@ static void extract_json_str(const char *json_obj, const char *key, char *out, s
     out[idx] = '\0';
 }
 
+/* Find closing brace matching opening brace at 'start', handling strings and escapes */
+static const char* find_matching_brace(const char *start) {
+    if (!start || *start != '{') return NULL;
+    int depth = 0;
+    int in_string = 0;
+    int escape = 0;
+    for (const char *p = start; *p != '\0'; p++) {
+        if (escape) {
+            escape = 0;
+            continue;
+        }
+        if (*p == '\\') {
+            escape = 1;
+            continue;
+        }
+        if (*p == '"') {
+            in_string = !in_string;
+            continue;
+        }
+        if (!in_string) {
+            if (*p == '{') {
+                depth++;
+            } else if (*p == '}') {
+                depth--;
+                if (depth == 0) {
+                    return p;
+                }
+            }
+        }
+    }
+    return NULL;
+}
+
 /* Read history.json into ClipData */
 static ClipData* load_clip_history(void) {
     ClipData *data = calloc(1, sizeof(ClipData));
@@ -116,7 +149,7 @@ static ClipData* load_clip_history(void) {
     while (*cursor && data->count < MAX_CLIP_ENTRIES) {
         const char *obj_start = strchr(cursor, '{');
         if (!obj_start) break;
-        const char *obj_end = strchr(obj_start, '}');
+        const char *obj_end = find_matching_brace(obj_start);
         if (!obj_end) break;
 
         size_t obj_len = (size_t)(obj_end - obj_start + 1);

@@ -4,4 +4,4 @@
 # ==============================================================================
 
 # Môi trường ảo (VM) / Artix tối giản — bỏ qua an toàn mà không làm gián đoạn X session
-return 0 2>/dev/null || exit 0
+:

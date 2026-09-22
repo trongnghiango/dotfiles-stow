@@ -8,6 +8,7 @@
 #include <unistd.h>
 #include <signal.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 
 static char g_pid_path[128] = {0};
 
@@ -122,6 +123,10 @@ static int event_loop(block *const blocks, const unsigned short block_count,
     }
 
     status status = status_new(blocks, block_count);
+    // Write initial status immediately at startup without waiting for an event
+    (void)status_update(&status);
+    (void)status_write(&status, is_debug_mode, connection);
+
     bool is_alive = true;
     while (is_alive) {
         if (watcher_poll(&watcher, -1) != 0) {
@@ -146,9 +151,20 @@ static int event_loop(block *const blocks, const unsigned short block_count,
     return 0;
 }
 
+static void sigchld_handler(int sig) {
+    (void)sig;
+    int saved_errno = errno;
+    while (waitpid(-1, NULL, WNOHANG) > 0);
+    errno = saved_errno;
+}
+
 int main(const int argc, const char *const argv[]) {
-    // Prevent zombie processes from background jobs / popups
-    signal(SIGCHLD, SIG_IGN);
+    // Non-blocking SIGCHLD handler to reap background jobs without breaking pclose()
+    struct sigaction sa;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = SA_RESTART | SA_NOCLDSTOP;
+    sa.sa_handler = sigchld_handler;
+    sigaction(SIGCHLD, &sa, NULL);
 
     create_pid_file();
 

@@ -18,13 +18,18 @@
 #include <X11/Xatom.h>
 #include <X11/extensions/Xfixes.h>
 
+#include <limits.h>
+#ifndef PATH_MAX
+#define PATH_MAX 4096
+#endif
+
 #define MAX_ENTRIES 100
 #define MAX_TEXT_LEN (2 * 1024 * 1024) /* 2 MB max */
 
 static volatile sig_atomic_t g_running = 1;
-static char g_cache_dir[512] = {0};
-static char g_history_file[512] = {0};
-static char g_entries_dir[512] = {0};
+static char g_cache_dir[PATH_MAX - 64] = {0};
+static char g_history_file[PATH_MAX] = {0};
+static char g_entries_dir[PATH_MAX] = {0};
 static char g_last_hash[65] = {0};
 
 static void handle_signal(int sig) {
@@ -71,6 +76,39 @@ static void format_size(size_t bytes, char *out, size_t out_max) {
     }
 }
 
+/* Find closing brace matching opening brace at 'start', handling strings and escapes */
+static const char* find_matching_brace(const char *start) {
+    if (!start || *start != '{') return NULL;
+    int depth = 0;
+    int in_string = 0;
+    int escape = 0;
+    for (const char *p = start; *p != '\0'; p++) {
+        if (escape) {
+            escape = 0;
+            continue;
+        }
+        if (*p == '\\') {
+            escape = 1;
+            continue;
+        }
+        if (*p == '"') {
+            in_string = !in_string;
+            continue;
+        }
+        if (!in_string) {
+            if (*p == '{') {
+                depth++;
+            } else if (*p == '}') {
+                depth--;
+                if (depth == 0) {
+                    return p;
+                }
+            }
+        }
+    }
+    return NULL;
+}
+
 /* Escape string for JSON */
 static char* escape_json(const char *src, size_t max_len) {
     size_t len = strlen(src);
@@ -103,7 +141,7 @@ static void add_clip_entry(const char *type, const char *summary, const char *te
     time_t now = time(NULL);
     struct tm *tm_info = localtime(&now);
 
-    char date_str[32], time_str[32], id_str[64];
+    char date_str[32], time_str[32], id_str[128];
     strftime(date_str, sizeof(date_str), "%d/%m/%Y", tm_info);
     strftime(time_str, sizeof(time_str), "%H:%M:%S", tm_info);
     snprintf(id_str, sizeof(id_str), "%ld_%s", (long)now, g_last_hash);
@@ -166,7 +204,7 @@ static void add_clip_entry(const char *type, const char *summary, const char *te
     }
 
     /* Write updated history atomically */
-    char tmp_path[560];
+    char tmp_path[PATH_MAX + 64];
     snprintf(tmp_path, sizeof(tmp_path), "%s.tmp-%d", g_history_file, getpid());
     FILE *f_out = fopen(tmp_path, "wb");
     if (!f_out) {
@@ -183,7 +221,7 @@ static void add_clip_entry(const char *type, const char *summary, const char *te
         const char *p = strchr(existing_buf, '{');
         int count = 1;
         while (p && count < MAX_ENTRIES) {
-            const char *end = strchr(p, '}');
+            const char *end = find_matching_brace(p);
             if (!end) break;
             fputs(",\n", f_out);
             fwrite(p, 1, (size_t)(end - p + 1), f_out);
@@ -209,24 +247,31 @@ static void capture_text(Display *dpy, Window win, Atom prop) {
     if (XGetWindowProperty(dpy, win, prop, 0, MAX_TEXT_LEN / 4, False,
                            AnyPropertyType, &type, &format, &nitems, &bytes_after, &data) == Success && data) {
         if (nitems > 0) {
-            char hash[65];
-            compute_hash(data, nitems, hash, sizeof(hash));
-            if (strcmp(hash, g_last_hash) != 0) {
-                strncpy(g_last_hash, hash, sizeof(g_last_hash) - 1);
+            char *clean_text = malloc(nitems + 1);
+            if (clean_text) {
+                memcpy(clean_text, data, nitems);
+                clean_text[nitems] = '\0';
 
-                char summary[96] = {0};
-                size_t s_len = 0;
-                for (size_t i = 0; i < nitems && s_len < sizeof(summary) - 1; ++i) {
-                    if (data[i] == '\n' || data[i] == '\r') break;
-                    summary[s_len++] = (char)data[i];
+                char hash[65];
+                compute_hash((const unsigned char *)clean_text, nitems, hash, sizeof(hash));
+                if (strcmp(hash, g_last_hash) != 0) {
+                    memcpy(g_last_hash, hash, sizeof(hash));
+
+                    char summary[96] = {0};
+                    size_t s_len = 0;
+                    for (size_t i = 0; i < nitems && s_len < sizeof(summary) - 1; ++i) {
+                        if (clean_text[i] == '\n' || clean_text[i] == '\r') break;
+                        summary[s_len++] = clean_text[i];
+                    }
+                    summary[s_len] = '\0';
+                    if (s_len == 0) strncpy(summary, "Văn bản", sizeof(summary) - 1);
+
+                    char size_str[32];
+                    format_size(nitems, size_str, sizeof(size_str));
+
+                    add_clip_entry("text", summary, clean_text, "", "", size_str);
                 }
-                summary[s_len] = '\0';
-                if (s_len == 0) strncpy(summary, "Văn bản", sizeof(summary) - 1);
-
-                char size_str[32];
-                format_size(nitems, size_str, sizeof(size_str));
-
-                add_clip_entry("text", summary, (const char *)data, "", "", size_str);
+                free(clean_text);
             }
         }
         XFree(data);
