@@ -3,11 +3,19 @@
 BIN := ka-clipd
 PREFIX := /usr/local
 CC := cc
-CFLAGS := -O3 -march=native -pipe -flto -std=c99 -Wall -Wextra -Wpedantic
+ifeq ($(LOCAL_BUILD),1)
+OPTFLAGS := -O3 -march=native -pipe -flto
+LDFLTO   := -flto
+else
+OPTFLAGS := -O2 -march=x86-64-v2 -pipe
+LDFLTO   :=
+endif
+
+CFLAGS := $(OPTFLAGS) -std=c99 -Wall -Wextra -Wpedantic
 LIBS := x11 xfixes
 
 CFLAGS += $(shell pkg-config --cflags $(LIBS))
-LDLIBS := $(shell pkg-config --libs $(LIBS)) -flto
+LDLIBS := $(shell pkg-config --libs $(LIBS)) $(LDFLTO)
 
 all: $(BIN)
 

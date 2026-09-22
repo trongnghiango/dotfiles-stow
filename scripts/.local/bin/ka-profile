@@ -61,6 +61,60 @@ cmd_detect() {
     cmd_set "$detected"
 }
 
+apply_hardware_tuning() {
+    local conf="$1"
+    [ ! -f "$conf" ] && return 0
+    # shellcheck disable=SC1090
+    source "$conf"
+
+    # 1. CPU Governor (if writable)
+    if [ -n "${CPU_GOVERNOR:-}" ]; then
+        for gov in /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor; do
+            if [ -w "$gov" ]; then
+                echo "$CPU_GOVERNOR" > "$gov" 2>/dev/null || true
+            fi
+        done
+    fi
+
+    # 2. Battery Thresholds (ThinkPad start/stop charging thresholds)
+    if [ -n "${BATTERY_THRESHOLDS:-}" ]; then
+        local start_th="${BATTERY_THRESHOLDS%-*}"
+        local end_th="${BATTERY_THRESHOLDS#*-}"
+        for bat in /sys/class/power_supply/BAT*; do
+            [ -d "$bat" ] || continue
+            if [ -w "$bat/charge_control_start_threshold" ] && [ -n "$start_th" ]; then
+                echo "$start_th" > "$bat/charge_control_start_threshold" 2>/dev/null || true
+            fi
+            if [ -w "$bat/charge_control_end_threshold" ] && [ -n "$end_th" ]; then
+                echo "$end_th" > "$bat/charge_control_end_threshold" 2>/dev/null || true
+            fi
+        done
+    fi
+}
+
+cmd_check() {
+    ensure_dirs
+    local target="${1:-}"
+    if [ -z "$target" ]; then
+        echo -e "${RED}Lỗi: Vui lòng chỉ định tên profile để kiểm tra!${RESET}" >&2
+        cmd_list
+        return 1
+    fi
+    local target_file="$PROFILES_DIR/${target}.conf"
+    if [ ! -f "$target_file" ]; then
+        echo -e "${RED}Lỗi: Profile '$target' không tồn tại tại $target_file${RESET}" >&2
+        return 1
+    fi
+
+    echo -e "${CYAN}[DRY-RUN] Checking diff for hardware profile: ${BOLD}$target${RESET}"
+    if [ -f "$CURRENT_CONF" ]; then
+        diff -u "$CURRENT_CONF" "$target_file" || true
+    else
+        echo "Current profile is unset. Would activate $target_file."
+    fi
+    echo -e "${GREEN}[OK] Dry-run complete. Profile was not changed.${RESET}"
+}
+
 cmd_set() {
     ensure_dirs
     local target="${1:-}"
@@ -78,6 +132,7 @@ cmd_set() {
     fi
 
     ln -sfn "$target_file" "$CURRENT_CONF"
+    apply_hardware_tuning "$target_file"
     echo -e "${GREEN}✔ Đã áp dụng Hardware Profile:${RESET} ${BOLD}$target${RESET}"
 }
 
@@ -147,9 +202,13 @@ case "${1:-show}" in
     show|status|"")
         cmd_show
         ;;
+    --check|check)
+        shift
+        cmd_check "${1:-}"
+        ;;
     *)
         echo -e "${RED}Lệnh không hợp lệ: $1${RESET}"
-        echo "Sử dụng: ka-profile [detect | set <profile> | list | show]"
+        echo "Sử dụng: ka-profile [detect | set <profile> | list | show | --check <profile>]"
         exit 1
         ;;
 esac

@@ -10,7 +10,15 @@ VERBOSE := 0
 LIBS := xcb alsa
 
 PREFIX := /usr/local
-CFLAGS := -O3 -march=native -pipe -flto -I. -I$(INC_DIR) -std=c99
+ifeq ($(LOCAL_BUILD),1)
+OPTFLAGS := -O3 -march=native -pipe -flto
+LDFLTO   := -flto
+else
+OPTFLAGS := -O2 -march=x86-64-v2 -pipe
+LDFLTO   :=
+endif
+
+CFLAGS := $(OPTFLAGS) -I. -I$(INC_DIR) -std=c99
 CFLAGS += -DBINARY=\"$(BIN)\" -D_POSIX_C_SOURCE=200809L
 CFLAGS += -Wall -Wpedantic -Wextra -Wswitch-enum
 
@@ -21,10 +29,10 @@ PKG_LDLIBS := $(shell pkg-config --libs $(LIBS) 2>/dev/null)
 ifeq ($(PKG_LDLIBS),)
   # Fallback if pkg-config resolution fails for any distro package quirk
   CFLAGS += $(shell pkg-config --cflags xcb 2>/dev/null) $(shell pkg-config --cflags alsa 2>/dev/null)
-  LDLIBS := -flto $(shell pkg-config --libs xcb 2>/dev/null || echo "-lxcb") $(shell pkg-config --libs alsa 2>/dev/null || echo "-lasound")
+  LDLIBS := $(LDFLTO) $(shell pkg-config --libs xcb 2>/dev/null || echo "-lxcb") $(shell pkg-config --libs alsa 2>/dev/null || echo "-lasound")
 else
   CFLAGS += $(PKG_CFLAGS)
-  LDLIBS := -flto $(PKG_LDLIBS)
+  LDLIBS := $(LDFLTO) $(PKG_LDLIBS)
 endif
 
 SRCS := $(wildcard $(SRC_DIR)/*.c)
