@@ -1355,6 +1355,12 @@ leavenotify(XEvent *e)
 			XDefineCursor(dpy, bar->win, cursor[CurNormal]->cursor);
 			bar->cursor = CurNormal;
 		}
+		if (hover_block.sig > 0) {
+			hover_block.sig = 0;
+			hover_block.bar_x = 0;
+			hover_block.w = 0;
+			drawbar(bar->mon);
+		}
 	}
 }
 
@@ -1855,6 +1861,12 @@ motionnotify(XEvent *e)
 	if ((bar = wintobar(ev->window))) {
 		barhover(e, bar);
 		return;
+	} else if (hover_block.sig > 0) {
+		hover_block.sig = 0;
+		hover_block.bar_x = 0;
+		hover_block.w = 0;
+		if (selmon)
+			drawbar(selmon);
 	}
 
 	if (ev->window != root)
