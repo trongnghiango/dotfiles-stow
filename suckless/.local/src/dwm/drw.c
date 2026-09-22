@@ -223,6 +223,18 @@ drw_scm_create(
 }
 
 void
+drw_scm_free(Drw *drw, Clr *scm, size_t clrcount)
+{
+	size_t i;
+	if (!drw || !scm)
+		return;
+	for (i = 0; i < clrcount; i++)
+		XftColorFree(drw->dpy, DefaultVisual(drw->dpy, drw->screen),
+		             DefaultColormap(drw->dpy, drw->screen), &scm[i]);
+	free(scm);
+}
+
+void
 drw_setfontset(Drw *drw, Fnt *set)
 {
 	if (drw)

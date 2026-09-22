@@ -1,16 +1,13 @@
 void
 loadxrdb()
 {
-	Display *display;
 	char * resm;
 	XrmDatabase xrdb;
 	char *type;
 	XrmValue value;
 
-	display = XOpenDisplay(NULL);
-
-	if (display != NULL) {
-		resm = XResourceManagerString(display);
+	if (dpy != NULL) {
+		resm = XResourceManagerString(dpy);
 
 		if (resm != NULL) {
 			xrdb = XrmGetStringDatabase(resm);
@@ -103,8 +100,6 @@ loadxrdb()
 			}
 		}
 	}
-
-	XCloseDisplay(display);
 }
 
 void
@@ -114,7 +109,7 @@ xrdb(const Arg *arg)
 	int i;
 	for (i = 0; i < LENGTH(colors) + 1; i++) {
 		if (scheme[i])
-			free(scheme[i]);
+			drw_scm_free(drw, scheme[i], ColCount);
 	}
 	scheme[LENGTH(colors)] = drw_scm_create(drw, colors[0], ColCount);
 	for (i = 0; i < LENGTH(colors); i++)

@@ -15,7 +15,6 @@
 
 /* Other patches */
 #include "attachx.h"
-#include "autostart.h"
 #include "cfacts.h"
 #include "dragcfact.h"
 #include "dragmfact.h"

@@ -15,7 +15,6 @@
 
 /* Other patches */
 #include "attachx.c"
-#include "autostart.c"
 #include "cfacts.c"
 #include "dragcfact.c"
 #include "movestack.c"

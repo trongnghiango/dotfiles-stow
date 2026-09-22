@@ -49,6 +49,11 @@ Clr *drw_scm_create(
 	char *clrnames[],
 	size_t clrcount
 );
+void drw_scm_free(
+	Drw *drw,
+	Clr *scm,
+	size_t clrcount
+);
 
 /* Cursor abstraction */
 Cur *drw_cur_create(Drw *drw, int shape);
