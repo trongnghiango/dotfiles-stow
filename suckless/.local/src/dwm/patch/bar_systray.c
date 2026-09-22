@@ -74,6 +74,9 @@ draw_systray(Bar *bar, BarArg *a)
 				PropModeReplace, (unsigned char *)&systrayorientation, 1);
 		XChangeProperty(dpy, systray->win, netatom[NetWMWindowType], XA_ATOM, 32,
 				PropModeReplace, (unsigned char *)&netatom[NetWMWindowTypeDock], 1);
+		Visual *v = DefaultVisual(dpy, screen);
+		XChangeProperty(dpy, systray->win, netatom[NetSystemTrayVisual], XA_VISUALID, 32,
+				PropModeReplace, (unsigned char *)&v->visualid, 1);
 		XMapRaised(dpy, systray->win);
 		XSetSelectionOwner(dpy, netatom[NetSystemTray], systray->win, CurrentTime);
 		if (XGetSelectionOwner(dpy, netatom[NetSystemTray]) == systray->win) {
@@ -95,18 +98,40 @@ draw_systray(Bar *bar, BarArg *a)
 	wc.sibling = bar->win;
 	XConfigureWindow(dpy, systray->win, CWSibling|CWStackMode, &wc);
 
+	/* Synchronize systray container background with bar SchemeNorm */
+	wa.background_pixel = scheme[SchemeNorm][ColBg].pixel;
+	XChangeWindowAttributes(dpy, systray->win, CWBackPixel, &wa);
+	XSetWindowBackground(dpy, systray->win, scheme[SchemeNorm][ColBg].pixel);
+	XClearWindow(dpy, systray->win);
+
+	/* Broadcast tray colors for monochrome/symbolic icon tinting */
+	XColor norm_fg;
+	norm_fg.pixel = scheme[SchemeNorm][ColFg].pixel;
+	XQueryColor(dpy, DefaultColormap(dpy, screen), &norm_fg);
+	uint32_t tray_colors[4] = {
+		((norm_fg.red >> 8) << 16) | ((norm_fg.green >> 8) << 8) | (norm_fg.blue >> 8),
+		0xcc241d,
+		0xd79921,
+		0x98971a
+	};
+	Atom net_systray_colors = XInternAtom(dpy, "_NET_SYSTEM_TRAY_COLORS", False);
+	XChangeProperty(dpy, systray->win, net_systray_colors, XA_CARDINAL, 32,
+	                PropModeReplace, (unsigned char *)tray_colors, 4);
+
 	for (i = systray->icons; i; i = i->next) n++;
 	if (n > SYSTRAY_MAX_ICONS) {
 		const char *btn = systray_btn_text();
 		tw = drw_fontset_getwidth(drw, btn, False);
 		drw_setscheme(drw, scheme[SchemeNorm]);
-		drw_text(drw, bar->bx + a->x, a->y, tw, a->h, 0, btn, 0, False);
+		drw_text(drw, a->x, a->y, tw, a->h, 0, btn, 0, False);
 	}
 
 	drw_setscheme(drw, scheme[SchemeNorm]);
 	for (w = 0, i = systray->icons; i; i = i->next) {
 		wa.background_pixel = scheme[SchemeNorm][ColBg].pixel;
 		XChangeWindowAttributes(dpy, i->win, CWBackPixel, &wa);
+		XSetWindowBackground(dpy, i->win, scheme[SchemeNorm][ColBg].pixel);
+		XClearWindow(dpy, i->win);
 		XMapRaised(dpy, i->win);
 		i->x = w;
 		XMoveResizeWindow(dpy, i->win, i->x, (systray->h - i->h) / 2, i->w, i->h);
