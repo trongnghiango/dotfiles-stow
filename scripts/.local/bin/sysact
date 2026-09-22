@@ -13,13 +13,21 @@ wmpid(){ # This function is needed if there are multiple instances of the window
 	echo "${tree%%)*}"
 }
 
+mute_toggle(){
+    if [ "${AUDIO_BACKEND:-pipewire}" = "alsa" ] || ! command -v wpctl >/dev/null 2>&1; then
+        amixer sset Master toggle >/dev/null 2>&1 || true
+    else
+        wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle >/dev/null 2>&1 || true
+    fi
+}
+
 lock(){
     mpc pause 2>/dev/null || true
     pauseallmpv 2>/dev/null || true
-    wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle 2>/dev/null || true
+    mute_toggle
     pkill -RTMIN+11 dwmblocks 2>/dev/null || true
     slock
-    wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle 2>/dev/null || true
+    mute_toggle
     pkill -RTMIN+11 dwmblocks 2>/dev/null || true
 }
 

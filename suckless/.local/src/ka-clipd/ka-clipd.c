@@ -5,6 +5,9 @@
  * Replaces Python ka-clip daemon completely.
  * ============================================================================== */
 
+#define _POSIX_C_SOURCE 200809L
+#define _DEFAULT_SOURCE
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -37,6 +40,12 @@ static void handle_signal(int sig) {
     g_running = 0;
 }
 
+static int handle_x_io_error(Display *dpy) {
+    (void)dpy;
+    g_running = 0;
+    return 0;
+}
+
 static void init_paths(void) {
     const char *xdg_cache = getenv("XDG_CACHE_HOME");
     const char *home = getenv("HOME");
@@ -52,8 +61,8 @@ static void init_paths(void) {
     snprintf(g_entries_dir, sizeof(g_entries_dir), "%s/entries", g_cache_dir);
     snprintf(g_history_file, sizeof(g_history_file), "%s/history.json", g_cache_dir);
 
-    mkdir(g_cache_dir, 0755);
-    mkdir(g_entries_dir, 0755);
+    mkdir(g_cache_dir, 0700);
+    mkdir(g_entries_dir, 0700);
 }
 
 /* Simple DJB2 hash for deduplication */
@@ -203,11 +212,18 @@ static void add_clip_entry(const char *type, const char *summary, const char *te
         fclose(f_in);
     }
 
-    /* Write updated history atomically */
+    /* Write updated history atomically with secure 0600 permissions */
     char tmp_path[PATH_MAX + 64];
     snprintf(tmp_path, sizeof(tmp_path), "%s.tmp-%d", g_history_file, getpid());
-    FILE *f_out = fopen(tmp_path, "wb");
+    int fd = open(tmp_path, O_WRONLY | O_CREAT | O_TRUNC, 0600);
+    if (fd < 0) {
+        free(new_obj);
+        free(existing_buf);
+        return;
+    }
+    FILE *f_out = fdopen(fd, "wb");
     if (!f_out) {
+        close(fd);
         free(new_obj);
         free(existing_buf);
         return;
@@ -236,6 +252,7 @@ static void add_clip_entry(const char *type, const char *summary, const char *te
     free(new_obj);
 
     rename(tmp_path, g_history_file);
+    chmod(g_history_file, 0600);
 }
 
 static void capture_text(Display *dpy, Window win, Atom prop) {
@@ -293,6 +310,7 @@ int main(int argc, char *argv[]) {
     signal(SIGINT, handle_signal);
     signal(SIGTERM, handle_signal);
     signal(SIGCHLD, SIG_IGN);
+    XSetIOErrorHandler(handle_x_io_error);
 
     init_paths();
 
@@ -313,6 +331,7 @@ int main(int argc, char *argv[]) {
     Atom clip_atom = XInternAtom(dpy, "CLIPBOARD", False);
     Atom utf8_atom = XInternAtom(dpy, "UTF8_STRING", False);
     Atom prop_atom = XInternAtom(dpy, "_KA_CLIP_DATA", False);
+    Atom pwd_hint_atom = XInternAtom(dpy, "x-kde-passwordManagerHint", False);
 
     XFixesSelectSelectionInput(dpy, root, clip_atom, XFixesSetSelectionOwnerNotifyMask);
 
@@ -326,6 +345,17 @@ int main(int argc, char *argv[]) {
         if (ev.type == event_base + XFixesSelectionNotify) {
             XFixesSelectionNotifyEvent *sev = (XFixesSelectionNotifyEvent *)&ev;
             if (sev->selection == clip_atom && sev->owner != None && sev->owner != helper_win) {
+                /* Check if password manager requested ignoring this selection */
+                Atom type_ret;
+                int format_ret;
+                unsigned long nitems_ret, bytes_after_ret;
+                unsigned char *prop_ret = NULL;
+                if (XGetWindowProperty(dpy, sev->owner, pwd_hint_atom, 0, 1024, False,
+                                       AnyPropertyType, &type_ret, &format_ret, &nitems_ret, &bytes_after_ret, &prop_ret) == Success && prop_ret) {
+                    XFree(prop_ret);
+                    continue; /* Ignore sensitive password data */
+                }
+
                 /* Request clipboard content in UTF8_STRING */
                 XConvertSelection(dpy, clip_atom, utf8_atom, prop_atom, helper_win, CurrentTime);
             }

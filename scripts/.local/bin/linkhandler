@@ -16,9 +16,11 @@ case "$url" in
 	*mkv|*webm|*mp4|*youtube.com/watch*|*youtube.com/playlist*|*youtube.com/shorts*|*youtu.be*|*hooktube.com*|*bitchute.com*|*videos.lukesmith.xyz*|*odysee.com*)
 		setsid -f mpv -quiet "$url" >/dev/null 2>&1 ;;
 	*png|*jpg|*jpe|*jpeg|*gif|*webp)
-		curl -sL "$url" > "/tmp/$(echo "$url" | sed "s/.*\///;s/%20/ /g")" && nsxiv -a "/tmp/$(echo "$url" | sed "s/.*\///;s/%20/ /g")"  >/dev/null 2>&1 & ;;
+		tmp_img="$(mktemp -p "${XDG_RUNTIME_DIR:-/tmp}" link-XXXXXX.png)"
+		curl -sL "$url" > "$tmp_img" && nsxiv -a "$tmp_img" >/dev/null 2>&1 & ;;
 	*pdf|*cbz|*cbr)
-		curl -sL "$url" > "/tmp/$(echo "$url" | sed "s/.*\///;s/%20/ /g")" && zathura "/tmp/$(echo "$url" | sed "s/.*\///;s/%20/ /g")"  >/dev/null 2>&1 & ;;
+		tmp_pdf="$(mktemp -p "${XDG_RUNTIME_DIR:-/tmp}" link-XXXXXX.pdf)"
+		curl -sL "$url" > "$tmp_pdf" && zathura "$tmp_pdf" >/dev/null 2>&1 & ;;
 	*mp3|*flac|*opus|*mp3?source*)
 		qndl "$url" 'curl -LO'  >/dev/null 2>&1 ;;
 	*)

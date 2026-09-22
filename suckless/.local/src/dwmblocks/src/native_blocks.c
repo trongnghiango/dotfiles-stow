@@ -299,14 +299,35 @@ static void native_volume(char *output, size_t max_len, uint8_t button) {
     if (button == 1) {
         spawn_pop("volume");
     } else if (button == 2) {
-        char *args[] = {(char *)"wpctl", (char *)"set-mute", (char *)"@DEFAULT_AUDIO_SINK@", (char *)"toggle", NULL};
-        spawn_cmd(args);
+        const char *backend = getenv("AUDIO_BACKEND");
+        int use_alsa = (backend && !strcmp(backend, "alsa")) || (access("/usr/bin/wpctl", X_OK) != 0);
+        if (use_alsa) {
+            char *args[] = {(char *)"amixer", (char *)"sset", (char *)"Master", (char *)"toggle", NULL};
+            spawn_cmd(args);
+        } else {
+            char *args[] = {(char *)"wpctl", (char *)"set-mute", (char *)"@DEFAULT_AUDIO_SINK@", (char *)"toggle", NULL};
+            spawn_cmd(args);
+        }
     } else if (button == 4) {
-        char *args[] = {(char *)"wpctl", (char *)"set-volume", (char *)"@DEFAULT_AUDIO_SINK@", (char *)"1%+", NULL};
-        spawn_cmd(args);
+        const char *backend = getenv("AUDIO_BACKEND");
+        int use_alsa = (backend && !strcmp(backend, "alsa")) || (access("/usr/bin/wpctl", X_OK) != 0);
+        if (use_alsa) {
+            char *args[] = {(char *)"amixer", (char *)"sset", (char *)"Master", (char *)"1%+", NULL};
+            spawn_cmd(args);
+        } else {
+            char *args[] = {(char *)"wpctl", (char *)"set-volume", (char *)"@DEFAULT_AUDIO_SINK@", (char *)"1%+", NULL};
+            spawn_cmd(args);
+        }
     } else if (button == 5) {
-        char *args[] = {(char *)"wpctl", (char *)"set-volume", (char *)"@DEFAULT_AUDIO_SINK@", (char *)"1%-", NULL};
-        spawn_cmd(args);
+        const char *backend = getenv("AUDIO_BACKEND");
+        int use_alsa = (backend && !strcmp(backend, "alsa")) || (access("/usr/bin/wpctl", X_OK) != 0);
+        if (use_alsa) {
+            char *args[] = {(char *)"amixer", (char *)"sset", (char *)"Master", (char *)"1%-", NULL};
+            spawn_cmd(args);
+        } else {
+            char *args[] = {(char *)"wpctl", (char *)"set-volume", (char *)"@DEFAULT_AUDIO_SINK@", (char *)"1%-", NULL};
+            spawn_cmd(args);
+        }
     }
 
     long vol = 50, min = 0, max = 100;
