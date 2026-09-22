@@ -26,8 +26,17 @@
 /* Omarchy / Suckless aesthetic standards: clean zero-radius */
 window, dialog, popover {
     border-radius: 0px;
+    background-color: @theme_bg_color;
+    color: @theme_fg_color;
 }
 
 headerbar, toolbar {
     border-radius: 0px;
+    background-color: @headerbar_bg_color;
+    color: @headerbar_fg_color;
+}
+
+.view, textview text, entry, treeview {
+    background-color: @theme_base_color;
+    color: @theme_text_color;
 }

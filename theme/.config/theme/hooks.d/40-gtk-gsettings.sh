@@ -23,11 +23,13 @@ THEME_MODE="${MODE:-dark}"
 if [ "$THEME_MODE" = "dark" ]; then
     COLOR_SCHEME="prefer-dark"
     GTK_PREFER_DARK="1"
-    GTK_THEME_BASE="Adwaita-dark"
+    GTK_THEME_BASE="Adwaita"
+    GTK_THEME_ENV="Adwaita:dark"
 else
     COLOR_SCHEME="prefer-light"
     GTK_PREFER_DARK="0"
     GTK_THEME_BASE="Adwaita"
+    GTK_THEME_ENV="Adwaita"
 fi
 
 # Fallback giá trị cho font, cursor, icon
@@ -106,7 +108,25 @@ elif command -v gsettings &>/dev/null; then
     gsettings set org.gnome.desktop.interface cursor-size "$CURSOR_SIZE" 2>/dev/null || true
 fi
 
-# 6. Reload xsettingsd nếu đang chạy
+# 6. Đồng bộ biến môi trường GTK_THEME cho session, D-Bus và Qt6 (libqgtk3)
+if command -v dbus-update-activation-environment &>/dev/null; then
+    dbus-update-activation-environment GTK_THEME="$GTK_THEME_ENV" 2>/dev/null || true
+fi
+
+env_dir="${XDG_CONFIG_HOME:-$HOME/.config}/environment.d"
+mkdir -p "$env_dir" 2>/dev/null || true
+echo "GTK_THEME=$GTK_THEME_ENV" > "$env_dir/10-theme.conf"
+
+profile_local="${XDG_CONFIG_HOME:-$HOME/.config}/shell/profile.local"
+if [ -f "$profile_local" ]; then
+    grep -v '^export GTK_THEME=' "$profile_local" > "${profile_local}.tmp" 2>/dev/null || true
+    echo "export GTK_THEME="$GTK_THEME_ENV"" >> "${profile_local}.tmp"
+    mv "${profile_local}.tmp" "$profile_local"
+else
+    echo "export GTK_THEME="$GTK_THEME_ENV"" > "$profile_local"
+fi
+
+# 7. Reload xsettingsd nếu đang chạy
 xsettingsd_pid=$(pidof xsettingsd 2>/dev/null || true)
 if [ -n "$xsettingsd_pid" ]; then
     kill -HUP "$xsettingsd_pid" 2>/dev/null || true

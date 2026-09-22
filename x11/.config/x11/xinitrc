@@ -43,6 +43,17 @@ done
 # ==============================================================================
 [ -f "$HOME/.config/shell/profile" ] && . "$HOME/.config/shell/profile"
 
+# Nạp GTK_THEME theo theme hiện tại để Qt/GTK luôn đồng bộ dark/light
+THEME_CURRENT="${XDG_CONFIG_HOME:-$HOME/.config}/theme/colors/current.conf"
+if [ -f "$THEME_CURRENT" ]; then
+  . "$THEME_CURRENT"
+  if [ "${MODE:-dark}" = "dark" ]; then
+    export GTK_THEME="Adwaita:dark"
+  else
+    export GTK_THEME="Adwaita"
+  fi
+fi
+
 # Nạp Hardware Profile (Laptop / Desktop / ThinkPad)
 HW_CONF="${XDG_CONFIG_HOME:-$HOME/.config}/hardware/current.conf"
 if [ -f "$HW_CONF" ]; then
