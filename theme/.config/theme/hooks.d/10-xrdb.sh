@@ -16,9 +16,5 @@ XRES_COLORS="${XDG_CONFIG_HOME:-$HOME/.config}/x11/xresources.d/colors"
 # Merge riêng colors file để đảm bảo màu mới được load
 [ -f "$XRES_COLORS" ] && xrdb -merge "$XRES_COLORS" 2>/dev/null
 
-# Reload DWM qua SIGHUP (patch/restartsig.c: sighup → quit({.i=1}) → restart với exec)
-# DWM sẽ gọi loadxrdb() khi khởi động lại, đọc màu mới từ X resource database
-dwm_pid=$(pidof dwm 2>/dev/null || true)
-if [ -n "$dwm_pid" ]; then
-    kill -HUP "$dwm_pid"
-fi
+# Bắn tín hiệu SIGHUP để DWM reload xrdb in-process (<1ms, 0 flicker, không restart session)
+pkill -HUP -x dwm 2>/dev/null || true

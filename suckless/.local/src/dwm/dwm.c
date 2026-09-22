@@ -2176,6 +2176,10 @@ run(void)
 
 		if (!running)
 			break;
+		if (reload_xrdb) {
+			reload_xrdb = 0;
+			xrdb(NULL);
+		}
 		if (!pending)
 			continue;
 
@@ -2373,6 +2377,7 @@ setup(void)
 
 	signal(SIGHUP, sighup);
 	signal(SIGTERM, sigterm);
+	signal(SIGUSR1, sigusr1);
 
 	/* the one line of bloat that would have saved a lot of time for a lot of people */
 	putenv("_JAVA_AWT_WM_NONREPARENTING=1");

@@ -25,8 +25,41 @@ Xft.dpi: ${XFT_DPI}
 *.color14: #${COLOR14}
 *.color15: #${COLOR15}
 
-! DWM đọc các key dwm.colorN này qua xrdb patch (patch/xrdb.c)
-! Mapping: color0=normbg, color6=normfg, color8=border, color14=selbg, ACCENT=border active
+! ==============================================================================
+! DWM Semantic Colors (patch/xrdb.c)
+! ==============================================================================
+dwm.normbgcolor:     #${BG}
+dwm.normfgcolor:     #${FG}
+dwm.normbordercolor: #${COLOR8}
+dwm.normfloatcolor:  #${COLOR8}
+
+dwm.selbgcolor:      #${SURFACE}
+dwm.selfgcolor:      #${FG}
+dwm.selbordercolor:  #${ACCENT}
+dwm.selfloatcolor:   #${ACCENT}
+
+dwm.titlenormbgcolor: #${BG}
+dwm.titlenormfgcolor: #${COLOR8}
+dwm.titleselbgcolor:  #${BG}
+dwm.titleselfgcolor:  #${ACCENT}
+
+dwm.tagsnormbgcolor:  #${BG}
+dwm.tagsnormfgcolor:  #${COLOR8}
+dwm.tagsselbgcolor:   #${ACCENT}
+dwm.tagsselfgcolor:   #${BG}
+
+dwm.hidnormbgcolor:   #${BG}
+dwm.hidnormfgcolor:   #${COLOR8}
+dwm.hidselbgcolor:    #${SURFACE}
+dwm.hidselfgcolor:    #${ACCENT}
+
+dwm.urgbgcolor:       #${COLOR1}
+dwm.urgfgcolor:       #${BG}
+dwm.urgbordercolor:   #${COLOR1}
+
+! ==============================================================================
+! DWM Compatibility / Status2d Colors
+! ==============================================================================
 dwm.color0:  #${COLOR0}
 dwm.color1:  #${COLOR1}
 dwm.color2:  #${COLOR2}
@@ -43,5 +76,3 @@ dwm.color12: #${COLOR12}
 dwm.color13: #${COLOR13}
 dwm.color14: #${COLOR14}
 dwm.color15: #${COLOR15}
-dwm.selbordercolor: #${ACCENT}
-dwm.normbordercolor: #${COLOR8}

@@ -1,4 +1,5 @@
 #include <X11/Xresource.h>
+#include <X11/Xatom.h>
 
 #define XRDB_LOAD_COLOR(R,V)    if (XrmGetResource(xrdb, R, NULL, &type, &value) == True) { \
                                   if (value.addr != NULL && strnlen(value.addr, 8) == 7 && value.addr[0] == '#') { \
