@@ -77,6 +77,15 @@ elif [ -f "$HOME/.xprofile" ]; then
   . "$HOME/.xprofile"
 fi
 
+# Đồng bộ toàn bộ biến môi trường (IM_MODULE, THEME, PATH...) sang D-Bus và Systemd user session
+if command -v dbus-update-activation-environment >/dev/null 2>&1; then
+  if command -v systemctl >/dev/null 2>&1 && systemctl --user show-environment >/dev/null 2>&1; then
+    dbus-update-activation-environment --systemd --all 2>/dev/null
+  else
+    dbus-update-activation-environment --all 2>/dev/null
+  fi
+fi
+
 XRESOURCES_PATH="${XDG_CONFIG_HOME:-$HOME/.config}/x11/xresources"
 if [ -f "$XRESOURCES_PATH" ]; then
   command -v xrdb >/dev/null 2>&1 && xrdb -merge "$XRESOURCES_PATH"
