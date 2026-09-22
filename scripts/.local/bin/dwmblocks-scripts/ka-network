@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 case ${BLOCK_BUTTON:-${BUTTON:-0}} in
-1) setsid -f dwm-dropdown network >/dev/null 2>&1 ;;
+1) setsid -f ka-pop network >/dev/null 2>&1 ;;
 3) ifinstalled nmtui && setsid -f "$TERMINAL" -e nmtui >/dev/null 2>&1 ;;
 6) setsid -f "$TERMINAL" -e "$EDITOR" "$0" >/dev/null 2>&1 ;;
 esac

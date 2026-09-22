@@ -4,7 +4,7 @@
 # 1. XỬ LÝ SỰ KIỆN
 # ==========================================
 case ${BLOCK_BUTTON:-${BUTTON:-0}} in
-1) setsid -f dwm-dropdown battery >/dev/null 2>&1 ;;
+1) setsid -f ka-pop battery >/dev/null 2>&1 ;;
 3) notify-send "Battery" "Left click: Popover\nScroll: Brightness" ;;
 4) ifinstalled brightnessctl && brightnessctl -q set +1% >/dev/null 2>&1 ;;
 5) ifinstalled brightnessctl && brightnessctl -q set 1%- >/dev/null 2>&1 ;;

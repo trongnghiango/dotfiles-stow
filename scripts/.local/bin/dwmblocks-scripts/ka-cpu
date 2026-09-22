@@ -2,7 +2,7 @@
 
 # --- 1. XỬ LÝ CLICK ---
 case ${BLOCK_BUTTON:-${BUTTON:-0}} in
-1) setsid -f dwm-dropdown cpu >/dev/null 2>&1 ;; # Click trái: Mở popover CPU
+1) setsid -f ka-pop cpu >/dev/null 2>&1 ;; # Click trái: Mở popover CPU
 3)
   # Click phải: Lấy nhiệt độ từ sensors, làm đẹp và notify
   # Lọc lấy: Fan Speed, CPU Temp, Core Temp, Pin (nếu cần)

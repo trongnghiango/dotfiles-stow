@@ -6,7 +6,7 @@
 # last run.
 
 case ${BLOCK_BUTTON:-${BUTTON:-0}} in
-	1) setsid -f dwm-dropdown cpu ;;
+	1) setsid -f ka-pop cpu ;;
 	3) notify-send "🪨 CPU load module" "Left click to open bashtop";;
 esac
 

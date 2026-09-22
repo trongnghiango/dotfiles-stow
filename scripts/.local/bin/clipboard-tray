@@ -1,3 +1,0 @@
-#!/bin/sh
-# Compatibility wrapper — delegated to native ka-clip daemon
-exec ka-clip daemon

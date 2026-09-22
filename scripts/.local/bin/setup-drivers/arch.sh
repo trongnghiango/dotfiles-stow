@@ -84,7 +84,6 @@ arch_setup_pkgs() {
   local target="${1:-}"
   local dotfiles_root="${2:-$DOTFILES_DIR}"
   local progs_file="$dotfiles_root/pkgs/arch.csv"
-  [ ! -f "$progs_file" ] && progs_file="$dotfiles_root/progs.csv"
 
   if [ ! -f "$progs_file" ]; then
     log_error "Không tìm thấy file danh sách gói Arch: $progs_file"

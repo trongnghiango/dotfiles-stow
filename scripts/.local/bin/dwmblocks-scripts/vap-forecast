@@ -57,7 +57,7 @@ else
 fi
 
 case ${BLOCK_BUTTON:-${BUTTON:-0}} in
-	1) setsid -f dwm-dropdown forecast ;;
+	1) setsid -f ka-pop forecast ;;
 	3) notify-send "🌈 Weather module" "\- Middle click to update forecast." ;;
 esac
 

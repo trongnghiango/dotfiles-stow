@@ -5,7 +5,7 @@
 # Click right: Toggle Do Not Disturb (DND)
 
 case "${BLOCK_BUTTON:-${BUTTON:-0}}" in
-  1) setsid -f dwm-dropdown notify >/dev/null 2>&1 ;;
+  1) setsid -f ka-pop notify >/dev/null 2>&1 ;;
   2) dunstctl history-clear 2>/dev/null; pkill -RTMIN+8 dwmblocks 2>/dev/null ;;
   3) dunstctl set-paused toggle 2>/dev/null; pkill -RTMIN+8 dwmblocks 2>/dev/null ;;
 esac

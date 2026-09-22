@@ -174,9 +174,6 @@ static const Rule rules[] = {
 	RULE(.instance = "dwm-dropdown", .isfloating = 1, .isdropdown = 1)
 	RULE(.class = "ka-pop", .isfloating = 1, .isdropdown = 1)
 	RULE(.instance = "ka-pop", .isfloating = 1, .isdropdown = 1)
-	RULE(.title = "ka-clip", .isfloating = 1)
-	RULE(.class = "ka-clip", .isfloating = 1)
-	RULE(.instance = "ka-clip", .isfloating = 1)
 
 	RULE(.class = "Gimp", .tags = 1 << 4)
 	RULE(.class = "firefox", .tags = 1 << 2)
@@ -279,6 +276,20 @@ static const char *capturess[]  = { "shot", "area", NULL };   // selected area (
 static const char *capwin[]     = { "shot", "window", NULL }; // active window (Shift+Print)
 static const char *maimpickcmd[] = { "maimpick", NULL };      // maimpick menu
 
+/* Popover cards (ka-pop C Native) */
+static const char *popvol[]     = { "ka-pop", "volume", NULL };
+static const char *popnet[]     = { "ka-pop", "network", NULL };
+static const char *popbat[]     = { "ka-pop", "battery", NULL };
+static const char *popclock[]   = { "ka-pop", "clock", NULL };
+static const char *popcpu[]     = { "ka-pop", "cpu", NULL };
+static const char *popmem[]     = { "ka-pop", "memory", NULL };
+static const char *popfore[]    = { "ka-pop", "forecast", NULL };
+static const char *popnotify[]  = { "ka-pop", "notify", NULL };
+static const char *popclip[]    = { "ka-pop", "clip", NULL };
+static const char *kadefaultcmd[] = { "ka-default", NULL };
+static const char *kaocrcmd[]   = { "ka-ocr", NULL };
+static const char *kanightcmd[] = { "ka-night", NULL };
+
 /* commands */
 static const char *powermenu[] = { "sysact", NULL };
 static const char *lf[] = { "st", "-e", "lfub", NULL };
@@ -298,7 +309,7 @@ static const Key keys[] = {
 	{ MODKEY,                       XK_e,          spawn,                  {.v = lf } },
 	{ MODKEY|ShiftMask,             XK_e,          spawn,                  {.v = rofiemoji } },
 	{ MODKEY,                       XK_c,          spawn,                  {.v = roficalc } },
-	{ MODKEY,                       XK_v,          spawn,                  SHCMD("ka clip") },
+	{ MODKEY,                       XK_v,          spawn,                  {.v = popclip } },
 	{ MODKEY,                       XK_Return,     spawn,                  {.v = stcmd } },
 	{ MODKEY,                       XK_p,          spawn,                  {.v = powermenu } },
 	{ MODKEY,			XK_BackSpace,  spawn,                  {.v = (const char*[]){ "sysact", NULL } } },
@@ -361,19 +372,19 @@ static const Key keys[] = {
 	{ ControlMask,			XK_Print,      spawn,		       {.v = capturess } },
 	{ ShiftMask,			XK_Print,      spawn,		       {.v = capwin } },      
 	{ ControlMask|ShiftMask,        XK_space,      spawn,                  SHCMD("fcitx-toggle") },
-	/* Omarchy-style direct popover cards and OCR shortcuts */
-	{ MODKEY|ControlMask,           XK_a,          spawn,                  SHCMD("dwm-dropdown volume") },
-	{ MODKEY|ControlMask,           XK_w,          spawn,                  SHCMD("dwm-dropdown network") },
-	{ MODKEY|ControlMask,           XK_b,          spawn,                  SHCMD("dwm-dropdown battery") },
-	{ MODKEY|ControlMask,           XK_c,          spawn,                  SHCMD("dwm-dropdown clock") },
-	{ MODKEY|ControlMask,           XK_t,          spawn,                  SHCMD("dwm-dropdown cpu") },
-	{ MODKEY|ControlMask,           XK_m,          spawn,                  SHCMD("dwm-dropdown memory") },
-	{ MODKEY|ControlMask,           XK_f,          spawn,                  SHCMD("dwm-dropdown forecast") },
-	{ MODKEY|ControlMask,           XK_d,          spawn,                  SHCMD("ka default") },
-	{ MODKEY|ControlMask,           XK_v,          spawn,                  SHCMD("ka clip") },
-	{ MODKEY|Mod1Mask,              XK_t,          spawn,                  SHCMD("ka-ocr") },
-	{ MODKEY|Mod1Mask,              XK_n,          spawn,                  SHCMD("ka night") },
-	{ MODKEY|ShiftMask,             XK_n,          spawn,                  SHCMD("dwm-dropdown notify") },
+	/* Omarchy-style direct popover cards and OCR shortcuts (Zero shell fork) */
+	{ MODKEY|ControlMask,           XK_a,          spawn,                  {.v = popvol } },
+	{ MODKEY|ControlMask,           XK_w,          spawn,                  {.v = popnet } },
+	{ MODKEY|ControlMask,           XK_b,          spawn,                  {.v = popbat } },
+	{ MODKEY|ControlMask,           XK_c,          spawn,                  {.v = popclock } },
+	{ MODKEY|ControlMask,           XK_t,          spawn,                  {.v = popcpu } },
+	{ MODKEY|ControlMask,           XK_m,          spawn,                  {.v = popmem } },
+	{ MODKEY|ControlMask,           XK_f,          spawn,                  {.v = popfore } },
+	{ MODKEY|ControlMask,           XK_d,          spawn,                  {.v = kadefaultcmd } },
+	{ MODKEY|ControlMask,           XK_v,          spawn,                  {.v = popclip } },
+	{ MODKEY|Mod1Mask,              XK_t,          spawn,                  {.v = kaocrcmd } },
+	{ MODKEY|Mod1Mask,              XK_n,          spawn,                  {.v = kanightcmd } },
+	{ MODKEY|ShiftMask,             XK_n,          spawn,                  {.v = popnotify } },
 	{ MODKEY,                       XK_n,	       spawn,                  {.v = themesetcmd } },
 	{ MODKEY,			XK_x,	       togglescratch,	       {.ui = 0 } },
 	{ 0, XF86XK_AudioMute,                         volume_change,          {.i = 0} },

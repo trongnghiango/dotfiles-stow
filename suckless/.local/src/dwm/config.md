@@ -357,7 +357,7 @@ static const Key keys[] = {
 //	{ MODKEY,			XK_d,	       spawn,		       {.v = lf } },
 	{ MODKEY,			XK_d,	       spawn,		       {.v = dmenucmd } },
 	{ MODKEY|Mod1Mask,              XK_n,          spawn,                  SHCMD("ka night") },
-	{ MODKEY|ShiftMask,             XK_n,          spawn,                  SHCMD("dwm-dropdown notify") },
+	{ MODKEY|ShiftMask,             XK_n,          spawn,                  {.v = popnotify } },
 	{ MODKEY,                       XK_n,	       spawn,                  {.v = new_look } },
 //	{ MODKEY,			XK_space,	       spawn,		       {.v = dmenucmd } },
 	{ MODKEY,			XK_x,	       togglescratch,	       {.ui = 0 } },

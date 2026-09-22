@@ -22,13 +22,13 @@ x-scheme-handler/claude-cli=claude-code-url-handler.desktop;
 x-scheme-handler/obsidian=obsidian.desktop;
 
 # Web browsers - Brave as default
-x-scheme-handler/http=brave-origin.desktop;
-x-scheme-handler/https=brave-origin.desktop;
-text/html=brave-origin.desktop;
-application/x-extension-htm=brave-origin.desktop;
-application/x-extension-html=brave-origin.desktop;
-application/x-extension-shtml=brave-origin.desktop;
-application/xhtml+xml=brave-origin.desktop;
+x-scheme-handler/http=brave-browser.desktop;
+x-scheme-handler/https=brave-browser.desktop;
+text/html=brave-browser.desktop;
+application/x-extension-htm=brave-browser.desktop;
+application/x-extension-html=brave-browser.desktop;
+application/x-extension-shtml=brave-browser.desktop;
+application/xhtml+xml=brave-browser.desktop;
 x-scheme-handler/antigravity=antigravity.desktop;
 
 # Common text and code formats

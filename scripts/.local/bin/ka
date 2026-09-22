@@ -47,7 +47,6 @@ usage() {
   echo -e "  ${GREEN}notify${RESET} [center|dnd|clear|status|test]        Quản lý thông báo, DND và mở Notification Center Right Sidebar"
   echo -e "  ${GREEN}setup${RESET}  [all|suckless|stow|pkgs]              Tự động hóa triển khai gói và dotfiles"
   echo -e "  ${GREEN}stow${RESET}   <package>                             Triển khai an toàn gói cấu hình qua stow-safe"
-  echo -e "  ${GREEN}daemon${RESET}  [start|stop|restart|status]           Quản lý tiến trình nền hợp nhất (ka-daemon: Popovers + Clipboard)"
   echo -e "  ${GREEN}profile${RESET} [detect|set <name>|list|show]         Quản lý & tự động nhận diện cấu hình phần cứng (Laptop/Desktop)"
   echo -e "  ${GREEN}doctor${RESET}                                       Chẩn đoán sức khỏe, công cụ và tính toàn vẹn hệ thống"
   echo -e "  ${GREEN}version${RESET}                                      Hiển thị thông tin phiên bản"
@@ -73,25 +72,31 @@ cmd_clip() {
   local action="${1:-menu}"
   case "$action" in
     menu|toggle|"")
-      if command -v ka-pop >/dev/null 2>&1; then
-        ka-pop clip &
+      ka-pop clip &
+      ;;
+    daemon)
+      ka-clipd &
+      ;;
+    clear)
+      rm -f "${XDG_CACHE_HOME:-$HOME/.cache}/ka-clip/history.json"
+      echo "Clipboard history cleared."
+      ;;
+    status)
+      if pgrep -x ka-clipd >/dev/null 2>&1; then
+        echo "ka-clipd is running (PID: $(pgrep -x ka-clipd))"
       else
-        ka-clip menu &
+        echo "ka-clipd is not running."
       fi
       ;;
     *)
-      ka-clip "$@"
+      ka-pop clip &
       ;;
   esac
 }
 
 cmd_pop() {
   local module="${1:-volume}"
-  if command -v ka-pop >/dev/null 2>&1; then
-    ka-pop "$module" &
-  else
-    dwm-dropdown "$module"
-  fi
+  ka-pop "$module" &
 }
 
 cmd_dns() {
@@ -115,11 +120,7 @@ cmd_notify() {
   shift || true
   case "$sub" in
     center|toggle|open)
-      if command -v ka-pop >/dev/null 2>&1; then
-        ka-pop notify &
-      else
-        setsid -f dwm-dropdown notify >/dev/null 2>&1
-      fi
+      ka-pop notify &
       ;;
     dnd|mute|pause)
       dunstctl set-paused toggle 2>/dev/null || true
@@ -266,17 +267,9 @@ cmd_doctor() {
   echo -e "\n${BOLD}5. Theming & Hardware Profile:${RESET}"
   check_item "Current Theme Config (~/.config/theme/colors/current.conf)" "test -f \$HOME/.config/theme/colors/current.conf"
   check_item "Hardware Profile (~/.config/hardware/current.conf)" "test -f \$HOME/.config/hardware/current.conf"
-  check_item "Native C Popovers (ka-pop)" "command -v ka-pop || test -x \"\$_SCRIPT_DIR/ka-pop\""
-  check_item "Unified System Daemon (ka-daemon)" "command -v ka-daemon || test -x \"\$_SCRIPT_DIR/ka-daemon\""
-  check_item "Dropdown Script (dwm-dropdown)" "command -v dwm-dropdown || test -x \"\$_SCRIPT_DIR/dwmblocks-scripts/dwm-dropdown\" || test -x \"\$_SCRIPT_DIR/dwm-dropdown\""
-  check_item "Default Handlers Selector (ka-default)" "command -v ka-default || test -x \"\$_SCRIPT_DIR/ka-default\""
-  check_item "Unified Clipboard Manager (ka-clip)" "command -v ka-clip || test -x \"\$_SCRIPT_DIR/ka-clip\""
-  local daemon_sock="${XDG_RUNTIME_DIR:-/tmp}/ka-daemon-$(id -u).sock"
-  if [[ -S "$daemon_sock" ]]; then
-    echo -e "  [${GREEN}PASS${RESET}] Unified Daemon Socket is ACTIVE (${daemon_sock})"
-  else
-    echo -e "  [${YELLOW}INFO${RESET}] Unified Daemon is IDLE (start with 'ka daemon start' or via xinitrc)"
-  fi
+  check_item "Native C Popovers (ka-pop)" "command -v ka-pop || test -x \"/usr/local/bin/ka-pop\""
+  check_item "Native C Clipboard Daemon (ka-clipd)" "command -v ka-clipd || test -x \"/usr/local/bin/ka-clipd\""
+  check_item "Default Handlers Selector (ka-default)" "command -v ka-default || test -x \"$_SCRIPT_DIR/ka-default\""
 
   echo -e "\n${BOLD}6. Developer Runtimes:${RESET}"
   if command -v mise >/dev/null 2>&1; then
@@ -299,31 +292,7 @@ cmd_doctor() {
   fi
 }
 
-cmd_daemon() {
-  local action="${1:-status}"
-  case "$action" in
-    status)
-      ka-daemon status
-      ;;
-    stop)
-      ka-daemon stop
-      ;;
-    restart)
-      ka-daemon stop 2>/dev/null || true
-      sleep 0.2
-      ka-daemon --daemon &
-      echo "ka-daemon restarted."
-      ;;
-    start)
-      ka-daemon --daemon &
-      echo "ka-daemon started."
-      ;;
-    *)
-      echo "Sử dụng: ka daemon [start|stop|restart|status]"
-      ;;
-  esac
-}
-
+cmd_profile() {
 cmd_profile() {
   ka-profile "$@"
 }

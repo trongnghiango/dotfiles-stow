@@ -19,7 +19,7 @@ case "$clock" in
 esac
 
 case ${BLOCK_BUTTON:-${BUTTON:-0}} in
-1) setsid -f dwm-dropdown clock ;;
+1) setsid -f ka-pop clock ;;
 2) setsid -f "$TERMINAL" -e calcurse ;;
 3) notify-send "📅 Time/date module" "\- Left click to show upcoming appointments for the next three days via \`calcurse -d3\` and show the month via \`cal\`
 - Middle click opens calcurse if installed" ;;

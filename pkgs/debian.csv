@@ -141,6 +141,5 @@ E,nerd-fonts-symbols,10,dwmblocks,Symbols Nerd Font (Icons & Glyphs) for DWM bar
 ,xfce4-power-manager,11,system,Power manager for battery and display.
 ,zip,11,system,Creates ZIP archives.
 ,zsh,11,zsh,Zsh shell.
-,python3-gi,11,dwmblocks,Python 3 GObject introspection bindings for dwm-dropdown.
-,gir1.2-gtk-3.0,11,dwmblocks,GTK 3 introspection library for dwm-dropdown.
+
 ,lm-sensors,11,dwmblocks,Hardware monitoring sensors for CPU dropdown.
