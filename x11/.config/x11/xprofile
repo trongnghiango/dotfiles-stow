@@ -5,14 +5,11 @@
 # Xuất đường dẫn script cá nhân và binary của người dùng
 # PATH centralized to ~/.config/shell/profile
 # ==============================================================================
-# 2. CẤU HÌNH BỘ GÕ TIẾNG VIỆT (FCITX5)
+# 2. ĐỒNG BỘ USER ENVIRONMENT (Single Source of Truth)
 # ==============================================================================
-export GTK_IM_MODULE=fcitx
-export QT_IM_MODULE=fcitx
-export XMODIFIERS=@im=fcitx
-export INPUT_METHOD=fcitx
-export SDL_IM_MODULE=fcitx
-export GLFW_IM_MODULE=ibus
+# Nếu khởi động qua Display Manager (GDM/LightDM/SDDM), nạp biến từ shell profile
+[ -z "$GTK_IM_MODULE" ] && [ -f "$HOME/.config/shell/profile" ] && . "$HOME/.config/shell/profile"
+
 # ==============================================================================
 # 3. CẤU HÌNH GTK FILE CHOOSER (Upload/Download sắp xếp file mới nhất lên đầu)
 # ==============================================================================

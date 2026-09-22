@@ -20,24 +20,6 @@ if [ -z "$DBUS_SESSION_BUS_ADDRESS" ]; then
   fi
 fi
 
-if command -v dbus-update-activation-environment >/dev/null 2>&1; then
-  # Tự động đồng bộ biến sang Systemd nếu có systemd, ngược lại chỉ đồng bộ D-Bus
-  if command -v systemctl >/dev/null 2>&1 && systemctl --user show-environment >/dev/null 2>&1; then
-    dbus-update-activation-environment --systemd --all 2>/dev/null
-  else
-    dbus-update-activation-environment --all 2>/dev/null
-  fi
-fi
-
-# Khởi động GTK Portal cho các ứng dụng GUI độc lập (Flatpak, Obsidian...)
-for portal_path in "/usr/lib/xdg-desktop-portal-gtk" "/usr/libexec/xdg-desktop-portal-gtk"; do
-  if [ -f "$portal_path" ]; then
-    command -v xdg-desktop-portal >/dev/null 2>&1 && xdg-desktop-portal &
-    "$portal_path" &
-    break
-  fi
-done
-
 # ==============================================================================
 # 2. NẠP CẤU HÌNH BIẾN MÔI TRƯỜNG CÁ NHÂN, HARDWARE PROFILE & XRESOURCES
 # ==============================================================================
@@ -85,6 +67,15 @@ if command -v dbus-update-activation-environment >/dev/null 2>&1; then
     dbus-update-activation-environment --all 2>/dev/null
   fi
 fi
+
+# Khởi động GTK Portal cho các ứng dụng GUI độc lập (Flatpak, Obsidian...) với đầy đủ môi trường
+for portal_path in "/usr/lib/xdg-desktop-portal-gtk" "/usr/libexec/xdg-desktop-portal-gtk"; do
+  if [ -f "$portal_path" ]; then
+    command -v xdg-desktop-portal >/dev/null 2>&1 && xdg-desktop-portal &
+    "$portal_path" &
+    break
+  fi
+done
 
 XRESOURCES_PATH="${XDG_CONFIG_HOME:-$HOME/.config}/x11/xresources"
 if [ -f "$XRESOURCES_PATH" ]; then
