@@ -49,6 +49,7 @@ if [ -f "$HW_CONF" ]; then
   . "$HW_CONF"
   [ -n "$MESA_LOADER_DRIVER_OVERRIDE" ] && export MESA_LOADER_DRIVER_OVERRIDE
   [ -n "$LIBGL_DRI3_ENABLE" ] && export LIBGL_DRI3_ENABLE
+  [ -n "$DEFAULT_BROWSER" ] && export BROWSER="$DEFAULT_BROWSER"
 fi
 
 # Cấu hình Touchpad nếu profile là Laptop
@@ -97,7 +98,7 @@ fi
 # ==============================================================================
 # 4. NẠP CẤU HÌNH THEO TỪNG HỆ ĐIỀU HÀNH (ARCH / VOID / NIXOS)
 # ==============================================================================
-if [ -f /etc/os-release ]; then
+if [ "${AUDIO_BACKEND:-pipewire}" = "pipewire" ] && [ -f /etc/os-release ]; then
   # Trích xuất ID và ID_LIKE hệ điều hành (ví dụ: arch, debian, void, nixos)
   OS=$(. /etc/os-release && echo "$ID")
   OS_LIKE=$(. /etc/os-release && echo "$ID_LIKE")
@@ -138,35 +139,24 @@ command -v setbg >/dev/null 2>&1 && setbg "$HOME/Pictures/Wallpapers/" &
 # ==============================================================================
 # 6. KHỞI CHẠY CÁC ỨNG DỤNG NỀN & TRAYER CHUNG
 # ==============================================================================
-autostart="dunst udiskie xfce4-power-manager fcitx5 mpd picom unclutter remapd"
+autostart="dunst udiskie xfce4-power-manager fcitx5 mpd unclutter"
+[ "${PICOM_BACKEND:-glx}" != "none" ] && autostart="$autostart picom"
 for program in $autostart; do
   if command -v "$program" >/dev/null 2>&1; then
     pgrep -u "$USER" -x "$program" >/dev/null || "$program" &
   fi
 done
+command -v remaps >/dev/null 2>&1 && remaps &
 
-# Khởi động Daemon nền (Ưu tiên Native C, triệt tiêu 60MB RAM Python daemon)
-if command -v ka-clipd >/dev/null 2>&1; then
-  # Daemon Clipboard C Native siêu nhẹ (< 1.2MB RAM, 0% CPU idle qua XFixes)
-  ka-clipd &
-elif command -v ka-pop >/dev/null 2>&1; then
-  # Popovers chạy Native C On-Demand (0MB idle RAM, <15ms launch), không cần ka-daemon
-  command -v ka-clip >/dev/null 2>&1 && ka-clip daemon &
-elif command -v ka-daemon >/dev/null 2>&1; then
-  ka-daemon &
-else
-  # Fallback cho các bản cài đặt cũ
-  command -v dwm-dropdown >/dev/null 2>&1 && dwm-dropdown --daemon &
-  command -v ka-clip >/dev/null 2>&1 && ka-clip daemon &
-fi
+# Khởi động Daemon Clipboard Native C (XFixes, 0% CPU idle, < 1.2MB RAM)
+command -v ka-clipd >/dev/null 2>&1 && ka-clipd &
 
 
 
 # ==============================================================================
 # 7. KHỞI ĐỘNG THANH TRẠNG THÁI (DWMBLOCKS)
 # ==============================================================================
-command -v start-dwmblocks >/dev/null 2>&1 && start-dwmblocks &
-(sleep 3 && pkill -RTMIN+11 dwmblocks) &
+command -v dwmblocks >/dev/null 2>&1 && dwmblocks &
 
 # ==============================================================================
 # 8. KHỞI ĐỘNG WINDOW MANAGER
@@ -175,5 +165,5 @@ command -v start-dwmblocks >/dev/null 2>&1 && start-dwmblocks &
 # Đảm bảo độ trễ chuột/phím và phản hồi UI luôn đạt chuẩn Real-Time ngay cả khi CPU 100%
 renice -n -5 -p $$ 2>/dev/null || true
 
-exec ssh-agent dwm
+exec dwm
 

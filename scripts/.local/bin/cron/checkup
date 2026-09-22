@@ -8,7 +8,6 @@ if command -v pacman >/dev/null 2>&1; then
 	sudo pacman -Syyuw --noconfirm || notify-send "Error downloading updates.
 
 Check your internet connection, if pacman is already running, or run update manually to see errors."
-	pkill -RTMIN+8 "${STATUSBAR:-dwmblocks}"
 
 	if pacman -Qu | grep -v "\[ignored\]"
 	then
@@ -20,7 +19,6 @@ elif command -v apt-get >/dev/null 2>&1; then
 	sudo apt-get update >/dev/null 2>&1 || notify-send "Error checking updates.
 
 Check your internet connection, or run apt update manually."
-	pkill -RTMIN+8 "${STATUSBAR:-dwmblocks}"
 
 	count=$(apt list --upgradable 2>/dev/null | tail -n +2 | wc -l)
 	if [ "$count" -gt 0 ]; then

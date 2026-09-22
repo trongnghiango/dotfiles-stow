@@ -416,7 +416,7 @@ setup_suckless() {
           sudo chown -R "$USER:$USER" . 2>/dev/null || true
         fi
         # Compile dưới user (tránh file .o owned by root), chỉ install bằng sudo
-        if make clean >"$make_log" 2>&1 && make -j"$(nproc 2>/dev/null || echo 2)" >>"$make_log" 2>&1; then
+        if make clean >"$make_log" 2>&1 && make -j"$(nproc 2>/dev/null || echo 2)" LOCAL_BUILD=1 >>"$make_log" 2>&1; then
           if sudo make install >>"$make_log" 2>&1; then
             log_success "Đã cài đặt $tool vào /usr/local/bin thành công."
           else
@@ -748,6 +748,13 @@ ACTION=="add|change", KERNEL=="sd[a-z]*", ATTR{queue/rotational}=="0", ATTR{queu
 # NVMe: none (không cần scheduler trung gian, tối đa thông lượng)
 ACTION=="add|change", KERNEL=="nvme[0-9]*", ATTR{queue/scheduler}="none"
 EOF
+
+  # 5. Input Device Remap Udev Rules (thay thế daemon remapd chạy polling thường trực)
+  log_info "Cấu hình Input device remap udev rules..."
+  sudo tee /etc/udev/rules.d/99-ka-remap.rules >/dev/null <<'EOF'
+ACTION=="add", SUBSYSTEM=="input", RUN+="/usr/local/bin/remaps"
+EOF
+  log_success "Đã tạo cấu hình /etc/udev/rules.d/99-ka-remap.rules (thay thế remapd daemon)."
   if command -v udevadm &>/dev/null; then
     sudo udevadm control --reload 2>/dev/null || true
     sudo udevadm trigger --subsystem-match=block 2>/dev/null || true

@@ -251,29 +251,6 @@ drawstatusbar(BarArg *a, char* stext)
 			drw->scheme[ColFg] = scheme[SchemeTagsSel][ColBg];
 			drw->scheme[ColBg] = scheme[SchemeTagsSel][ColBg];
 			drw_rect(drw, ux, bh - ulinestroke - ulinevoffset, uw, ulinestroke, 1, 0);
-
-			if (active_block.win) {
-				Client *dc = wintoclient(active_block.win);
-				if (dc && dc->mon) {
-					int drop_x;
-					if (strstr(dc->name, "notify")) {
-						drop_x = dc->mon->wx + dc->mon->ww - WIDTH(dc);
-					} else {
-						drop_x = active_block.screen_x;
-						if (drop_x + WIDTH(dc) > dc->mon->wx + dc->mon->ww)
-							drop_x = active_block.screen_x + active_block.w - WIDTH(dc);
-						int max_x = dc->mon->wx + dc->mon->ww - WIDTH(dc);
-						if (drop_x > max_x)
-							drop_x = max_x;
-						if (drop_x < dc->mon->wx)
-							drop_x = dc->mon->wx;
-					}
-					if (dc->x != drop_x && drop_x > 0) {
-						dc->x = drop_x;
-						XMoveWindow(dpy, dc->win, dc->x, dc->y);
-					}
-				}
-			}
 		}
 	}
 

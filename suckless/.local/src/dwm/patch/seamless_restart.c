@@ -200,6 +200,8 @@ setclientfields(Client *c)
 		| (c->isfloating & 0x1) << 11
 		| (c->isterminal & 0x1) << 13
 		| (c->noswallow & 0x1) << 14
+		| (c->isbottomright & 0x1) << 15
+		| (c->isdropdown & 0x1) << 16
 	};
 	XChangeProperty(dpy, c->win, clientatom[ClientFields], XA_CARDINAL, 32, PropModeReplace, (unsigned char *)data, 1);
 }
@@ -222,6 +224,8 @@ getclientfields(Client *c)
 	c->isfloating = (fields >> 11) & 0x1;
 	c->isterminal = (fields >> 13) & 0x1;
 	c->noswallow = (fields >> 14) & 0x1;
+	c->isbottomright = (fields >> 15) & 0x1;
+	c->isdropdown = (fields >> 16) & 0x1;
 	return 1;
 }
 

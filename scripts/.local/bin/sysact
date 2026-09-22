@@ -14,13 +14,13 @@ wmpid(){ # This function is needed if there are multiple instances of the window
 }
 
 lock(){
-    mpc pause
-    pauseallmpv
-    wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle
-    kill -44 $(pidof dwmblocks)
+    mpc pause 2>/dev/null || true
+    pauseallmpv 2>/dev/null || true
+    wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle 2>/dev/null || true
+    pkill -RTMIN+11 dwmblocks 2>/dev/null || true
     slock
-    wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle
-    kill -44 $(pidof dwmblocks)
+    wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle 2>/dev/null || true
+    pkill -RTMIN+11 dwmblocks 2>/dev/null || true
 }
 
 case "$(printf "🔒 lock\n🚪 leave $WM\n♻ renew $WM\n🐻 hibernate\n💤 sleep\n🔃 reboot\n🖥 shutdown\n📺 display off" | dmenu -i -p 'Action: ' -fn "JetBrains Mono:pixelsize=14:style=SemiBold" -nb "#2E3440" -nf "#d7d7d7" -sb "#3b4252" -sf "#d7d7d7")" in
