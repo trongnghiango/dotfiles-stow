@@ -20,6 +20,7 @@ barhover(XEvent *e, Bar *bar)
 		barg.y = ev->y - bar->borderpx;
 		barg.w = bar->w[r];
 		barg.h = bar->bh - 2 * bar->borderpx;
+		barg.bar_x = bar->x[r];
 
 		if (br->hoverfunc)
 			hand = br->hoverfunc(bar, &barg, ev);

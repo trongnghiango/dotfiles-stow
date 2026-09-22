@@ -188,70 +188,18 @@ drawstatusbar(BarArg *a, char* stext)
 		}
 	}
 
+	/* Draw hover underline */
 	if (hover_block.sig > 0 && hover_block.sig != active_block.sig && hover_block.w > 0) {
 		drw_setscheme(drw, scheme[SchemeTagsNorm]);
 		drw_rect(drw, hover_block.bar_x, bh - ulinestroke - ulinevoffset, hover_block.w, ulinestroke, 1, 0);
 	}
 
-	if (active_block.sig > 0) {
-		char rtext[1024];
-		strncpy(rtext, stext, sizeof(rtext) - 1);
-		rtext[sizeof(rtext) - 1] = '\0';
-		char *t = rtext;
-		int bx = 0, ti = -1, cur_sig = -1;
-		int found = 0, ab_x = 0, ab_w = 0;
-		int bar_start_x = a->x + (lrpad / 2);
-
-		while (t[++ti]) {
-			if ((unsigned char)t[ti] < ' ') {
-				char ch = t[ti];
-				t[ti] = '\0';
-				if (cur_sig > 0) {
-					int tw = status2dtextlength(t);
-					if (cur_sig == active_block.sig) {
-						char trimmed[1024];
-						strncpy(trimmed, t, sizeof(trimmed) - 1);
-						trimmed[sizeof(trimmed) - 1] = '\0';
-						int tlen = strlen(trimmed);
-						while (tlen > 0 && trimmed[tlen - 1] == ' ')
-							trimmed[--tlen] = '\0';
-						ab_x = bx;
-						ab_w = status2dtextlength(trimmed);
-						found = 1;
-						break;
-					}
-					bx += tw;
-				}
-				t[ti] = ch;
-				t += ti + 1;
-				ti = -1;
-				cur_sig = (unsigned char)ch;
-			}
-		}
-		if (!found && cur_sig > 0) {
-			if (cur_sig == active_block.sig) {
-				char trimmed[1024];
-				strncpy(trimmed, t, sizeof(trimmed) - 1);
-				trimmed[sizeof(trimmed) - 1] = '\0';
-				int tlen = strlen(trimmed);
-				while (tlen > 0 && trimmed[tlen - 1] == ' ')
-					trimmed[--tlen] = '\0';
-				ab_x = bx;
-				ab_w = status2dtextlength(trimmed);
-				found = 1;
-			}
-		}
-		if (found && ab_w > 0) {
-			int uw = MAX(ab_w, bh);
-			int ux = (bar_start_x + ab_x) - (uw - ab_w) / 2;
-			active_block.bar_x = ux;
-			active_block.w = uw;
-			active_block.screen_x = (selmon ? selmon->wx : 0) + active_block.bar_x;
-			drw_setscheme(drw, scheme[LENGTH(colors)]);
-			drw->scheme[ColFg] = scheme[SchemeTagsSel][ColBg];
-			drw->scheme[ColBg] = scheme[SchemeTagsSel][ColBg];
-			drw_rect(drw, ux, bh - ulinestroke - ulinevoffset, uw, ulinestroke, 1, 0);
-		}
+	/* Draw active dropdown underline */
+	if (active_block.sig > 0 && active_block.w > 0) {
+		drw_setscheme(drw, scheme[LENGTH(colors)]);
+		drw->scheme[ColFg] = scheme[SchemeTagsSel][ColBg];
+		drw->scheme[ColBg] = scheme[SchemeTagsSel][ColBg];
+		drw_rect(drw, active_block.bar_x, bh - ulinestroke - ulinevoffset, active_block.w, ulinestroke, 1, 0);
 	}
 
 	drw_setscheme(drw, scheme[SchemeNorm]);
@@ -302,143 +250,148 @@ status2dtextlength(char* stext)
 }
 
 int
+parse_status_blocks(const char *rawtext, int bar_start_x, int bh, StatusBlock *blocks, int max_blocks)
+{
+	if (!rawtext || !blocks || max_blocks <= 0)
+		return 0;
+
+	char buf[1024];
+	strncpy(buf, rawtext, sizeof(buf) - 1);
+	buf[sizeof(buf) - 1] = '\0';
+
+	char *p = buf;
+	int count = 0;
+	int cur_x = 0;
+
+	while (*p && count < max_blocks) {
+		if ((unsigned char)*p < ' ') {
+			int sig = (unsigned char)*p;
+			p++;
+			char *start = p;
+			while (*p && (unsigned char)*p >= ' ')
+				p++;
+			char saved = *p;
+			*p = '\0';
+
+			int full_w = status2dtextlength(start);
+
+			char trimmed[1024];
+			strncpy(trimmed, start, sizeof(trimmed) - 1);
+			trimmed[sizeof(trimmed) - 1] = '\0';
+			int tlen = strlen(trimmed);
+			while (tlen > 0 && trimmed[tlen - 1] == ' ')
+				trimmed[--tlen] = '\0';
+			int icon_w = status2dtextlength(trimmed);
+
+			*p = saved;
+
+			if (icon_w > 0) {
+				blocks[count].sig = sig;
+				blocks[count].icon_x = cur_x;
+				blocks[count].icon_w = icon_w;
+
+				int uw = MAX(icon_w, bh);
+				int ux = (bar_start_x + cur_x) - (uw - icon_w) / 2;
+				blocks[count].u_x = ux;
+				blocks[count].u_w = uw;
+
+				cur_x += full_w;
+				count++;
+			}
+		} else {
+			p++;
+		}
+	}
+
+	for (int i = 0; i < count; i++) {
+		if (i == 0) {
+			blocks[i].hit_x0 = -100;
+		} else {
+			int prev_icon_end = blocks[i - 1].icon_x + blocks[i - 1].icon_w;
+			int cur_icon_start = blocks[i].icon_x;
+			blocks[i].hit_x0 = (prev_icon_end + cur_icon_start) / 2;
+			blocks[i - 1].hit_x1 = blocks[i].hit_x0;
+		}
+	}
+	if (count > 0) {
+		blocks[count - 1].hit_x1 = cur_x + 100;
+	}
+
+	return count;
+}
+
+int
+find_block_at(int rel_x, const char *rawtext, int bar_start_x, int bh, int *out_ux, int *out_uw)
+{
+	StatusBlock blocks[16];
+	int count = parse_status_blocks(rawtext, bar_start_x, bh, blocks, 16);
+
+	for (int i = 0; i < count; i++) {
+		if (rel_x >= blocks[i].hit_x0 && rel_x < blocks[i].hit_x1) {
+			if (out_ux) *out_ux = blocks[i].u_x;
+			if (out_uw) *out_uw = blocks[i].u_w;
+			return blocks[i].sig;
+		}
+	}
+	return 0;
+}
+
+int
 calblockpos(Monitor *m, int sig, int *out_screen_x, int *out_w)
 {
 	if (!m || sig <= 0)
 		return 0;
 
+	StatusBlock blocks[16];
+
 	/* 1. Thử tìm trong rawstext_center */
 	if (rawstext_center[0]) {
-		char rtext[1024];
-		strncpy(rtext, rawstext_center, sizeof(rtext) - 1);
-		rtext[sizeof(rtext) - 1] = '\0';
-		char *t = rtext;
-		int bx = 0, ti = -1, cur_sig = -1;
-		int found = 0, ab_x = 0, ab_w = 0;
-
-		while (t[++ti]) {
-			if ((unsigned char)t[ti] < ' ') {
-				char ch = t[ti];
-				t[ti] = '\0';
-				if (cur_sig > 0) {
-					int tw = status2dtextlength(t);
-					if (cur_sig == sig) {
-						char trimmed[1024];
-						strncpy(trimmed, t, sizeof(trimmed) - 1);
-						trimmed[sizeof(trimmed) - 1] = '\0';
-						int tlen = strlen(trimmed);
-						while (tlen > 0 && trimmed[tlen - 1] == ' ')
-							trimmed[--tlen] = '\0';
-						ab_x = bx;
-						ab_w = status2dtextlength(trimmed);
-						found = 1;
-						break;
-					}
-					bx += tw;
-				}
-				t[ti] = ch;
-				t += ti + 1;
-				ti = -1;
-				cur_sig = (unsigned char)ch;
-			}
-		}
-		if (!found && cur_sig > 0) {
-			if (cur_sig == sig) {
-				char trimmed[1024];
-				strncpy(trimmed, t, sizeof(trimmed) - 1);
-				trimmed[sizeof(trimmed) - 1] = '\0';
-				int tlen = strlen(trimmed);
-				while (tlen > 0 && trimmed[tlen - 1] == ' ')
-					trimmed[--tlen] = '\0';
-				ab_x = bx;
-				ab_w = status2dtextlength(trimmed);
-				found = 1;
-			}
-		}
-		if (found && ab_w > 0) {
-			int bar_x = 0;
-			for (Bar *bar = m->bar; bar; bar = bar->next) {
-				for (int r = 0; r < LENGTH(barrules); r++) {
-					if (barrules[r].drawfunc == draw_status2d_center) {
-						bar_x = bar->x[r];
-						break;
-					}
+		int bar_x = 0;
+		for (Bar *bar = m->bar; bar; bar = bar->next) {
+			for (int r = 0; r < LENGTH(barrules); r++) {
+				if (barrules[r].drawfunc == draw_status2d_center) {
+					bar_x = bar->x[r];
+					break;
 				}
 			}
-			int bar_start_x = bar_x + (lrpad / 2);
-			int uw = MAX(ab_w, bh);
-			int ux = (bar_start_x + ab_x) - (uw - ab_w) / 2;
-			if (out_screen_x) *out_screen_x = m->wx + ux;
-			if (out_w) *out_w = uw;
-			return 1;
+		}
+		int bar_start_x = bar_x + (lrpad / 2);
+		int count = parse_status_blocks(rawstext_center, bar_start_x, bh, blocks, 16);
+		for (int i = 0; i < count; i++) {
+			if (blocks[i].sig == sig) {
+				active_block.bar_x = blocks[i].u_x;
+				active_block.w = blocks[i].u_w;
+				active_block.screen_x = (selmon ? selmon->wx : 0) + blocks[i].u_x;
+				if (out_screen_x) *out_screen_x = active_block.screen_x;
+				if (out_w) *out_w = blocks[i].u_w;
+				return 1;
+			}
 		}
 	}
 
 	/* 2. Thử tìm trong rawstext_right (hoặc rawstext) */
 	char *right_text = rawstext_right[0] ? rawstext_right : rawstext;
 	if (right_text && right_text[0]) {
-		char rtext[1024];
-		strncpy(rtext, right_text, sizeof(rtext) - 1);
-		rtext[sizeof(rtext) - 1] = '\0';
-		char *t = rtext;
-		int bx = 0, ti = -1, cur_sig = -1;
-		int found = 0, ab_x = 0, ab_w = 0;
-
-		while (t[++ti]) {
-			if ((unsigned char)t[ti] < ' ') {
-				char ch = t[ti];
-				t[ti] = '\0';
-				if (cur_sig > 0) {
-					int tw = status2dtextlength(t);
-					if (cur_sig == sig) {
-						char trimmed[1024];
-						strncpy(trimmed, t, sizeof(trimmed) - 1);
-						trimmed[sizeof(trimmed) - 1] = '\0';
-						int tlen = strlen(trimmed);
-						while (tlen > 0 && trimmed[tlen - 1] == ' ')
-							trimmed[--tlen] = '\0';
-						ab_x = bx;
-						ab_w = status2dtextlength(trimmed);
-						found = 1;
-						break;
-					}
-					bx += tw;
-				}
-				t[ti] = ch;
-				t += ti + 1;
-				ti = -1;
-				cur_sig = (unsigned char)ch;
-			}
-		}
-		if (!found && cur_sig > 0) {
-			if (cur_sig == sig) {
-				char trimmed[1024];
-				strncpy(trimmed, t, sizeof(trimmed) - 1);
-				trimmed[sizeof(trimmed) - 1] = '\0';
-				int tlen = strlen(trimmed);
-				while (tlen > 0 && trimmed[tlen - 1] == ' ')
-					trimmed[--tlen] = '\0';
-				ab_x = bx;
-				ab_w = status2dtextlength(trimmed);
-				found = 1;
-			}
-		}
-		if (found && ab_w > 0) {
-			int bar_x = 0;
-			for (Bar *bar = m->bar; bar; bar = bar->next) {
-				for (int r = 0; r < LENGTH(barrules); r++) {
-					if (barrules[r].drawfunc == draw_status2d) {
-						bar_x = bar->x[r];
-						break;
-					}
+		int bar_x = 0;
+		for (Bar *bar = m->bar; bar; bar = bar->next) {
+			for (int r = 0; r < LENGTH(barrules); r++) {
+				if (barrules[r].drawfunc == draw_status2d) {
+					bar_x = bar->x[r];
+					break;
 				}
 			}
-			int bar_start_x = bar_x + (lrpad / 2);
-			int uw = MAX(ab_w, bh);
-			int ux = (bar_start_x + ab_x) - (uw - ab_w) / 2;
-			if (out_screen_x) *out_screen_x = m->wx + ux;
-			if (out_w) *out_w = uw;
-			return 1;
+		}
+		int bar_start_x = bar_x + (lrpad / 2);
+		int count = parse_status_blocks(right_text, bar_start_x, bh, blocks, 16);
+		for (int i = 0; i < count; i++) {
+			if (blocks[i].sig == sig) {
+				active_block.bar_x = blocks[i].u_x;
+				active_block.w = blocks[i].u_w;
+				active_block.screen_x = (selmon ? selmon->wx : 0) + blocks[i].u_x;
+				if (out_screen_x) *out_screen_x = active_block.screen_x;
+				if (out_w) *out_w = blocks[i].u_w;
+				return 1;
+			}
 		}
 	}
 
