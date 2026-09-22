@@ -19,10 +19,12 @@ _SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # --- Paths & Files ---
 RECORDINGS_DIR="${XDG_VIDEOS_DIR:-$HOME/Videos}/Recordings"
-PID_FILE="/tmp/omarecord.pid"
-WEBCAM_PID_FILE="/tmp/omarecord_webcam.pid"
-META_FILE="/tmp/omarecord.meta"
-STATUS_FILE="/tmp/omarecord.status"
+RUNTIME_BASE="${XDG_RUNTIME_DIR:-/tmp/user-$(id -u)}/record"
+mkdir -p "$RUNTIME_BASE"
+PID_FILE="$RUNTIME_BASE/omarecord.pid"
+WEBCAM_PID_FILE="$RUNTIME_BASE/omarecord_webcam.pid"
+META_FILE="$RUNTIME_BASE/omarecord.meta"
+STATUS_FILE="$RUNTIME_BASE/omarecord.status"
 
 notify() {
     local urgency="${1:-normal}"
@@ -189,8 +191,15 @@ start_recording() {
                 notify "critical" "Error" "No active window found"
                 exit 1
             fi
-            local X Y W H
-            eval "$(xdotool getwindowgeometry --shell "$win_id")"
+            local X=0 Y=0 WIDTH=0 HEIGHT=0 W H
+            while IFS='=' read -r k v; do
+                case "$k" in
+                    X) X="$v" ;;
+                    Y) Y="$v" ;;
+                    WIDTH) WIDTH="$v" ;;
+                    HEIGHT) HEIGHT="$v" ;;
+                esac
+            done < <(xdotool getwindowgeometry --shell "$win_id" 2>/dev/null || true)
             W=$(( WIDTH - WIDTH % 2 ))
             H=$(( HEIGHT - HEIGHT % 2 ))
             video_input=(-f x11grab -draw_mouse 1 -framerate 30 -video_size "${W}x${H}" -i ":0.0+${X},${Y}")
@@ -314,7 +323,7 @@ start_recording() {
     fi
 
     # Khởi chạy ngầm
-    "${ffmpeg_cmd[@]}" >/tmp/omarecord.log 2>&1 &
+    "${ffmpeg_cmd[@]}" >"$RUNTIME_BASE/omarecord.log" 2>&1 &
     local ffmpeg_pid=$!
 
     echo "$ffmpeg_pid" > "$PID_FILE"

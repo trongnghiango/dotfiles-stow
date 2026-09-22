@@ -667,6 +667,59 @@ cli_set() {
   echo -e "\033[0;32m[OK]\033[0m Đã đặt '$disp_name' làm mặc định cho $(category_label "$cat")."
 }
 
+cli_check() {
+  local cat="${1:-}"
+  local app="${2:-}"
+
+  if [ -z "$cat" ] || [ -z "$app" ]; then
+    echo "Sử dụng: ka default --check <loại> <app>"
+    return 1
+  fi
+
+  case "$cat" in
+    web|browser)   cat="browser" ;;
+    edit|editor)   cat="editor" ;;
+    fm|filemanager)cat="filemanager" ;;
+    doc|pdf)       cat="pdf" ;;
+    img|image)     cat="image" ;;
+    vid|video)     cat="video" ;;
+    sound|audio)   cat="audio" ;;
+    term|terminal) cat="terminal" ;;
+  esac
+
+  if [ "$cat" = "browser" ]; then
+    [ "$app" = "brave" ] && app="brave-browser.desktop"
+    [ "$app" = "chrome" ] && app="google-chrome.desktop"
+    [ "$app" = "firefox" ] && app="firefox.desktop"
+  elif [ "$cat" = "editor" ]; then
+    [ "$app" = "nvim" ] && app="text.desktop"
+    [ "$app" = "code" ] && app="code.desktop"
+  elif [ "$cat" = "filemanager" ]; then
+    [ "$app" = "lf" ] && app="file.desktop"
+    [ "$app" = "thunar" ] && app="thunar.desktop"
+  elif [ "$cat" = "pdf" ]; then
+    [ "$app" = "zathura" ] && app="pdf.desktop"
+  elif [ "$cat" = "image" ]; then
+    [ "$app" = "nsxiv" ] && app="img.desktop"
+  elif [ "$cat" = "video" ]; then
+    [ "$app" = "mpv" ] && app="video.desktop"
+  fi
+
+  echo -e "\033[0;36m[DRY-RUN]\033[0m Checking changes for category '$cat' -> '$app':"
+  if [ "$cat" = "terminal" ]; then
+    echo "  - Would export TERMINAL=\"$app\" and TERMINAL_PROG=\"$app\""
+  else
+    local mimes
+    mimes="$(category_mimes "$cat")"
+    for m in $mimes; do
+      local cur
+      cur=$(xdg-mime query default "$m" 2>/dev/null || echo "(none)")
+      echo "  - MIME $m: '$cur' -> '$app'"
+    done
+  fi
+  echo -e "\033[0;32m[OK]\033[0m Dry-run complete. No settings were modified."
+}
+
 # ------------------------------------------------------------------------------
 # 7. MAIN DISPATCHER
 # ------------------------------------------------------------------------------
@@ -678,6 +731,10 @@ case "$SUBCMD" in
   set)
     shift
     cli_set "$@"
+    ;;
+  --check|check)
+    shift
+    cli_check "$@"
     ;;
   -h|--help|help)
     echo "ka default — Trình quản lý và lựa chọn ứng dụng mặc định hệ thống"

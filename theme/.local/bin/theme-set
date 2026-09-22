@@ -116,6 +116,62 @@ _generate() {
     set +a
 }
 
+_check_diff() {
+    local conf="$1"
+    local theme_name; theme_name=$(basename "$conf" .conf)
+    log_info "[DRY-RUN] Checking diff for theme: ${BOLD}$theme_name${NC}"
+
+    local tmp_dir; tmp_dir=$(mktemp -d)
+    set -a
+    # shellcheck disable=SC1090
+    source "$conf"
+    set +a
+
+    local xres_colors="${XDG_CONFIG_HOME:-$HOME/.config}/x11/xresources.d/colors"
+    if [ -f "$xres_colors" ]; then
+        envsubst < "$TEMPLATES_DIR/xresources-colors.tpl" > "$tmp_dir/colors"
+        echo "--- Diff for $xres_colors ---"
+        diff -u "$xres_colors" "$tmp_dir/colors" || true
+    fi
+
+    local rofi_colors="${XDG_CONFIG_HOME:-$HOME/.config}/rofi/colors.rasi"
+    if [ -f "$rofi_colors" ]; then
+        envsubst < "$TEMPLATES_DIR/rofi-colors.rasi.tpl" > "$tmp_dir/colors.rasi"
+        echo "--- Diff for $rofi_colors ---"
+        diff -u "$rofi_colors" "$tmp_dir/colors.rasi" || true
+    fi
+
+    rm -rf "$tmp_dir"
+    set +a
+    log_ok "[DRY-RUN] Diff check complete. No files were modified."
+}
+
+_update_state() {
+    local theme_name="$1"
+    local state_dir="${XDG_RUNTIME_DIR:-/tmp/user-$(id -u)}/ka"
+    mkdir -p "$state_dir" 2>/dev/null || true
+    local state_file="$state_dir/state.json"
+
+    local hw_profile="generic"
+    local hw_conf="${XDG_CONFIG_HOME:-$HOME/.config}/hardware/current.conf"
+    [ -f "$hw_conf" ] && hw_profile=$(grep -E '^PROFILE_NAME=' "$hw_conf" 2>/dev/null | cut -d= -f2 | tr -d '"' || echo "generic")
+
+    local wallpaper=""
+    local bg_link="${XDG_DATA_HOME:-$HOME/.local/share}/bg"
+    [ -L "$bg_link" ] && wallpaper="$(readlink -f "$bg_link" 2>/dev/null || echo "")"
+
+    cat > "$state_file" <<EOF 2>/dev/null || true
+{
+  "theme": "$theme_name",
+  "hardware_profile": "$hw_profile",
+  "audio_backend": "pipewire",
+  "compositor_enabled": $(pgrep -x picom >/dev/null 2>&1 && echo "true" || echo "false"),
+  "active_dropdown": null,
+  "wallpaper": "$wallpaper"
+}
+EOF
+}
+
 # Chèn block màu vào dunstrc giữa 2 marker, hoặc thêm cuối file nếu chưa có
 _inject_managed_block() {
     local file="$1" block="$2"
@@ -174,6 +230,14 @@ case "${1:-}" in
         echo "$(_current_theme)"
         ;;
 
+    --check)
+        name="${2:-}"
+        [ -z "$name" ] && { log_err "Usage: theme-set --check <tên-theme>"; exit 1; }
+        src="$COLORS_DIR/$name.conf"
+        [ -f "$src" ] || { log_err "Không tìm thấy theme: $name"; exit 1; }
+        _check_diff "$src"
+        ;;
+
     -*)
         log_err "Option không hợp lệ: $1"
         echo "Usage: theme-set [tên-theme | --list | --preview <tên> | --current]"
@@ -201,6 +265,9 @@ case "${1:-}" in
 
         # 3. Chạy hooks (reload xrdb, dwm, dunst...)
         _run_hooks
+
+        # 4. Cập nhật state.json cho agent và hệ thống
+        _update_state "$name"
 
         echo ""
         log_ok "✓ Theme ${BOLD}$name${NC} đã được áp dụng!"

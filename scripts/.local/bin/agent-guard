@@ -1,0 +1,95 @@
+#!/usr/bin/env bash
+# ==============================================================================
+# agent-guard — Pre-commit & CI safety validator for Dotfiles/Stow Userspace
+# Enforces:
+#  1. No 'sed -i' targeting stow-managed symlinks.
+#  2. No unsafe 'eval' in userland scripts.
+#  3. No hardcoded /tmp for runtime sockets, PIDs, or state files.
+# ==============================================================================
+set -eo pipefail
+
+_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DOTFILES_ROOT="$(cd "$_SCRIPT_DIR/../../.." && pwd)"
+
+ERRORS=0
+WARNINGS=0
+
+log_err()  { echo -e "\033[0;31m[ERROR]\033[0m   $1" >&2; ERRORS=$((ERRORS + 1)); }
+log_warn() { echo -e "\033[1;33m[WARN]\033[0m    $1"; WARNINGS=$((WARNINGS + 1)); }
+log_ok()   { echo -e "\033[0;32m[OK]\033[0m      $1"; }
+
+echo "=== AGENT-GUARD: System Userspace Safety Verification ==="
+
+# ------------------------------------------------------------------------------
+# 1. CHECK FOR UNSAFE EVAL
+# ------------------------------------------------------------------------------
+echo "▸ Checking for unsafe 'eval' occurrences..."
+# Allowed list of safe system evaluation:
+# - dbus-launch in xinitrc
+# - gnome-keyring-daemon in xinitrc
+# - eval "$check_cmd" in ka doctor
+# - eval in bash completion or test scripts
+while IFS=: read -r file line content; do
+    # Skip allowed system files
+    if [[ "$file" =~ scripts/.local/bin/agent-guard$ ]] || \
+       [[ "$file" =~ x11/.config/x11/xinitrc$ ]] || \
+       [[ "$file" =~ scripts/.local/bin/ka$ ]] || \
+       [[ "$file" =~ install_arch\.sh$ ]] || \
+       [[ "$file" =~ .git/ ]] || \
+       [[ "$file" =~ ^docs/ ]]; then
+        continue
+    fi
+    # Check if content has eval
+    if echo "$content" | grep -qE '\beval\b'; then
+        log_err "$file:$line contains 'eval': $content"
+    fi
+done < <(git -C "$DOTFILES_ROOT" grep -n -E '\beval\b' -- '*.sh' 'scripts/' || true)
+
+# ------------------------------------------------------------------------------
+# 2. CHECK FOR SED -I OVERWRITING STOW PACKAGES
+# ------------------------------------------------------------------------------
+echo "▸ Checking for 'sed -i' modifying dotfiles packages directly..."
+while IFS=: read -r file line content; do
+    if [[ "$file" =~ scripts/.local/bin/agent-guard$ ]] || \
+       [[ "$file" =~ ^docs/ ]] || \
+       [[ "$file" =~ ^.git/ ]]; then
+        continue
+    fi
+    # Flag any sed -i on non-generated / non-temporary files
+    if echo "$content" | grep -qE 'sed[[:space:]]+-[^[:space:]]*i'; then
+        # Check target
+        if echo "$content" | grep -qE '(\$(XDG_CONFIG_HOME|HOME|DOTFILES)|~/.config|/etc/)'; then
+            # If modifying pam or mimeapps outside git directly, warn or verify
+            if echo "$content" | grep -q 'pam_file'; then
+                continue # system PAM modification in ka-setup
+            fi
+            log_warn "$file:$line uses sed -i on config: $content"
+        fi
+    fi
+done < <(git -C "$DOTFILES_ROOT" grep -n -E 'sed[[:space:]]+-[^[:space:]]*i' -- '*.sh' 'scripts/' || true)
+
+# ------------------------------------------------------------------------------
+# 3. CHECK FOR HARDCODED /TMP PID/SOCKET/STATE FILES
+# ------------------------------------------------------------------------------
+echo "▸ Checking for un-namespaced /tmp state/socket/PID files..."
+while IFS=: read -r file line content; do
+    if [[ "$file" =~ scripts/.local/bin/agent-guard$ ]] || \
+       [[ "$file" =~ ^docs/ ]] || \
+       [[ "$file" =~ ^.git/ ]] || \
+       [[ "$file" =~ dwm-dropdown$ ]] || \
+       [[ "$file" =~ dwm-msg\.c$ ]]; then
+        continue
+    fi
+    if echo "$content" | grep -qE '"/tmp/[a-zA-Z0-9_-]+\.(pid|sock|state|meta|status)"'; then
+        log_err "$file:$line hardcodes /tmp state/PID/socket: $content"
+    fi
+done < <(git -C "$DOTFILES_ROOT" grep -n -E '"/tmp/[a-zA-Z0-9_-]+\.(pid|sock|state|meta|status)"' -- '*.sh' 'scripts/' 'suckless/' || true)
+
+echo "--------------------------------------------------------"
+if [ "$ERRORS" -gt 0 ]; then
+    echo -e "\033[0;31mAgent Guard failed with $ERRORS error(s) and $WARNINGS warning(s).\033[0m"
+    exit 1
+else
+    log_ok "All agent-safety checks passed ($WARNINGS warning(s))."
+    exit 0
+fi

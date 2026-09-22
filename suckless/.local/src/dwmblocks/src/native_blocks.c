@@ -457,7 +457,15 @@ static void native_record(char *output, size_t max_len, uint8_t button) {
         spawn_cmd(args);
     }
 
-    if (access("/tmp/omarecord.pid", F_OK) == 0) {
+    const char *runtime_dir = getenv("XDG_RUNTIME_DIR");
+    char pid_file[512];
+    if (runtime_dir && runtime_dir[0]) {
+        snprintf(pid_file, sizeof(pid_file), "%s/record/omarecord.pid", runtime_dir);
+    } else {
+        snprintf(pid_file, sizeof(pid_file), "/tmp/user-%d/record/omarecord.pid", getuid());
+    }
+
+    if (access(pid_file, F_OK) == 0) {
         snprintf(output, max_len, "^C1^🔴 REC^d^");
     } else {
         output[0] = '\0';
