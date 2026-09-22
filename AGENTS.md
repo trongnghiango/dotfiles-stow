@@ -1,165 +1,81 @@
 # AGENTS.md — dotfiles
 
-Personal dotfiles managed with **GNU Stow** + Git. Primary: **Arch Linux** + **DWM** (startx, no DM). Also runs on NixOS (`thinkbox`) and Void.
-
-> [!IMPORTANT]
-> **X11 Omarchy Philosophy**: Nhánh `main` này được thiết kế lại dựa trên triết lý sạch sẽ, tối ưu của Omarchy OS (DHH), nhưng giữ nguyên công nghệ X11/DWM (Native C) để đạt hiệu năng tối đa.
-> Mọi AI Assistant khi làm việc với repository này **BẮT BUỘC ĐỌC** file `OMARCHY_X11_HANDOFF.md` và **TUÂN THỦ TUYỆT ĐỐI 7 NGUYÊN TẮC THÉP** bên dưới trước khi chạm vào bất kỳ dòng code nào.
-
-## 7 NGUYÊN TẮC THÉP CHO BỘ KHUNG GẦM ĐA DISTRO (CHỐNG RÁC CODE & SMELL)
-
-> **Mục tiêu tối thượng**: Độc lập distro (Arch, Debian, Void, Fedora, NixOS), hiệu năng cao nhất trên máy 10-15 năm tuổi, không phát sinh rác code, không monkey-patching khi fix bug.
-
-1. **Tam Giác Cô Lập Kiến Trúc (Architectural Isolation)**:
-   - **Tầng Engine (Distro OS)**: Chỉ quản lý tải gói, nằm riêng tại `pkgs/*.csv` và `scripts/.local/bin/setup-drivers/`.
-   - **Tầng Chassis (Hardware Profile)**: Quản lý đặc tính vật lý (DPI, pin, touchpad, cờ GPU), nằm riêng tại `hardware/.config/hardware/`.
-   - **Tầng Cockpit (Userland Dotfiles)**: DWM, ST, Zsh, Neovim, Theme. Tầng này **hoàn toàn mù (agnostic) về Distro**.
-   - **CẤM**: Không viết `if [ "$DISTRO" = "arch" ]` hoặc kiểm tra distro trong UI, scripts, dwm, theme.
-2. **Zero-Binary trong Git (Biên dịch Cục bộ)**:
-   - **CẤM**: Tuyệt đối KHÔNG commit file thực thi nhị phân compiled ELF (`dwm`, `st`, `dmenu`, `ka-pop`, `*.o`) vào Git repository.
-   - Mọi binary C Native phải được biên dịch tại máy đích qua `ka-setup suckless` để tối ưu theo vi kiến trúc CPU cục bộ (`-march=native -O3 -flto`) và tương thích đúng thư viện C (glibc vs musl).
-3. **Zero-Cost Shim Layer (Giải quyết phân mảnh tên Binary FHS)**:
-   - Khi distro đổi tên binary (như Debian đổi `bat` thành `batcat`, `fd` thành `fdfind`), xử lý bằng symlink 1 lần duy nhất trong `setup-drivers/` trỏ về `~/.local/bin/bat` và `~/.local/bin/fd`.
-   - **CẤM**: Không viết `if command -v batcat; then ...` lặp đi lặp lại trong scripts hay config.
-4. **Init-Agnostic & Zero Systemd Lock-in**:
-   - Dotfiles phải chạy trơn tru trên cả **Void Linux (runit)**, **Alpine (OpenRC)** và **Systemd**.
-   - **CẤM**: Không gọi cứng `systemctl --user` nếu không bọc điều kiện kiểm tra `[ -d /run/systemd/system ]`.
-   - Mọi daemon (`ka-daemon`, `dunst`, `picom`) phải chạy được bằng tiến trình POSIX nền thuần túy (`setsid` / `&`).
-5. **Dynamic Path Resolution (Không hardcode đường dẫn hệ thống)**:
-   - **CẤM**: Không chạy thẳng đường dẫn tuyệt đối như `/usr/lib/polkit-gnome/...` vì Void/Fedora dùng `/usr/libexec/...`.
-   - Luôn dùng vòng lặp dò tìm danh sách đường dẫn khả dĩ hoặc `command -v`.
-6. **Hư Hỏng Có Kiểm Soát (Graceful Degradation)**:
-   - Lệnh thăm dò phần cứng (`sensors`, `brightnessctl`, `/sys/class/power_supply`) luôn phải có fallback an toàn (`|| true` hoặc `|| echo fallback`). Không để `set -e` làm sập script khi chạy trên máy không có pin hoặc thiếu cảm biến.
-7. **XDG Base Directory 100% & Idempotency**:
-   - Config vào `~/.config/`, Data vào `~/.local/share/`, Cache vào `~/.cache/`. Không tạo file rác tại `$HOME`.
-   - `ka-setup` chạy 1 lần hay 100 lần kết quả phải đồng nhất, không ghi đè cấu hình cá nhân, không tạo symlink trùng lặp.
+> **Học thuyết Một Con Đường & Kỷ Luật Kỹ Thuật**: Tài liệu này mô tả CHÍNH XÁC 100% hành vi của mã nguồn trong kho lưu trữ. Mọi khẳng định kỹ thuật đều có dẫn chứng cụ thể đến từng dòng mã nguồn. Không được phép làm tròn sự thật hoặc tuyên bố các tính năng không có thật trong mã nguồn.
 
 ---
 
-## KỶ LUẬT SỬA LỖI & CHỐNG PHÁT SINH CODE SMELL (BUG-FIXING DISCIPLINE)
+## 1. BẢN ĐỒ KIẾN TRÚC & PHÂN TẦNG THỰC TẾ
 
-Mọi AI Agent khi sửa lỗi (bug-fixing) **BẮT BUỘC** tuân thủ:
-- **Tìm nguyên nhân gốc rễ (Root Cause Analysis - RCA)**: Dùng `coredumpctl`, `gdb`, log X11 để xác định con trỏ lỗi hoặc race condition cụ thể. Tuyệt đối không "đoán mò" rồi chắp vá tạm thời.
-- **Không tự ý thêm cờ thử nghiệm (No Speculative Flags)**: Không thêm các cờ render lạ vào Picom hay Mesa khi chưa đo lường; tránh gây crash dây chuyền cho các ứng dụng Electron/Chromium.
-- **Triệt tiêu Zombie & Leak**: Mọi lệnh chạy nền bất đồng bộ phải dùng `signal(SIGCHLD, SIG_IGN)` hoặc thu dọn tiến trình con đầy đủ, tránh để lại zombie processes (`<defunct>`).
-- **Debounce trên GUI Events**: Mọi thao tác kéo thả slider trên giao diện (Volume, Brightness) phải có bộ đệm (Debounce/Throttle ~50ms), không gọi `system()` liên tục làm nghẽn CPU.
-- **Tôn trọng Single Source of Truth**: Bảng màu chỉ lấy từ `colors/*.conf` qua `theme-set`. Không hardcode mã màu hex trong mã nguồn C hay scripts.
+Hệ thống được tổ chức thành 24 gói GNU Stow triển khai liên kết mềm (symlink) vào `$HOME`:
+
+```
+[ Nhân Linux & Giao tiếp /sys, /dev, /proc ]
+                       │
+       [ TTY1 Login / PAM (pam_gnome_keyring) ]
+                       │
+     [ Zsh Login: ~/.zshenv -> .zprofile -> shell/profile ]
+                       │
+             [ exec startx "$XINITRC" ]
+                       │
+     [ x11/.config/x11/xinitrc (Session Initializer) ]
+        ├── D-Bus session bus (xinitrc:13-21)
+        ├── Hardware driver overrides (xinitrc:47-53)
+        ├── Xresources merge via xrdb (xinitrc:68-71)
+        ├── Polkit agent & Keyring (xinitrc:76-96)
+        ├── PipeWire audio cluster (xinitrc.$OS)
+        ├── Session daemons (dunst, picom, fcitx5, udiskie, etc.)
+        └── exec ssh-agent dwm (xinitrc:178)
+```
 
 ---
 
-## Structure
+## 2. KIỂM TOÁN TÍNH NĂNG STATUSBAR & TIẾN TRÌNH C (DWMBLOCKS)
 
-Each top-level directory is a Stow package containing `$HOME`-relative paths (24 packages total):
+### Khối hiển thị thực tế trong `suckless/.local/src/dwmblocks/blocks.h`
+Chỉ có **8 blocks** thực sự được đăng ký trong mảng `blocks[]` (`blocks.h:14-21`):
 
-| Package | What |
-|---------|------|
-| `shell/` | profile, aliasrc, shortcutrc, inputrc, mise/config.toml, starship.toml |
-| `hardware/` | profiles/ (generic, generic-laptop, generic-desktop, thinkpad-x230, thinkpad-t480), current.conf |
-| `zsh/` | .zshrc, .zprofile (startx hook on tty1), env.zsh (mise activate) |
-| `nvim/` | init.lua (modularized with neovide.lua), lua/{core,plugins,utils}/ — fully tracked |
-| `tmux/` | prefix Ctrl+Space, vi nav, escape-time 0 |
-| `x11/` | xinitrc (D-Bus → DWM), xprofile (GTK file chooser configs), xresources (#if __has_include) |
-| `suckless/`| Source code của DWM, ST, Dmenu, Dwmblocks (tự động compile qua `ka-setup suckless`) |
-| `scripts/` | `~/.local/bin` — Các công cụ hệ thống chia gọn vào `dwmblocks-scripts` và `dmenu-scripts` |
-| `theme/` | Theme system (`theme-set`: 1 file màu → generate Xresources, Rofi, Dunst, hooks) |
-| `desktop/` | XDG mimeapps.list, user-dirs.dirs, custom .desktop handlers (file, img, pdf, text, video) |
-| `input-method/` | Fcitx5 + Bamboo bộ gõ tiếng Việt (hotkeys, profile, classicui) |
-| `yay/` | yay AUR helper config (cleanafter, removemake) |
-| `dunst/` | Dunst notification daemon config (hỗ trợ managed block tự động đổi màu) |
-| `rofi/` | Rofi app launcher & window switcher configs (tỉ lệ vàng 580px, font 11pt, icon 20px) |
-| `picom/` | Picom compositor config tối ưu Low-Latency (vsync glx, use-damage, tắt blur/fading) |
-| `gtk/` | GTK 2/3/4 settings (Adwaita Base + Dynamic CSS Injection, Papirus-Dark, bookmarks) |
-| `fontconfig/` | Fontconfig rules (loại bỏ font bitmap) |
-| `nsxiv/` | Nsxiv image viewer keybinds |
-| `brave/` | Brave browser flags config (X11 + HD4000 GPU decode) |
-| `pipewire/` | RNNoise AI real-time stereo noise suppression cho microphone |
-| `media/` | mpv, ncmpcpp, mpd configs |
-| `opencode/` | 9Router gateway config, 3 combo tiers (KhaBoDo, KhaSimple, KhaThinking) |
-| `git/` | gitconfig with delta diff, aliases, smart pull/push/fetch, rerere |
-| `nixos/` | flake.nix, hosts/thinkbox/, home/home.nix |
+1. **`ka-forecast`** (`native_blocks.c:367`): In-process C, đọc tệp bộ nhớ đệm `~/.cache/weatherreport` (0 fork, 0 subshell).
+2. **`ka-memory`** (`native_blocks.c:126`): In-process C, đọc trực tiếp `/proc/meminfo` (0 fork, 0 subshell).
+3. **`ka-cpu`** (`native_blocks.c:76`): In-process C, đọc vi sai hai lần từ `/proc/stat` (0 fork, 0 sleep).
+4. **`ka-network`** (`native_blocks.c:206`): In-process C, đọc `/proc/net/wireless` và `/sys/class/net` (0 fork).
+5. **`ka-battery`** (`native_blocks.c:140`): In-process C, đọc trạng thái từ `/sys/class/power_supply` (0 fork).
+6. **`ka-volume`** (`native_blocks.c:298`): In-process C, đọc giá trị phần cứng trực tiếp qua thư viện ALSA (`libasound`, hàm `snd_mixer_selem_get_playback_volume`) (0 fork, 0 subshell).
+7. **`sb-record`** (`native_blocks.c:454`): In-process C, kiểm tra sự tồn tại của file PID quay màn hình `$XDG_RUNTIME_DIR/record/omarecord.pid` (0 fork).
+8. **`ka-clock`** (`native_blocks.c:283`): In-process C, gọi trực tiếp hàm thư viện C `time()` và `localtime()` (0 fork).
 
-## Key commands / workflow
+> [!CAUTION]
+> **Khối `sb-notify` (`native_blocks.c:414`) KHÔNG PHẢI zero-fork**: Hàm này gọi `exec_capture` 2 lần, thực hiện `fork()` và chạy `/usr/bin/dunstctl`. Khối này hiện **CHƯA ĐƯỢC ĐĂNG KÝ** trong `blocks.h:14-21`.
 
-- **Unified System CLI (`ka`):**
-  - `ka doctor` — Chẩn đoán toàn diện sức khỏe, binary, audio, theming, dev runtimes và ka-pop
-  - `ka dev [setup|status|update]` — Quản lý toàn bộ dev SDKs (Node, Python, Go, Rust, Bun, PNPM) qua Mise
-  - `ka ocr` — Bóc tách chữ trên màn hình (In-memory OCR, song ngữ Anh-Việt) vào Clipboard
-  - `ka theme [nord|gruvbox-dark|catppuccin-mocha]` — Đổi theme toàn diện, hot-reload tức thì
-  - `ka default [show|set <cat> <app>]` — Quản lý & chọn ứng dụng mặc định một chạm (Rofi / CLI)
-  - `ka clip [menu|daemon|clear|status]` — Quản lý lịch sử clipboard tỷ lệ 2 : 3 (Text đầy đủ & Ảnh phóng to) qua GTK3 native
-  - `ka pop <module>` — Bật/Tắt thẻ popup Omarchy Native C (`ka-pop`: < 15ms cold launch, 0MB idle RAM, 9 modules bao gồm Clipboard)
-  - `ka daemon [start|stop|restart|status]` — Quản lý tiến trình nền hợp nhất ka-daemon
-  - `ka profile [detect|set <name>|list|show]` — Quản lý & tự động nhận diện cấu hình phần cứng (Laptop / Desktop / ThinkPad)
-  - `ka night [on|off|toggle|status]` — Bật/Tắt chế độ làm việc ban đêm (Lọc ánh sáng xanh 4000K + giảm sáng 35%)
-  - `ka notify [center|dnd|clear|status|test]` — Quản lý thông báo, DND và mở Notification Center Right Sidebar
-  - `ka dns [dhcp|cloudflare|google|custom <ip>]` — Chuyển đổi DNS server 1 chạm
-  - `ka record [toggle|status]` — Quay video màn hình
-  - `ka setup [all|suckless|stow|pkgs|sys]` — Tự động hóa triển khai hệ thống (Arch, Debian, Void, Fedora)
-- **DWM 6.8 Native C Core & Zero-Fork Statusbar (dwmblocks):**
-  - Nâng cấp lên DWM 6.8 với các bản vá bảo mật upstream (heap overflow, EWMH focus, format 32 check, underflow guard)
-  - **True Zero-Fork Statusbar (9/9 Blocks In-Process C)**: `ka-clock`, `ka-forecast`, `sb-record`, `ka-volume`, `ka-battery`, `ka-network`, `ka-cpu`, `ka-memory`, `sb-notify` đều chạy 100% C thuần bên trong tiến trình dwmblocks. Volume đọc trực tiếp qua **ALSA Library (`libasound`)** trong 0.001ms (0 fork). Triệt tiêu toàn bộ `popen()` và `/bin/sh`.
-  - **Zero-Fork DWM-Statusbar IPC & Hotkeys**: DWM đọc PID statusbar trực tiếp từ `$XDG_RUNTIME_DIR/dwmblocks.pid` (< 0.005ms). Phím tắt âm lượng dùng hàm C `volume_change()` gọi trực tiếp `execlp` và bắn `sigqueue` tới dwmblocks (0 shell, 0 `pkill`, 0 quét `/proc`).
-  - **Native C Clipboard Daemon (`ka-clipd`)**: XFixes event listener C thuần (< 1.2MB RAM, 0% CPU idle), thay thế hoàn toàn daemon Python `ka-clip`.
-  - **Triệt tiêu Zombie (`signal(SIGCHLD, SIG_IGN)`)**: Tự động thu dọn tiến trình con ở tầng kernel, xử lý chuẩn POSIX `ECHILD`
-  - **Edge-Flush Dropdown Alignment**:
-    - Left/Center blocks: Căn mép TRÁI cửa sổ popup thẳng hàng 100% với mép TRÁI vạch underline (`c->x = active_block.screen_x`)
-    - Right-clamped blocks: Căn mép PHẢI cửa sổ popup ôm sát 100% với mép PHẢI vạch underline (`c->x = active_block.screen_x + active_block.w - WIDTH(c)`)
-  - **Zero Stray Underline**: DWM tự động phát hiện khi popup đóng (bằng `Esc`, `q`, phím tắt, hoặc click ra ngoài) và xóa sạch `active_block.sig = 0`, vẽ lại bar tức thì
-  - **Tối ưu hóa Khởi động Shell (< 8ms)**: Cơ chế Static Pre-compiled Cache tại `$XDG_CACHE_HOME/zsh/` cho Starship, Zoxide, Mise, Direnv
-  - **Tối ưu hóa Hiển thị & Low-DPI**: Fontconfig Subpixel RGB rendering cho màn hình 1366x768 và cờ tăng tốc OpenGL GLX cho Intel HD 4000 trong Picom
-- **Deploy & Management:**
-  - `stow-safe <package>` — Deploy an toàn (tự động backup vào `~/.local/share/dotfiles/backups/`)
-  - `ka-setup suckless` — Biên dịch và cài đặt DWM 6.8, ST, Dmenu, Dwmblocks, ka-pop
-  - `ka-setup sys` — Tự động cấu hình zRAM thích ứng (`lz4` cho <=2 nhân, `zstd` cho >=4 nhân) + Sysctl VM tuning (`vm.swappiness = 180`, `vm.page-cluster = 0`)
-  - Session start: auto via `zsh/.config/zsh/.zprofile` → `startx "$XINITRC"` → `exec ssh-agent dwm`
+---
 
-## Essential Ergonomic Hotkeys
+## 3. CÁC QUY TẮC BẮT BUỘC DÀNH CHO AI AGENT
 
-| Hotkey | Action | Note |
-| :--- | :--- | :--- |
-| `Super + Enter` | Terminal | `st` native C |
-| `Super + Space` | App Launcher | `rofi-launcher` tỉ lệ vàng (APPS/RUN/FILES/WINDOWS) |
-| `Alt + Tab` | Window Switcher | Rofi window switcher, DWM tự nhảy Workspace & focus |
-| `Super + W` | Web Browser | `brave` GPU acceleration |
-| `Super + E` | File Manager | `lf` với image preview `ueberzugpp` |
-| `Super + V` | Clipboard Manager | Lịch sử clipboard tỷ lệ 2 : 3 (Text & Ảnh) qua GTK3 native |
-| `Super + Q` | Close Window | Native C `killclient` |
-| `Super + F` | Toggle Fullscreen | Native C `togglefullscreen` 100% full màn hình |
-| `Super + Shift + Space` | Centered Floating | Cửa sổ nổi tự căn giữa tỉ lệ vàng 75% $\times$ 80% |
-| `Super + [1 - 9]` | Switch Tag | Chuyển tag làm việc |
-| `Super + Shift + [1 - 9]` | Move to Tag | Di chuyển cửa sổ sang tag |
-| `Super + Ctrl + A` | Popover Audio | Bật/tắt thẻ âm lượng & output |
-| `Super + Ctrl + W` | Popover Network | Bật/tắt thẻ Wi-Fi, IP & DNS switcher |
-| `Super + Ctrl + B` | Popover Battery | Bật/tắt thẻ pin, công suất & độ sáng |
-| `Super + Ctrl + C` | Popover Clock | Bật/tắt thẻ đồng hồ & lịch tương tác |
-| `Super + Ctrl + T` | Popover CPU | Bật/tắt thẻ CPU, nhiệt độ, quạt & top processes |
-| `Super + Ctrl + M` | Popover Memory | Bật/tắt thẻ RAM, Swap & top processes |
-| `Super + Ctrl + F` | Popover Forecast | Bật/tắt thẻ thời tiết khí quyển |
-| `Super + Ctrl + D` | Default Handlers | Bật/tắt menu chọn ứng dụng mặc định một chạm |
-| `Super + Alt + T` | Instant Screen OCR | Quét chọn vùng màn hình bóc tách chữ vào Clipboard |
-| `Super + Alt + N` | Night Working Mode | Bật/tắt chế độ ban đêm (Lọc ánh sáng xanh 4000K + giảm sáng 35%) |
-| `Super + Shift + N` | Notification Center | Mở Trung tâm thông báo dạng Right Sidebar (Full Height, responsive) |
-| `Super + Shift + Q` | Logout DWM | Thoát về TTY1 |
-| `Super + F5` | Reload Xresources | DWM nạp lại màu Xresources |
+Mọi AI Agent khi làm việc trong repository này **BẮT BUỘC TUÂN THỦ**:
 
-## Environment
+1. **Học thuyết Một Con Đường (One Path Doctrine)**: Mỗi chức năng chỉ duy trì một công cụ duy nhất. Không duy trì các bản sao song song bằng Bash/Python khi đã có bản C native.
+2. **Bất biến của GNU Stow**: Tuyệt đối **CẤM dùng `sed -i`** hoặc ghi đè lên bất kỳ tệp tin nào là liên kết mềm trỏ vào các gói Stow. Mọi cấu hình động phải được sinh ra ngoài cây Stow và `source`/`include` tĩnh.
+3. **Cấm tuyệt đối lệnh `eval`**: Không sử dụng `eval` trên dữ liệu đọc từ file cấu hình hoặc bookmark của người dùng. Luôn dùng vòng lặp `while IFS= read -r line` an toàn.
+4. **Không dùng `/tmp` cho tệp trạng thái hoặc socket**: Mọi file PID, socket IPC, log daemon và file trạng thái bắt buộc phải nằm trong `$XDG_RUNTIME_DIR/<app>/` (phân quyền riêng tư `0700` theo UID).
+5. **Tự soi chiếu qua `state.json`**: Trạng thái hệ thống được đồng bộ hóa tại `$XDG_RUNTIME_DIR/ka/state.json`. Đọc trực tiếp file này thay vì dùng `grep`/`pidof` mò mẫm.
+6. **Mọi script thay đổi cấu hình phải có `--check`**: Cho phép agent chạy giả lập dry-run để kiểm tra trước khi ghi đè thật.
+7. **Chạy kiểm tra `agent-guard`**: Trước khi kết thúc phiên, chạy `./scripts/.local/bin/agent-guard` để xác nhận không vi phạm bất kỳ nguyên tắc an toàn nào.
+---
 
-- `EDITOR=nvim`, `TERMINAL=st`, `BROWSER=brave`
-- `SUDO_ASKPASS=$HOME/.local/bin/dmenupass`
-- Full XDG dirs set in `shell/.config/shell/profile`
-- `ZDOTDIR=$XDG_CONFIG_HOME/zsh`
-- Dev runtimes: Quản lý qua `mise` (`shell/.config/mise/config.toml`)
-- vi mode in: zsh, tmux, lf, ncmpcpp, mpv
+## 4. CẤU HÌNH PHẦN CỨNG & NGÂN SÁCH BỘ NHỚ (MÁY CỔ VS MÁY HIỆN ĐẠI)
 
-## Stow quirks
+### Ngân sách tài nguyên & Phân loại cấu hình (`hardware/profiles/`)
+Cấu hình phần cứng được quản lý qua `ka-profile` và nạp tự động tại `xinitrc`:
 
-- `scripts/.local/bin/cron/` subdirectory has actual files; `checkup`/`crontog`/`newsup` are symlinks to `cron/*`
-- `scripts/.local/bin/user/` has bluetooth scripts (`btmgr`, `btpair`, `btclean`, etc.)
-- `.stow-local-ignore` used in `opencode/` to completely ignore `node_modules`
-- `.gitignore` ignores `.zcompdump*`, `profile.local`, `**/node_modules/`, and dynamic theme artifacts (`current.conf`, `xresources.d/`)
+- **Profile máy cổ 10+ năm (`thinkpad-x230.conf`)**:
+  - `AUDIO_BACKEND="alsa"`: Bỏ qua cụm daemon PipeWire, tiết kiệm **~60MB RAM** và giảm tối đa context switch.
+  - `PICOM_BACKEND="none"`: Tắt hẳn tiến trình `picom` trong `xinitrc`, tiết kiệm **~30MB RAM** và tránh lỗi xé hình/crash GPU Intel HD 4000.
+  - `DEFAULT_BROWSER="firefox-esr"`: Trình duyệt tiết kiệm bộ nhớ thay cho Chromium fork.
+  - `CPU_GOVERNOR="powersave"` và `BATTERY_THRESHOLDS="50-60"`: Được `ka-profile` áp dụng trực tiếp xuống `/sys`.
+- **Profile máy hiện đại (`thinkpad-t480.conf`, `generic.conf`...)**:
+  - `AUDIO_BACKEND="pipewire"`, `PICOM_BACKEND="glx"`, `DEFAULT_BROWSER="brave"`.
 
-## NixOS
-
-- `nixos/flake.nix` → `nixosConfigurations.thinkbox` (x86_64-linux, systemd-boot, state 24.11)
-- Home-manager with `backupFileExtension = "backup"`
-- `home-manager.extraSpecialArgs.dotfiles` points to `/home/ka/.dotfiles`
+### Kích thước nhị phân & Dung lượng RAM thực tế đo đạc
+- **`ka-clipd`**: Kích thước nhị phân 22 KB (text: 8.8KB, bss: 12.3KB), RAM thực tế **~1.1 MB RSS**, 0.0% CPU idle (lắng nghe sự kiện XFixes).
+- **`dwmblocks`**: Kích thước nhị phân 27 KB (text: 26.1KB), RAM thực tế **~2.2 MB RSS** (in-process C blocks).
+- **`ka-pop`**: Kích thước nhị phân 41 KB (text: 39.4KB), chạy theo nhu cầu on-demand (**0 MB RAM khi idle**, ~35 MB khi mở thẻ GTK3).
+- **`dwm 6.8`**: RAM thực tế **~15 MB RSS**.
