@@ -47,6 +47,19 @@ Mã nguồn `dwmblocks` được biên dịch từ `config.h` (X-Macro `BLOCKS(X
 8. **`ka-memory`** (`native_blocks.c:126`, interval: 10s, signal: 10): In-process C, đọc trực tiếp `/proc/meminfo` (0 fork, 0 subshell).
 9. **`sb-notify`** (`native_blocks.c:414`, interval: 0s, signal: 8): **Thuần hướng sự kiện (interval = 0)**. Chỉ cập nhật khi nhận tín hiệu `SIGRTMIN+8` từ Dunst, loại bỏ hoàn toàn việc fork định kỳ khi hệ thống idle.
 
+### Cơ chế Hình học Khối, Hover Underline & Đồng bộ Dropdown (DWM 6.8)
+1. **Phân tích hình học khối thống nhất (`parse_status_blocks`)**:
+   - Tách rời biểu tượng icon khỏi các khoảng trắng phân cách (`DELIMITER "  "`).
+   - Cả vạch **Hover** (`SchemeTagsNorm`) lẫn vạch **Active** (`SchemeTagsSel`) đều dùng chung công thức căn giữa vào icon: `ux = (bar_start_x + cur_x) - (uw - icon_w) / 2` với `uw = MAX(icon_w, bh)`. Độ lệch giữa Hover và Active được triệt tiêu hoàn toàn (**0 pixel drift**).
+2. **Vùng bấm theo trung điểm thị giác (Visual Midpoint Hit-box)**:
+   - Ranh giới click/hover giữa 2 block liền kề được tính theo trung điểm: `hit_boundary = (prev_icon_end + cur_icon_start) / 2`.
+   - Chuột nằm gần icon nào hơn sẽ hover và click chính xác 100% vào icon đó, không bị dính vào khoảng trắng.
+3. **Dọn dẹp vạch Hover đa trục (Multi-Axis Cleanup)**:
+   - Rời theo trục X: `barhover()` (`bar.c`) tự động xóa khi con trỏ ra ngoài phạm vi block.
+   - Rời theo trục Y (xuống cửa sổ ứng dụng hoặc root): `leavenotify()` và `motionnotify()` (`dwm.c`) tự động xóa `hover_block` và vẽ lại bar tức thì.
+4. **Bảo vệ chống tràn số tín hiệu `EINTR` trong `dwmblocks` (`watcher.c`)**:
+   - Khi `poll()` bị ngắt bởi tín hiệu (như `SIGCHLD` từ tiến trình con), hàm chặn `event_count <= 0` trả về an toàn, ngăn ngừa biến `unsigned short active_block_count` bị underflow thành 65535 gây sập `SIGSEGV`.
+
 ---
 
 ## 3. CÁC QUY TẮC BẮT BUỘC DÀNH CHO AI AGENT

@@ -78,20 +78,25 @@ Thanh bar ở mép trên màn hình được tái thiết kế toàn diện theo
    - Cảnh báo màu đỏ (`^C1^`) duy nhất khi pin < 15% hoặc CPU quá tải > 80%.
 
 ### B. Cơ Chế Bật Thẻ Popover & Sidebar (`ka-pop` C Native)
-Hệ thống sử dụng bộ tiện ích **`ka-pop`** viết bằng C và GTK3 (`suckless/.local/src/ka-pop`). Khi bạn click vào một block hoặc bấm phím tắt:
-- DWM thực thi trực tiếp nhị phân `ka-pop <module>` (0 shell fork, khởi động lạnh < 15ms, tiêu thụ **0MB RAM khi idle**).
-- DWM tự động kẻ **vạch gạch chân (underline)** màu cyan sáng ôm khít mép container `MAX(ab_w, bh)`, **thẳng hàng 100% với viền trái của cửa sổ**.
+Hệ thống sử dụng bộ tiện ích **`ka-pop`** viết bằng C và GTK3 (`suckless/.local/src/ka-pop`). Khi bạn tương tác trên thanh statusbar:
+- **Xem trước bằng Hover (Hover Preview)**: Khi rê chuột qua bất kỳ icon nào trên thanh bar, một vạch gạch chân Hover mờ (`SchemeTagsNorm`) lập tức xuất hiện và con trỏ chuyển sang hình bàn tay (`CurHand`).
+  - Vùng nhận diện click/hover được tính chuẩn xác theo trung điểm thị giác giữa các icon, triệt tiêu hoàn toàn hiện tượng bấm nhầm sang khoảng trắng của icon bên cạnh.
+  - Khi rời chuột ra khỏi thanh bar (kể cả di chuyển xuống dưới theo trục Y), vạch hover tự động biến mất tức thì.
+- **Kích hoạt tức thì (Zero-Fork & Zero-Shift)**: Khi bạn click hoặc bấm phím tắt:
+  - DWM thực thi trực tiếp nhị phân `ka-pop <module>` (0 shell fork, khởi động lạnh < 15ms, tiêu thụ **0MB RAM khi idle**).
+  - Vạch Hover chuyển mượt mà thành vạch Active sáng đậm (`SchemeTagsSel`) tại **cùng một tọa độ và độ rộng chính xác tuyệt đối (0 pixel drift)**, thẳng hàng 100% với cửa sổ popup.
 - **Tự động đóng (Auto-Dismiss)**: Khi bạn click lại vào block (Toggle), click ra ngoài màn hình, hoặc bấm `Esc`/`q`, DWM gửi ClientMessage `WM_DELETE_WINDOW` để đóng popup êm dịu và vạch underline được xóa sạch ngay lập tức.
 
-### C. Danh Mục 8 Module Dropdown & Sidebar:
-1. **Audio (`Super + Ctrl + A`)**: Thanh trượt âm lượng mượt mà, nút Mute tức thì, danh sách chọn cổng âm thanh PipeWire.
-2. **Network (`Super + Ctrl + W`)**: Tên Wi-Fi, cường độ sóng, địa chỉ IP nội bộ, tốc độ mạng live, cùng bộ công cụ **đổi DNS nhanh** (DHCP, Cloudflare 1.1.1.1, Google 8.8.8.8, Custom IP).
+### C. Danh Mục 9 Module Dropdown & Sidebar:
+1. **Audio (`Super + Ctrl + A`)**: Thanh trượt âm lượng mượt mà, nút Mute tức thì, danh sách chọn cổng âm thanh PipeWire/ALSA.
+2. **Network (`Super + Ctrl + W`)**: Tên Wi-Fi, cường độ sóng, địa chỉ IP nội bộ, lưu lượng live, cùng bộ công cụ **đổi DNS nhanh** (DHCP, Cloudflare 1.1.1.1, Google 8.8.8.8, Custom IP).
 3. **Battery (`Super + Ctrl + B`)**: Mức pin phần trăm, trạng thái sạc, công suất tiêu thụ điện (W), cùng thanh trượt độ sáng màn hình.
 4. **Clock & Calendar (`Super + Ctrl + C`)**: Đồng hồ số cỡ lớn, ngày tháng chi tiết, lịch tháng tương tác chọn ngày (`Gtk.Calendar`), thời gian máy hoạt động (uptime).
 5. **CPU & Thermals (`Super + Ctrl + T`)**: Tải CPU thời gian thực, nhiệt độ vi xử lý, tốc độ quạt (RPM), bảng Top 4 tiến trình chiếm dụng CPU, nút mở `btop`.
 6. **Memory (`Super + Ctrl + M`)**: Đo dung lượng RAM thực tế, Swap, Cache, bảng Top 4 tiến trình chiếm dụng bộ nhớ, nút mở `btop`.
 7. **Forecast (`Super + Ctrl + F`)**: Thẻ thời tiết trực quan: nhiệt độ, cảm nhận thực tế, độ ẩm, sức gió, áp suất khí quyển, nút nạp lại dự báo.
 8. **Notification Center (`Super + Shift + N`)**: Trung tâm thông báo dạng Right Sidebar full height, chiều rộng co giãn responsive 25% màn hình (340px - 500px), đọc lịch sử thông báo, nút bật/tắt DND và xóa lịch sử.
+9. **Clipboard Manager (`Super + Ctrl + V` hoặc `Super + V`)**: Trình quản lý lịch sử clipboard 2 cột tỉ lệ vàng 2 : 3 (Text đầy đủ & Ảnh phóng to) qua GTK3 native.
 
 ---
 
