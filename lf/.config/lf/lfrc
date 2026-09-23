@@ -450,6 +450,18 @@ map oe :set sortby ext
 map r :set reverse!
 
 # =========================================================
+# FILE & DIRECTORY SHARING (OMARCHY KA-SHARE)
+# =========================================================
+cmd share ${{
+    ka-share file $fx
+}}
+cmd share_web ${{
+    ka-share web $fx
+}}
+map gs share
+map gw share_web
+
+# =========================================================
 # SHORTCUTS
 # =========================================================
 source ~/.config/lf/shortcutrc

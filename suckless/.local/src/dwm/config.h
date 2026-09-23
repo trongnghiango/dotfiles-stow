@@ -287,6 +287,7 @@ static const char *popclip[]    = { "ka-pop", "clip", NULL };
 static const char *kadefaultcmd[] = { "ka-default", NULL };
 static const char *kaocrcmd[]   = { "ka-ocr", NULL };
 static const char *kanightcmd[] = { "ka-night", NULL };
+static const char *kasharecmd[] = { "ka-share", "menu", NULL };
 
 /* commands */
 static const char *powermenu[] = { "sysact", NULL };
@@ -380,6 +381,7 @@ static const Key keys[] = {
 	{ MODKEY|ControlMask,           XK_f,          spawn,                  {.v = popfore } },
 	{ MODKEY|ControlMask,           XK_d,          spawn,                  {.v = kadefaultcmd } },
 	{ MODKEY|ControlMask,           XK_v,          spawn,                  {.v = popclip } },
+	{ MODKEY|ControlMask,           XK_s,          spawn,                  {.v = kasharecmd } },
 	{ MODKEY|Mod1Mask,              XK_t,          spawn,                  {.v = kaocrcmd } },
 	{ MODKEY|Mod1Mask,              XK_n,          spawn,                  {.v = kanightcmd } },
 	{ MODKEY|ShiftMask,             XK_n,          spawn,                  {.v = popnotify } },

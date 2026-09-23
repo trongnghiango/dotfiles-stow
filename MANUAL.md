@@ -16,7 +16,10 @@
 6. [Quản Lý Môi Trường Lập Trình Bằng mise](#6-quản-lý-môi-trường-lập-trình-bằng-mise)
 7. [Hệ Thống Đổi Theme Động (Theming)](#7-hệ-thống-đổi-theme-động-theming)
 8. [Công Cụ Trích Xuất Chữ Màn Hình (ka-ocr)](#8-công-cụ-trích-xuất-chữ-màn-hình-ka-ocr)
-9. [Bảo Trì, Chẩn Đoán & Khắc Phục Sự Cố](#9-bảo-trì-chẩn-đoán--khắc-phục-sự-cố)
+9. [Trình Chọn Ứng Dụng Mặc Định Một Chạm (ka default)](#9-trình-chọn-ứng-dụng-mặc-định-một-chạm-ka-default)
+10. [Bộ Quản Lý Clipboard Native GTK3 (ka clip)](#10-bộ-quản-lý-clipboard-native-gtk3-master-detail-ka-clip--super--v)
+11. [Hệ Thống Chia Sẻ Tập Tin & Thư Mục (ka share)](#11-hệ-thống-chia-sẻ-tập-tin--thư-mục-ka-share--super--ctrl--s)
+12. [Bảo Trì, Chẩn Đoán & Khắc Phục Sự Cố](#12-bảo-trì-chẩn-đoán--khắc-phục-sự-cố)
 
 ---
 
@@ -132,6 +135,7 @@ ka <lệnh> [tham số...]
 | `ka doctor` | Chẩn đoán toàn diện sức khỏe hệ thống (DWM, X11, Audio, Theming, Runtimes) | `ka doctor` |
 | `ka dev` | Quản lý toàn bộ dev runtimes (Node, Python, Rust, Go, Bun, PNPM) qua Mise | `ka dev setup` |
 | `ka ocr` | Quét chọn vùng màn hình bóc tách chữ tức thì vào Clipboard | `ka ocr` |
+| `ka share` | Chia sẻ file, thư mục & clipboard (LocalSend, Web QR LAN, Taildrop) | `ka share menu` |
 | `ka theme` | Đổi theme giao diện toàn hệ thống tức thì không tắt ứng dụng | `ka theme nord` |
 | `ka pop` | Bật/Tắt thẻ popup Omarchy tương ứng | `ka pop volume` |
 | `ka dns` | Chuyển đổi nhanh DNS sang Cloudflare, Google hoặc DHCP | `ka dns cloudflare` |
@@ -256,7 +260,42 @@ Thay thế hoàn toàn cơ chế khay hệ thống cũ (`fzf` trong terminal và
 
 ---
 
-## 11. BẢO TRÌ, CHẨN ĐOÁN & KHẮC PHỤC SỰ CỐ
+## 11. HỆ THỐNG CHIA SẺ TẬP TIN & THƯ MỤC (`ka share` / `Super + Ctrl + S`)
+
+Được thiết kế đồng bộ theo chuẩn **Omarchy OS** của David Heinemeier Hansson (DHH) kết hợp tính thực dụng cao của hệ sinh thái Linux:
+
+### A. Triết Lý Thiết Kế: Một Đầu Mối Duy Nhất & Đa Kênh Truyền
+Hệ thống giải quyết triệt để nhu cầu chia sẻ nhanh giữa máy tính cá nhân với điện thoại (iOS, Android), máy tính đồng nghiệp (macOS, Windows, Linux) mà không phải gửi qua Telegram, Zalo hay email rác:
+- **Phím tắt toàn cục Omarchy**: Bấm **`Super + Ctrl + S`** (hoặc gõ `ka share menu`): Mở ngay menu chia sẻ một chạm qua Rofi.
+- **Kênh 1: LocalSend (P2P Wi-Fi / LAN)**:
+  - Chia sẻ file, folder, hoặc văn bản clipboard siêu tốc qua mạng nội bộ.
+  - Hoàn toàn mã hóa E2E TLS, tự động nhận diện thiết bị trong mạng, không cần Internet.
+  - Mở cổng tường lửa mặc định `53317` (TCP/UDP).
+- **Kênh 2: Web Server Tạm Thời & Quét Mã QR (Zero App Required)**:
+  - Khi cần gửi file cho khách hoặc điện thoại không cài LocalSend: `ka share web <tệp|thư mục>`.
+  - Tự động bật HTTP server trên cổng LAN (`8080`), tự copy đường dẫn vào Clipboard và in mã QR (`qrencode`) để điện thoại chỉ cần quét camera là tải được ngay.
+- **Kênh 3: Tailscale Taildrop (Xuyên Internet)**:
+  - Gửi file trực tiếp giữa các máy trên Tailnet cá nhân: `ka share tailscale <tên-máy> [files...]`.
+
+### B. Các Lệnh Quản Trị Từ Dòng Lệnh (`ka share` / `ka-share`)
+```bash
+ka share menu                 # Mở menu chia sẻ tương tác Rofi (Super + Ctrl + S)
+ka share clipboard            # Gửi nội dung clipboard hiện tại dưới dạng text file
+ka share file [tệp...]        # Gửi 1 hoặc nhiều tệp (tự mở file chooser nếu không truyền file)
+ka share folder [thư mục]     # Gửi trọn vẹn cả thư mục
+ka share receive              # Mở LocalSend GUI ở chế độ nhận file
+ka share web [đường dẫn]      # Mở máy chủ chia sẻ qua Web LAN + in mã QR
+ka share --check              # Kiểm toán trạng thái công cụ, IP mạng và cổng chia sẻ
+```
+
+### C. Tích Hợp Sâu Vào Trình Quản Lý Tệp `lf`
+Khi đang duyệt file trong terminal bằng `lf`, bạn có thể chia sẻ tức thì các file/folder đang đánh dấu (`$fx`):
+- **`gs`** (*Go Share*): Gửi ngay các tập tin/thư mục đang chọn qua LocalSend.
+- **`gw`** (*Go Web*): Tạo máy chủ Web LAN tạm thời cho các file đang chọn kèm mã QR để tải về.
+
+---
+
+## 12. BẢO TRÌ, CHẨN ĐOÁN & KHẮC PHỤC SỰ CỐ
 
 ### A. Kiểm Tra Sức Khỏe Toàn Diện Hệ Thống
 Bất cứ khi nào bạn cảm thấy hệ thống có vấn đề, chỉ cần chạy:

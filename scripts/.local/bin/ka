@@ -3,8 +3,8 @@
 # ka — Unified System Manager & CLI Orchestrator (Omarchy-X11 Architecture)
 # ==============================================================================
 # ka:summary=Single entrypoint CLI for system control, theming, popovers & diagnostics
-# ka:args=[theme|dns|pop|ocr|record|setup|stow|doctor|version]
-# ka:examples=ka theme nord | ka pop volume | ka dns cloudflare | ka ocr | ka doctor
+# ka:args=[theme|default|clip|share|pop|dns|dev|ocr|record|night|notify|setup|stow|profile|doctor|version]
+# ka:examples=ka theme nord | ka share menu | ka share file doc.pdf | ka pop volume | ka dns cloudflare | ka ocr | ka doctor
 # ==============================================================================
 
 set -eo pipefail
@@ -38,6 +38,7 @@ usage() {
   echo -e "  ${GREEN}theme${RESET}   [nord|gruvbox-dark|catppuccin-mocha]   Đổi theme giao diện toàn hệ thống tức thì"
   echo -e "  ${GREEN}default${RESET} [show|set <cat> <app>]                 Quản lý & chọn ứng dụng mặc định một chạm (Rofi / CLI)"
   echo -e "  ${GREEN}clip${RESET}    [menu|daemon|clear|status]            Quản lý lịch sử clipboard 2 cột (Text & Ảnh) qua Rofi"
+  echo -e "  ${GREEN}share${RESET}   [clipboard|file|folder|receive|web]   Chia sẻ file, folder & clipboard (LocalSend, Web QR, Taildrop)"
   echo -e "  ${GREEN}pop${RESET}     <module>                              Bật/Tắt thẻ popup Omarchy (volume, clock, battery, cpu, mem, net, weather)"
   echo -e "  ${GREEN}dns${RESET}    [dhcp|cloudflare|google|custom <ip>]  Chuyển đổi máy chủ phân giải DNS nhanh"
   echo -e "  ${GREEN}dev${RESET}    [setup|status|update]                 Quản lý toàn bộ dev runtimes (Node, Python, Go, Rust, Bun, PNPM) qua Mise"
@@ -92,6 +93,10 @@ cmd_clip() {
       ka-pop clip &
       ;;
   esac
+}
+
+cmd_share() {
+  ka-share "$@"
 }
 
 cmd_pop() {
@@ -284,6 +289,12 @@ cmd_doctor() {
   check_item "Tmux Multiplexer" "command -v tmux"
   check_item "Zsh Shell" "command -v zsh"
 
+  echo -e "\n${BOLD}7. File & Folder Sharing Stack (LocalSend / Web QR):${RESET}"
+  check_item "ka-share CLI" "command -v ka-share || test -x \"$_SCRIPT_DIR/ka-share\""
+  check_item "Python3 Web Share Engine" "command -v python3"
+  check_item "LocalSend Binary / Flatpak" "command -v localsend || (command -v flatpak >/dev/null 2>&1 && flatpak info org.localsend.localsend_app >/dev/null 2>&1)"
+  check_item "QR Code Generator (qrencode)" "command -v qrencode"
+
   echo ""
   if [[ "$all_pass" == true ]]; then
     echo -e "${BOLD}${GREEN}✔ HỆ THỐNG HOÀN TOÀN KHỎE MẠNH VÀ SẴN SÀNG!${RESET}\n"
@@ -292,7 +303,6 @@ cmd_doctor() {
   fi
 }
 
-cmd_profile() {
 cmd_profile() {
   ka-profile "$@"
 }
@@ -320,6 +330,9 @@ case "$SUBCMD" in
     ;;
   clip|clipboard)
     cmd_clip "$@"
+    ;;
+  share|transfer)
+    cmd_share "$@"
     ;;
   pop|dropdown)
     cmd_pop "$@"

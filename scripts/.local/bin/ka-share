@@ -1,0 +1,642 @@
+#!/usr/bin/env bash
+# ==============================================================================
+# ka-share — Unified File & Folder Sharing Tool (Omarchy-X11 Architecture)
+# ==============================================================================
+# ka:summary=Share clipboard, files, folders via LocalSend, Web QR, or Taildrop
+# ka:args=[clipboard|file|folder|receive|web|menu|tailscale|--check] [paths...]
+# ka:examples=ka share clipboard | ka share file doc.pdf | ka share folder ./project | ka share web ./images | ka share menu
+# ==============================================================================
+
+set -euo pipefail
+
+_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+VERSION="1.0.0"
+
+# Directories & Runtime Isolation (Strict AGENTS.md rule 4: $XDG_RUNTIME_DIR/ka/share)
+USER_UID=$(id -u)
+RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$USER_UID}/ka/share"
+mkdir -p "$RUNTIME_DIR" 2>/dev/null || true
+chmod 700 "$RUNTIME_DIR" 2>/dev/null || true
+
+# Colors & Formatting for CLI output
+BOLD="\033[1m"
+DIM="\033[2m"
+CYAN="\033[36m"
+GREEN="\033[32m"
+YELLOW="\033[33m"
+RED="\033[31m"
+RESET="\033[0m"
+
+# ------------------------------------------------------------------------------
+# 1. HELPER FUNCTIONS
+# ------------------------------------------------------------------------------
+
+notify() {
+  local title="$1"
+  local msg="$2"
+  local urgency="${3:-normal}"
+  local icon="${4:-document-send}"
+
+  if command -v dunstify >/dev/null 2>&1; then
+    dunstify -a "ka-share" -u "$urgency" -i "$icon" "$title" "$msg" 2>/dev/null || true
+  elif command -v notify-send >/dev/null 2>&1; then
+    notify-send -a "ka-share" -u "$urgency" -i "$icon" "$title" "$msg" 2>/dev/null || true
+  fi
+}
+
+resolve_localsend() {
+  if command -v localsend >/dev/null 2>&1; then
+    echo "localsend"
+  elif command -v flatpak >/dev/null 2>&1 && flatpak info org.localsend.localsend_app >/dev/null 2>&1; then
+    echo "flatpak:org.localsend.localsend_app"
+  else
+    echo ""
+  fi
+}
+
+get_local_ip() {
+  local ip
+  ip=$(ip -4 route get 1.1.1.1 2>/dev/null | awk '{for(i=1;i<=NF;i++) if($i=="src") print $(i+1)}')
+  if [[ -z "$ip" ]]; then
+    ip=$(hostname -I 2>/dev/null | awk '{print $1}')
+  fi
+  echo "${ip:-127.0.0.1}"
+}
+
+copy_to_clipboard() {
+  local text="$1"
+  if command -v xclip >/dev/null 2>&1; then
+    printf "%s" "$text" | xclip -selection clipboard 2>/dev/null || true
+  elif command -v wl-copy >/dev/null 2>&1; then
+    printf "%s" "$text" | wl-copy 2>/dev/null || true
+  fi
+}
+
+get_clipboard_content() {
+  if command -v xclip >/dev/null 2>&1; then
+    xclip -selection clipboard -o 2>/dev/null || true
+  elif command -v wl-paste >/dev/null 2>&1; then
+    wl-paste 2>/dev/null || true
+  else
+    echo ""
+  fi
+}
+
+# ------------------------------------------------------------------------------
+# 2. FILE & DIRECTORY PICKERS
+# ------------------------------------------------------------------------------
+
+pick_files_dialog() {
+  local title="${1:-Chọn tập tin để chia sẻ}"
+  local mode="${2:-file}" # file | folder
+
+  # 1. Thử Zenity nếu có
+  if command -v zenity >/dev/null 2>&1; then
+    local z_args=(--file-selection --title="$title")
+    if [[ "$mode" == "folder" ]]; then
+      z_args+=(--directory)
+    else
+      z_args+=(--multiple --separator=$'\n')
+    fi
+    zenity "${z_args[@]}" 2>/dev/null || true
+    return 0
+  fi
+
+  # 2. Thử XDG Desktop Portal qua Python Gio
+  if python3 -c "import gi; gi.require_version('Gio', '2.0'); from gi.repository import Gio" >/dev/null 2>&1; then
+    local is_dir="False"
+    [[ "$mode" == "folder" ]] && is_dir="True"
+    python3 - "$title" "$is_dir" <<'EOF' 2>/dev/null || true
+import sys, os, gi
+gi.require_version("Gio", "2.0")
+from gi.repository import Gio, GLib
+
+title = sys.argv[1]
+is_directory = (sys.argv[2] == "True")
+
+try:
+    bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+    loop = GLib.MainLoop()
+    uris = []
+
+    def on_response(conn, sender, path, interface, signal, params):
+        code, results = params.unpack()
+        if code == 0:
+            uris.extend(results.get("uris", []))
+        loop.quit()
+
+    token = "kashare%d" % os.getpid()
+    sender = bus.get_unique_name()[1:].replace(".", "_")
+    predicted = "/org/freedesktop/portal/desktop/request/%s/%s" % (sender, token)
+
+    bus.signal_subscribe(
+        "org.freedesktop.portal.Desktop",
+        "org.freedesktop.portal.Request",
+        "Response",
+        predicted,
+        None,
+        Gio.DBusSignalFlags.NONE,
+        on_response,
+    )
+
+    options = {
+        "handle_token": GLib.Variant("s", token),
+        "multiple": GLib.Variant("b", not is_directory),
+    }
+    if is_directory:
+        options["directory"] = GLib.Variant("b", True)
+
+    handle = bus.call_sync(
+        "org.freedesktop.portal.Desktop",
+        "/org/freedesktop/portal/desktop",
+        "org.freedesktop.portal.FileChooser",
+        "OpenFile",
+        GLib.Variant("(ssa{sv})", ("", title, options)),
+        None,
+        Gio.DBusCallFlags.NONE,
+        -1,
+        None,
+    ).unpack()[0]
+
+    GLib.timeout_add_seconds(300, loop.quit)
+    loop.run()
+
+    for uri in uris:
+        fn, _ = GLib.filename_from_uri(uri)
+        if fn:
+            print(fn)
+except Exception:
+    pass
+EOF
+    return 0
+  fi
+
+  # 3. Fallback: Rofi file selection
+  if command -v rofi >/dev/null 2>&1; then
+    local candidates
+    if [[ "$mode" == "folder" ]]; then
+      candidates=$(find "$HOME" -maxdepth 3 -type d 2>/dev/null | head -n 100)
+    else
+      candidates=$(find "$HOME/Downloads" "$HOME/Documents" "$HOME/Desktop" "$HOME/Pictures" -maxdepth 2 -type f 2>/dev/null | head -n 100)
+    fi
+    echo "$candidates" | rofi -dmenu -i -p "Chọn $mode" 2>/dev/null || true
+    return 0
+  fi
+
+  # 4. Fallback: FZF in terminal
+  if [ -t 0 ] && command -v fzf >/dev/null 2>&1; then
+    if [[ "$mode" == "folder" ]]; then
+      find "$HOME" -maxdepth 3 -type d 2>/dev/null | fzf --prompt="Chọn thư mục: "
+    else
+      find "$HOME" -maxdepth 3 -type f 2>/dev/null | fzf -m --prompt="Chọn file: "
+    fi
+  fi
+}
+
+# ------------------------------------------------------------------------------
+# 3. SUBCOMMANDS
+# ------------------------------------------------------------------------------
+
+cmd_clipboard() {
+  local backend
+  backend=$(resolve_localsend)
+
+  local clip_text
+  clip_text=$(get_clipboard_content)
+
+  if [[ -z "$clip_text" ]]; then
+    notify "Không thể chia sẻ" "Clipboard hiện đang trống!" "critical" "dialog-warning"
+    echo -e "${RED}Lỗi:${RESET} Clipboard đang trống!" >&2
+    return 1
+  fi
+
+  local temp_file="$RUNTIME_DIR/clipboard-share-$(date +%s).txt"
+  printf "%s\n" "$clip_text" > "$temp_file"
+
+  if [[ -n "$backend" ]]; then
+    notify "LocalSend" "Đang gửi nội dung Clipboard..." "normal" "document-send"
+    if [[ "$backend" == "localsend" ]]; then
+      localsend --headless send "$temp_file" >/dev/null 2>&1 &
+    else
+      flatpak run --file-forwarding org.localsend.localsend_app @@ "$temp_file" @@ >/dev/null 2>&1 &
+    fi
+    echo -e "${GREEN}✔${RESET} Đã gửi nội dung Clipboard tới LocalSend."
+  else
+    echo -e "${YELLOW}LocalSend chưa được cài đặt.${RESET} Chuyển sang Web Share..."
+    cmd_web "$temp_file"
+  fi
+}
+
+cmd_file() {
+  local files=()
+
+  if [[ $# -gt 0 ]]; then
+    files=("$@")
+  else
+    local picked
+    picked=$(pick_files_dialog "Chọn tập tin để chia sẻ" "file")
+    if [[ -z "$picked" ]]; then
+      echo "Không có file nào được chọn."
+      return 0
+    fi
+    while IFS= read -r line; do
+      [[ -n "$line" ]] && files+=("$line")
+    done <<< "$picked"
+  fi
+
+  if [[ ${#files[@]} -eq 0 ]]; then
+    echo "Không có file nào để chia sẻ."
+    return 0
+  fi
+
+  # Validate file existence
+  for f in "${files[@]}"; do
+    if [[ ! -e "$f" ]]; then
+      echo -e "${RED}Lỗi:${RESET} File '$f' không tồn tại!" >&2
+      return 1
+    fi
+  done
+
+  local backend
+  backend=$(resolve_localsend)
+
+  if [[ -n "$backend" ]]; then
+    local count=${#files[@]}
+    notify "LocalSend" "Đang gửi $count file..." "normal" "document-send"
+    if [[ "$backend" == "localsend" ]]; then
+      localsend --headless send "${files[@]}" >/dev/null 2>&1 &
+    else
+      flatpak run --file-forwarding org.localsend.localsend_app @@ "${files[@]}" @@ >/dev/null 2>&1 &
+    fi
+    echo -e "${GREEN}✔${RESET} Đang chia sẻ $count file qua LocalSend."
+  else
+    echo -e "${YELLOW}LocalSend chưa được cài đặt.${RESET} Mở chia sẻ qua Web Server LAN..."
+    cmd_web "${files[@]}"
+  fi
+}
+
+cmd_folder() {
+  local folder=""
+
+  if [[ $# -gt 0 ]]; then
+    folder="$1"
+  else
+    folder=$(pick_files_dialog "Chọn thư mục để chia sẻ" "folder")
+  fi
+
+  if [[ -z "$folder" ]]; then
+    echo "Không có thư mục nào được chọn."
+    return 0
+  fi
+
+  if [[ ! -d "$folder" ]]; then
+    echo -e "${RED}Lỗi:${RESET} Thư mục '$folder' không tồn tại hoặc không phải là directory!" >&2
+    return 1
+  fi
+
+  local backend
+  backend=$(resolve_localsend)
+
+  if [[ -n "$backend" ]]; then
+    notify "LocalSend" "Đang gửi thư mục $(basename "$folder")..." "normal" "folder-remote"
+    if [[ "$backend" == "localsend" ]]; then
+      localsend --headless send "$folder" >/dev/null 2>&1 &
+    else
+      flatpak run --file-forwarding org.localsend.localsend_app @@ "$folder" @@ >/dev/null 2>&1 &
+    fi
+    echo -e "${GREEN}✔${RESET} Đang chia sẻ thư mục '$folder' qua LocalSend."
+  else
+    echo -e "${YELLOW}LocalSend chưa được cài đặt.${RESET} Mở chia sẻ qua Web Server LAN..."
+    cmd_web "$folder"
+  fi
+}
+
+cmd_receive() {
+  local backend
+  backend=$(resolve_localsend)
+
+  if [[ -n "$backend" ]]; then
+    notify "LocalSend" "Đã mở LocalSend ở chế độ nhận file" "normal" "document-open"
+    if [[ "$backend" == "localsend" ]]; then
+      localsend >/dev/null 2>&1 &
+    else
+      flatpak run org.localsend.localsend_app >/dev/null 2>&1 &
+    fi
+    echo -e "${GREEN}✔${RESET} Đã khởi chạy LocalSend GUI (Receive Mode)."
+  else
+    notify "Chưa cài LocalSend" "Vui lòng cài đặt: yay -S localsend-bin" "critical" "dialog-warning"
+    echo -e "${RED}Lỗi:${RESET} LocalSend chưa được cài đặt."
+    echo -e "Cài đặt bằng lệnh: ${CYAN}yay -S localsend-bin${RESET}"
+    return 1
+  fi
+}
+
+cmd_tailscale() {
+  if ! command -v tailscale >/dev/null 2>&1; then
+    echo -e "${RED}Lỗi:${RESET} Tailscale chưa được cài đặt trên hệ thống."
+    echo -e "Cài đặt bằng: ${CYAN}sudo pacman -S tailscale${RESET} và khởi động dịch vụ."
+    return 1
+  fi
+
+  local machine="${1:-}"
+  shift || true
+
+  if [[ -z "$machine" ]]; then
+    echo -e "${BOLD}DANH SÁCH MÁY TRÊN TAILNET CỦA BẠN:${RESET}"
+    tailscale status || true
+    echo ""
+    echo -e "Sử dụng: ${CYAN}ka share tailscale <tên-máy> [files...]${RESET}"
+    return 0
+  fi
+
+  local files=("$@")
+  if [[ ${#files[@]} -eq 0 ]]; then
+    local picked
+    picked=$(pick_files_dialog "Chọn files gửi tới $machine" "file")
+    [[ -z "$picked" ]] && return 0
+    while IFS= read -r line; do
+      [[ -n "$line" ]] && files+=("$line")
+    done <<< "$picked"
+  fi
+
+  if [[ ${#files[@]} -eq 0 ]]; then
+    echo "Không có file nào để gửi."
+    return 0
+  fi
+
+  notify "Tailscale" "Đang gửi tới $machine..." "normal" "network-transmit"
+  if tailscale file cp "${files[@]}" "$machine:" 2>&1; then
+    notify "Tailscale" "✔ Gửi thành công tới $machine!" "normal" "network-idle"
+    echo -e "${GREEN}✔ Đã gửi thành công tới $machine!${RESET}"
+  else
+    notify "Tailscale" "Gửi file thất bại!" "critical" "dialog-error"
+    echo -e "${RED}Lỗi khi gửi file qua Tailscale Taildrop.${RESET}" >&2
+    return 1
+  fi
+}
+
+cmd_web() {
+  local target="${1:-}"
+  local port=8080
+
+  # Nếu không truyền đường dẫn, mở picker
+  if [[ -z "$target" ]]; then
+    target=$(pick_files_dialog "Chọn file hoặc thư mục chia sẻ qua Web" "file")
+    [[ -z "$target" ]] && return 0
+  fi
+
+  local ip
+  ip=$(get_local_ip)
+
+  # Tìm port khả dụng từ 8080 đến 8090
+  while nc -z 127.0.0.1 "$port" 2>/dev/null; do
+    port=$((port + 1))
+    if [[ $port -gt 8090 ]]; then
+      echo -e "${RED}Lỗi:${RESET} Không tìm thấy port mở trong khoảng 8080-8090." >&2
+      return 1
+    fi
+  done
+
+  local serve_dir=""
+  local file_path=""
+  local share_url=""
+
+  if [[ $# -gt 1 ]]; then
+    local tmp_share_dir="$RUNTIME_DIR/web_share_$(date +%s)"
+    mkdir -p "$tmp_share_dir"
+    for item in "$@"; do
+      if [[ -e "$item" ]]; then
+        ln -sf "$(realpath "$item")" "$tmp_share_dir/" 2>/dev/null || cp -r "$item" "$tmp_share_dir/"
+      fi
+    done
+    serve_dir="$tmp_share_dir"
+    share_url="http://${ip}:${port}/"
+  elif [[ -d "$target" ]]; then
+    serve_dir="$target"
+    share_url="http://${ip}:${port}/"
+  elif [[ -f "$target" ]]; then
+    serve_dir=$(dirname "$target")
+    file_path=$(basename "$target")
+    share_url="http://${ip}:${port}/${file_path}"
+  else
+    echo -e "${RED}Lỗi:${RESET} Mục '$target' không tồn tại!" >&2
+    return 1
+  fi
+
+  copy_to_clipboard "$share_url"
+  notify "Web Share" "URL: $share_url (Đã copy vào Clipboard)" "normal" "network-server"
+
+  echo -e "${BOLD}${GREEN}=== MÁY CHỦ CHIA SẺ TẠM THỜI QUA WEB LAN ===${RESET}"
+  echo -e "Thư mục / Tệp:   ${CYAN}${target}${RESET}"
+  echo -e "Địa chỉ mạng:    ${BOLD}${YELLOW}${share_url}${RESET}"
+  echo -e "Trạng thái:      ${GREEN}Đã sao chép link vào Clipboard${RESET}"
+  echo -e "Hướng dẫn:       Điện thoại hoặc máy cùng Wi-Fi chỉ cần mở link trên trình duyệt."
+  echo ""
+
+  if command -v qrencode >/dev/null 2>&1; then
+    echo -e "${BOLD}Mã QR để quét bằng camera điện thoại:${RESET}\n"
+    qrencode -t UTF8 "$share_url"
+    echo ""
+  else
+    echo -e "${DIM}(Mẹo: Cài 'sudo pacman -S qrencode' để hiển thị mã QR trực tiếp tại đây)${RESET}\n"
+  fi
+
+  echo -e "${YELLOW}Bấm Ctrl+C để dừng máy chủ chia sẻ.${RESET}\n"
+
+  # Chạy Python http.server
+  (cd "$serve_dir" && python3 -m http.server "$port" --bind 0.0.0.0)
+}
+
+cmd_menu() {
+  local choice=""
+  local tailscale_item=""
+  if command -v tailscale >/dev/null 2>&1; then
+    tailscale_item="󰒊 Gửi qua Tailscale Taildrop\n"
+  fi
+
+  local menu_items
+  menu_items=$(printf "󰅍 Gửi nội dung Clipboard\n󰈔 Gửi Tập tin (File)\n󰉋 Gửi Thư mục (Folder)\n󰄬 Nhận file (Mở LocalSend GUI)\n󰖟 Chia sẻ nhanh qua Web & QR Code\n%b󰚥 Kiểm tra hệ thống (--check)" "$tailscale_item")
+
+  if command -v rofi >/dev/null 2>&1; then
+    choice=$(echo -e "$menu_items" | rofi -dmenu -i -theme "${XDG_CONFIG_HOME:-$HOME/.config}/rofi/launcher.rasi" -p 'Chia sẻ:' 2>/dev/null || true)
+  elif command -v dmenu >/dev/null 2>&1; then
+    choice=$(echo -e "$menu_items" | dmenu -i -p 'Chia sẻ:' 2>/dev/null || true)
+  else
+    echo -e "${RED}Lỗi:${RESET} Không tìm thấy Rofi hoặc Dmenu!" >&2
+    return 1
+  fi
+
+  case "$choice" in
+    *"Clipboard"*)
+      cmd_clipboard
+      ;;
+    *"Tập tin"*)
+      cmd_file
+      ;;
+    *"Thư mục"*)
+      cmd_folder
+      ;;
+    *"Nhận file"*)
+      cmd_receive
+      ;;
+    *"Web & QR"*)
+      # Nếu chạy từ GUI, bật cửa sổ st hiển thị server và QR code
+      if [ -n "${DISPLAY:-}" ] && command -v st >/dev/null 2>&1; then
+        st -t "ka-share: Web Server" -g 90x32 -e ka-share web &
+      else
+        cmd_web
+      fi
+      ;;
+    *"Tailscale"*)
+      cmd_tailscale
+      ;;
+    *"--check"*)
+      if [ -n "${DISPLAY:-}" ] && command -v st >/dev/null 2>&1; then
+        st -t "ka-share: System Check" -g 90x24 -e bash -c "ka-share --check; read -n1 -r -p 'Bấm phím bất kỳ để đóng...'" &
+      else
+        cmd_check
+      fi
+      ;;
+    *)
+      # Cancelled
+      ;;
+  esac
+}
+
+cmd_check() {
+  echo -e "${BOLD}${CYAN}ka-share${RESET} — ${BOLD}KIỂM TOÁN TÍNH NĂNG CHIA SẺ FILE & THƯ MỤC${RESET}\n"
+
+  local all_pass=true
+
+  check_status() {
+    local label="$1"
+    local status="$2" # true | false
+    local hint="$3"
+
+    if [[ "$status" == "true" ]]; then
+      echo -e "  [${GREEN}PASS${RESET}] $label"
+    else
+      echo -e "  [${YELLOW}INFO${RESET}] $label — ${DIM}$hint${RESET}"
+    fi
+  }
+
+  echo -e "${BOLD}1. Công cụ Chia sẻ Mạng Cục bộ (LocalSend):${RESET}"
+  local ls_backend
+  ls_backend=$(resolve_localsend)
+  if [[ -n "$ls_backend" ]]; then
+    check_status "LocalSend Binary ($ls_backend)" "true" ""
+  else
+    check_status "LocalSend Binary" "false" "Cài đặt: 'yay -S localsend-bin' hoặc Flatpak"
+  fi
+
+  echo -e "\n${BOLD}2. Web Sharing & QR Engine:${RESET}"
+  if command -v python3 >/dev/null 2>&1; then
+    check_status "Python 3 HTTP Server (Tích hợp sẵn)" "true" ""
+  else
+    check_status "Python 3" "false" "Cần python3 để chia sẻ qua Web LAN"
+    all_pass=false
+  fi
+
+  if command -v qrencode >/dev/null 2>&1; then
+    check_status "qrencode (Hiển thị mã QR trên Terminal)" "true" ""
+  else
+    check_status "qrencode" "false" "Tùy chọn: cài bằng 'sudo pacman -S qrencode'"
+  fi
+
+  echo -e "\n${BOLD}3. Tiện ích Giao diện & Chọn File (Pickers & Clipboard):${RESET}"
+  local has_clip="false"
+  command -v xclip >/dev/null 2>&1 && has_clip="true"
+  command -v wl-copy >/dev/null 2>&1 && has_clip="true"
+  check_status "Clipboard Engine (xclip / wl-clipboard)" "$has_clip" "Cần xclip hoặc wl-clipboard"
+
+  local has_picker="false"
+  command -v zenity >/dev/null 2>&1 && has_picker="true"
+  python3 -c "import gi; gi.require_version('Gio', '2.0')" >/dev/null 2>&1 && has_picker="true"
+  command -v rofi >/dev/null 2>&1 && has_picker="true"
+  check_status "File Chooser Engine (Portal / Zenity / Rofi)" "$has_picker" "Sẵn sàng"
+
+  echo -e "\n${BOLD}4. Mạng & Cổng Tường lửa (Firewall & Tailnet):${RESET}"
+  local my_ip
+  my_ip=$(get_local_ip)
+  echo -e "  [${GREEN}INFO${RESET}] Địa chỉ IP LAN hiện tại: ${CYAN}${my_ip}${RESET}"
+  echo -e "  [${GREEN}INFO${RESET}] Cổng LocalSend: ${DIM}53317 (TCP/UDP)${RESET}"
+  echo -e "  [${GREEN}INFO${RESET}] Cổng Web Share:  ${DIM}8080 (TCP)${RESET}"
+
+  if command -v tailscale >/dev/null 2>&1; then
+    check_status "Tailscale Mesh VPN (Taildrop)" "true" ""
+  else
+    check_status "Tailscale Mesh VPN" "false" "Tùy chọn: cài nếu cần gửi file từ xa qua internet"
+  fi
+
+  echo ""
+  echo -e "${BOLD}${GREEN}✔ Kiểm toán hoàn tất! Hệ thống chia sẻ sẵn sàng hoạt động.${RESET}\n"
+}
+
+usage() {
+  echo -e "${BOLD}${CYAN}ka-share${RESET} — ${DIM}Unified File & Folder Sharing Tool (Omarchy-X11 Architecture)${RESET}"
+  echo ""
+  echo -e "${BOLD}CÁCH SỬ DỤNG:${RESET}"
+  echo -e "  ${CYAN}ka-share${RESET} <lệnh> [đường dẫn...]"
+  echo -e "  ${CYAN}ka share${RESET} <lệnh> [đường dẫn...]"
+  echo ""
+  echo -e "${BOLD}CÁC LỆNH KHẢ DỤNG:${RESET}"
+  echo -e "  ${GREEN}clipboard${RESET}          Gửi nội dung đang có trong clipboard"
+  echo -e "  ${GREEN}file${RESET} [tệp...]      Gửi 1 hoặc nhiều tệp tin (tự mở bộ chọn nếu không truyền file)"
+  echo -e "  ${GREEN}folder${RESET} [thư mục]   Gửi trọn vẹn cả thư mục"
+  echo -e "  ${GREEN}receive${RESET}            Mở LocalSend ở chế độ nhận file từ thiết bị khác"
+  echo -e "  ${GREEN}web${RESET} [đường dẫn]    Mở máy chủ Web tạm thời trên LAN + mã QR để quét bằng điện thoại"
+  echo -e "  ${GREEN}tailscale${RESET} [máy] [tệp] Gửi file xuyên mạng tới thiết bị trên Tailnet qua Taildrop"
+  echo -e "  ${GREEN}menu${RESET}               Mở giao diện Rofi tương tác chọn nhanh một chạm (${BOLD}Super+Ctrl+S${RESET})"
+  echo -e "  ${GREEN}--check${RESET}            Kiểm toán tình trạng công cụ, IP mạng và cổng chia sẻ"
+  echo -e "  ${GREEN}--help, -h${RESET}         Hiển thị hướng dẫn này"
+  echo ""
+}
+
+# ------------------------------------------------------------------------------
+# 4. ENTRYPOINT ROUTING
+# ------------------------------------------------------------------------------
+
+ACTION="${1:-menu}"
+shift || true
+
+case "$ACTION" in
+  clipboard|clip)
+    cmd_clipboard "$@"
+    ;;
+  file)
+    cmd_file "$@"
+    ;;
+  folder|dir)
+    cmd_folder "$@"
+    ;;
+  receive|recv)
+    cmd_receive "$@"
+    ;;
+  web|qr|serve)
+    cmd_web "$@"
+    ;;
+  tailscale|taildrop)
+    cmd_tailscale "$@"
+    ;;
+  menu)
+    cmd_menu "$@"
+    ;;
+  --check|check)
+    cmd_check
+    ;;
+  --help|-h|help)
+    usage
+    ;;
+  *)
+    # Nếu truyền thẳng file hoặc folder
+    if [[ -d "$ACTION" ]]; then
+      cmd_folder "$ACTION" "$@"
+    elif [[ -f "$ACTION" ]]; then
+      cmd_file "$ACTION" "$@"
+    else
+      echo -e "${RED}Lệnh không hợp lệ: $ACTION${RESET}\n" >&2
+      usage
+      exit 1
+    fi
+    ;;
+esac
