@@ -6,7 +6,7 @@
 # Add all directories in `~/.local/bin` to $PATH
 #export PATH="$PATH:$(find ~/.local/bin -type d | paste -sd ':' -)"
 if [ -d "$HOME/.local/bin" ]; then
-  export PATH="$HOME/.local/bin:$HOME/.local/bin/dwmblocks-scripts:$HOME/.local/bin/dmenu-scripts:$PATH"
+  export PATH="$HOME/.local/bin:$HOME/.local/bin/dmenu-scripts:$PATH"
 fi
 
 [ -d "$HOME/Applications/bin" ] && export PATH="$HOME/Applications/bin:$PATH"

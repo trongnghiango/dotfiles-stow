@@ -10,7 +10,7 @@
 set -eo pipefail
 
 _SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-export PATH="$_SCRIPT_DIR:$_SCRIPT_DIR/dwmblocks-scripts:$_SCRIPT_DIR/dmenu-scripts:$PATH"
+export PATH="$_SCRIPT_DIR:$_SCRIPT_DIR/dmenu-scripts:$PATH"
 
 VERSION="1.0.0"
 DWM_VER="6.8"

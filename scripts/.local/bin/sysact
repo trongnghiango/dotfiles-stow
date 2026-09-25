@@ -1,44 +1,73 @@
-#!/bin/sh
+#!/usr/bin/env sh
+# ==============================================================================
+# sysact — Trình quản lý nguồn và phiên làm việc (Power & Session Actions)
+# Tương thích: Rofi / Dmenu qua ka-menu, Systemd / Loginctl / Runit
+# ==============================================================================
 
-# A dmenu wrapper script for system functions.
-export WM="dwm"
-case "$(readlink -f /sbin/init)" in
-	*systemd*) ctl='systemctl' ;;
-	*) ctl='loginctl' ;;
-esac
+# Xác định công cụ điều khiển nguồn của hệ thống
+if command -v systemctl >/dev/null 2>&1; then
+  ctl="systemctl"
+elif command -v loginctl >/dev/null 2>&1; then
+  ctl="loginctl"
+else
+  ctl=""
+fi
 
-wmpid(){ # This function is needed if there are multiple instances of the window manager.
-	tree="$(pstree -ps $$)"
-	tree="${tree#*$WM(}"
-	echo "${tree%%)*}"
+wmpid() {
+  pidof -s dwm 2>/dev/null || pgrep -x dwm 2>/dev/null || echo "$$"
 }
 
-mute_toggle(){
-    if [ "${AUDIO_BACKEND:-pipewire}" = "alsa" ] || ! command -v wpctl >/dev/null 2>&1; then
-        amixer sset Master toggle >/dev/null 2>&1 || true
-    else
-        wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle >/dev/null 2>&1 || true
-    fi
+mute_audio() {
+  if [ "${AUDIO_BACKEND:-pipewire}" = "alsa" ] || ! command -v wpctl >/dev/null 2>&1; then
+    amixer sset Master mute >/dev/null 2>&1 || true
+  else
+    wpctl set-mute @DEFAULT_AUDIO_SINK@ 1 >/dev/null 2>&1 || true
+  fi
 }
 
-lock(){
-    mpc pause 2>/dev/null || true
-    pauseallmpv 2>/dev/null || true
-    mute_toggle
-    pkill -RTMIN+11 dwmblocks 2>/dev/null || true
+lock_screen() {
+  mpc pause >/dev/null 2>&1 || true
+  pauseallmpv >/dev/null 2>&1 || true
+  mute_audio
+  pkill -RTMIN+11 -x dwmblocks 2>/dev/null || true
+  if command -v slock >/dev/null 2>&1; then
     slock
-    mute_toggle
-    pkill -RTMIN+11 dwmblocks 2>/dev/null || true
+  elif command -v xset >/dev/null 2>&1; then
+    xset dpms force off
+  fi
 }
 
-case "$(printf "🔒 lock\n🚪 leave $WM\n♻ renew $WM\n🐻 hibernate\n💤 sleep\n🔃 reboot\n🖥 shutdown\n📺 display off" | dmenu -i -p 'Action: ' -fn "JetBrains Mono:pixelsize=14:style=SemiBold" -nb "#2E3440" -nf "#d7d7d7" -sb "#3b4252" -sf "#d7d7d7")" in
-	'🔒 lock') lock ;;
-	"🚪 leave $WM") kill -TERM "$(wmpid)" ;;
-	"♻ renew $WM") kill -HUP "$(wmpid)" ;;
-	'🐻 hibernate') slock $ctl hibernate -i ;;
-	'💤 sleep') slock $ctl suspend -i ;;
-	'🔃 reboot') $ctl reboot -i ;;
-	'🖥 shutdown') $ctl poweroff -i ;;
-	'📺 display off') xset dpms force off ;;
-	*) exit 1 ;;
+options="🔒 Khóa màn hình (Lock)
+🚪 Đăng xuất (Logout)
+♻ Nạp lại DWM (Restart)
+💤 Tạm dừng (Sleep)
+🐻 Ngủ đông (Hibernate)
+🔃 Khởi động lại (Reboot)
+🖥 Tắt máy (Shutdown)
+📺 Tắt màn hình (Display Off)"
+
+choice=$(printf "%s" "$options" | ka-menu -p "Hệ thống:")
+
+case "$choice" in
+  *"Khóa"*)     lock_screen ;;
+  *"Đăng xuất"*) kill -TERM "$(wmpid)" ;;
+  *"Nạp lại"*)   kill -HUP "$(wmpid)" ;;
+  *"Tạm dừng"*)
+    lock_screen &
+    if [ "$ctl" = "systemctl" ]; then
+      systemctl suspend
+    elif command -v zzz >/dev/null 2>&1; then
+      sudo zzz
+    elif [ -n "$ctl" ]; then
+      $ctl suspend
+    fi
+    ;;
+  *"Ngủ đông"*)
+    lock_screen &
+    [ -n "$ctl" ] && $ctl hibernate
+    ;;
+  *"Khởi động lại"*) [ -n "$ctl" ] && $ctl reboot ;;
+  *"Tắt máy"*)        [ -n "$ctl" ] && $ctl poweroff ;;
+  *"Tắt màn hình"*)  xset dpms force off ;;
+  *) exit 0 ;;
 esac

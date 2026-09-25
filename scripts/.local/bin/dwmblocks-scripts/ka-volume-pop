@@ -1,3 +1,0 @@
-#!/usr/bin/env sh
-# Compatibility wrapper for ka-volume-pop -> ka-pop volume
-exec ka-pop volume "$@"

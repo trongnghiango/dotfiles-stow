@@ -10,5 +10,8 @@
 (^|/)stest$
 (^|/)dwmblocks$
 (^|/)dwm-msg$
+(^|/)ka-clipd$
+(^|/)ka-pop$
+(^|/)test$
 (^|/)build(/|$)
 \.git

@@ -1,0 +1,44 @@
+#!/usr/bin/env sh
+# ==============================================================================
+# ka-menu — Trình hiển thị menu hợp nhất (Ưu tiên Rofi, Fallback về dmenu)
+# Thiết kế theo chuẩn "Đọc hiểu trong 5s": Đơn giản, rõ ràng, không phụ thuộc
+#
+# Cách dùng:
+#   printf "Mục 1\nMục 2" | ka-menu -p "Chọn:"
+# ==============================================================================
+
+prompt="Lựa chọn:"
+lines=""
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -p|--prompt) prompt="$2"; shift 2 ;;
+    -l|--lines)  lines="$2"; shift 2 ;;
+    -i)          shift ;; # Case-insensitive (mặc định)
+    *)           shift ;;
+  esac
+done
+
+# 1. Ưu tiên Rofi nếu có trên hệ thống
+if command -v rofi >/dev/null 2>&1; then
+  theme="${XDG_CONFIG_HOME:-$HOME/.config}/rofi/handlers.rasi"
+  [ ! -f "$theme" ] && theme="${XDG_CONFIG_HOME:-$HOME/.config}/rofi/launcher.rasi"
+
+  if [ -f "$theme" ]; then
+    rofi -dmenu -i -p "$prompt" -theme "$theme" 2>/dev/null
+  else
+    rofi -dmenu -i -p "$prompt" 2>/dev/null
+  fi
+
+# 2. Fallback sang dmenu
+elif command -v dmenu >/dev/null 2>&1; then
+  if [ -n "$lines" ] && [ "$lines" -gt 0 ] 2>/dev/null; then
+    dmenu -i -l "$lines" -p "$prompt" -fn "JetBrains Mono:pixelsize=14:style=SemiBold"
+  else
+    dmenu -i -p "$prompt" -fn "JetBrains Mono:pixelsize=14:style=SemiBold"
+  fi
+
+# 3. Fallback sang FZF trên terminal nếu không có GUI menu
+else
+  fzf --prompt="$prompt " 2>/dev/null || cat
+fi

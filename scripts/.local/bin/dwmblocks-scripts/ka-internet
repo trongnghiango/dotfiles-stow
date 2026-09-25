@@ -1,3 +1,0 @@
-#!/usr/bin/env bash
-# ka-internet is now merged into ka-network
-exec ka-network "$@"

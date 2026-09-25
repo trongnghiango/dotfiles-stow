@@ -1,82 +1,73 @@
-#!/bin/sh
+#!/usr/bin/env sh
+# ==============================================================================
+# displayselect — Thiết lập cấu hình hiển thị đa màn hình (Multi-Monitor UI)
+# Sử dụng ka-menu (Rofi / dmenu), giao tiếp xrandr trực tiếp
+# ==============================================================================
 
-# A UI for detecting and selecting all displays. Probes xrandr for connected
-# displays and lets user select one to use. User may also select "manual
-# selection" which opens arandr.
+# Lấy danh sách cổng màn hình đang kết nối
+all_connected=$(xrandr -q | grep " connected")
+screens=$(echo "$all_connected" | awk '{print $1}')
+screen_count=$(echo "$screens" | wc -l)
 
-twoscreen() { # If multi-monitor is selected and there are two screens.
+postrun() {
+  setbg 2>/dev/null || true
+  pkill -x dunst 2>/dev/null || true
+  setsid -f dunst >/dev/null 2>&1 &
+}
 
-    mirror=$(printf "no\\nyes" | dmenu -i -p "Mirror displays?")
-    # Mirror displays using native resolution of external display and a scaled
-    # version for the internal display
-    if [ "$mirror" = "yes" ]; then
-        external=$(echo "$screens" | dmenu -i -p "Optimize resolution for:")
-        internal=$(echo "$screens" | grep -v "$external")
+onescreen() {
+  target="$1"
+  off_args=""
+  for s in $screens; do
+    [ "$s" != "$target" ] && off_args="$off_args --output $s --off"
+  done
+  xrandr --output "$target" --auto --scale 1.0x1.0 $off_args
+}
 
-        res_external=$(xrandr --query | sed -n "/^$external/,/\+/p" | \
-            tail -n 1 | awk '{print $1}')
-        res_internal=$(xrandr --query | sed -n "/^$internal/,/\+/p" | \
-            tail -n 1 | awk '{print $1}')
-
-        res_ext_x=$(echo "$res_external" | sed 's/x.*//')
-        res_ext_y=$(echo "$res_external" | sed 's/.*x//')
-        res_int_x=$(echo "$res_internal" | sed 's/x.*//')
-        res_int_y=$(echo "$res_internal" | sed 's/.*x//')
-
-        scale_x=$(echo "$res_ext_x / $res_int_x" | bc -l)
-        scale_y=$(echo "$res_ext_y / $res_int_y" | bc -l)
-
-        xrandr --output "$external" --auto --scale 1.0x1.0 \
-            --output "$internal" --auto --same-as "$external" \
-            --scale "$scale_x"x"$scale_y"
+twoscreen() {
+  mirror=$(printf "Không\nCó" | ka-menu -p "Nhân bản (Mirror)?")
+  if [ "$mirror" = "Có" ]; then
+    primary=$(echo "$screens" | ka-menu -p "Màn hình chuẩn:")
+    secondary=$(echo "$screens" | grep -v "^$primary$")
+    xrandr --output "$primary" --auto --output "$secondary" --auto --same-as "$primary"
+  else
+    primary=$(echo "$screens" | ka-menu -p "Màn hình chính:")
+    secondary=$(echo "$screens" | grep -v "^$primary$")
+    pos=$(printf "Bên phải (Right)\nBên trái (Left)" | ka-menu -p "Vị trí của $secondary:")
+    if [ "$pos" = "Bên phải (Right)" ]; then
+      xrandr --output "$primary" --auto --scale 1.0x1.0 --output "$secondary" --right-of "$primary" --auto --scale 1.0x1.0
     else
-
-        primary=$(echo "$screens" | dmenu -i -p "Select primary display:")
-        secondary=$(echo "$screens" | grep -v ^"$primary"$)
-        direction=$(printf "left\\nright" | dmenu -i -p "What side of $primary should $secondary be on?")
-        xrandr --output "$primary" --auto --scale 1.0x1.0 --output "$secondary" --"$direction"-of "$primary" --auto --scale 1.0x1.0
+      xrandr --output "$primary" --auto --scale 1.0x1.0 --output "$secondary" --left-of "$primary" --auto --scale 1.0x1.0
     fi
-    }
+  fi
+}
 
-morescreen() { # If multi-monitor is selected and there are more than two screens.
-	primary=$(echo "$screens" | dmenu -i -p "Select primary display:")
-	secondary=$(echo "$screens" | grep -v ^"$primary"$ | dmenu -i -p "Select secondary display:")
-	direction=$(printf "left\\nright" | dmenu -i -p "What side of $primary should $secondary be on?")
-	tertiary=$(echo "$screens" | grep -v ^"$primary"$ | grep -v ^"$secondary"$ | dmenu -i -p "Select third display:")
-	xrandr --output "$primary" --auto --output "$secondary" --"$direction"-of "$primary" --auto --output "$tertiary" --"$(printf "left\\nright" | grep -v "$direction")"-of "$primary" --auto
-	}
+# Nếu chỉ có 1 màn hình: tự động nhận diện
+if [ "$screen_count" -le 1 ]; then
+  onescreen "$screens"
+  postrun
+  notify-send "💻 Màn hình" "Đã tối ưu hóa màn hình: $screens" 2>/dev/null || true
+  exit 0
+fi
 
-multimon() { # Multi-monitor handler.
-	case "$(echo "$screens" | wc -l)" in
-		2) twoscreen ;;
-		*) morescreen ;;
-	esac ;}
+# Người dùng chọn bố cục
+menu_options="$screens
+Bố cục đa màn hình (Multi-monitor)
+Cấu hình thủ công (Arandr)"
 
-onescreen() { # If only one output available or chosen.
-	xrandr --output "$1" --auto --scale 1.0x1.0 $(echo "$allposs" | grep -v "\b$1" | awk '{print "--output", $1, "--off"}' | paste -sd ' ' -)
-	}
+chosen=$(printf "%s" "$menu_options" | ka-menu -p "Cấu hình màn hình:")
 
-postrun() { # Stuff to run to clean up.
-	setbg		# Fix background if screen size/arangement has changed.
-	{ killall dunst ; setsid -f dunst ;} >/dev/null 2>&1 # Restart dunst to ensure proper location on screen
-	}
-
-# Get all possible displays
-allposs=$(xrandr -q | grep "connected")
-
-# Get all connected screens.
-screens=$(echo "$allposs" | awk '/ connected/ {print $1}')
-
-# If there's only one screen
-[ "$(echo "$screens" | wc -l)" -lt 2 ] &&
-	{ onescreen "$screens"; postrun; notify-send "💻 Only one screen detected." "Using it in its optimal settings...";  exit ;}
-
-# Get user choice including multi-monitor and manual selection:
-chosen=$(printf "%s\\nmulti-monitor\\nmanual selection" "$screens" | dmenu -i -p "Select display arangement:") &&
 case "$chosen" in
-	"manual selection") arandr ; exit ;;
-	"multi-monitor") multimon ;;
-	*) onescreen "$chosen" ;;
+  *"Arandr"*)
+    command -v arandr >/dev/null 2>&1 && arandr
+    exit 0
+    ;;
+  *"Multi-monitor"*)
+    twoscreen
+    ;;
+  *)
+    [ -n "$chosen" ] && onescreen "$chosen"
+    ;;
 esac
 
 postrun
