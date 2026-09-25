@@ -26,5 +26,5 @@ fi
 # ==============================================================================
 # 4. KHAI BÁO MÔI TRƯỜNG DESKTOP (Cho Chromium / Electron / Desktop Portal)
 # ==============================================================================
-export XDG_CURRENT_DESKTOP="${XDG_CURRENT_DESKTOP:-GNOME}"
-export XDG_SESSION_DESKTOP="${XDG_SESSION_DESKTOP:-dwm}"
+export XDG_CURRENT_DESKTOP="dwm"
+export XDG_SESSION_DESKTOP="dwm"

@@ -176,5 +176,14 @@ command -v dwmblocks >/dev/null 2>&1 && dwmblocks &
 # Đảm bảo độ trễ chuột/phím và phản hồi UI luôn đạt chuẩn Real-Time ngay cả khi CPU 100%
 renice -n -5 -p $$ 2>/dev/null || true
 
-exec dwm
+# Bẫy dọn dẹp các tiến trình daemon nền khi thoát phiên làm việc (Tránh tiến trình mồ côi)
+cleanup_session() {
+  pkill -P $$ 2>/dev/null || true
+  pkill -u "$USER" -x "dunst|picom|fcitx5|dwmblocks|ka-clipd|unclutter|udiskie" 2>/dev/null || true
+}
+trap cleanup_session EXIT INT TERM
+
+dwm
+
+cleanup_session
 
