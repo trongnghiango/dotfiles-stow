@@ -51,7 +51,7 @@ choice=$(printf "%s" "$options" | ka-menu -p "Hệ thống:")
 case "$choice" in
   *"Khóa"*)     lock_screen ;;
   *"Đăng xuất"*) kill -TERM "$(wmpid)" ;;
-  *"Nạp lại"*)   kill -HUP "$(wmpid)" ;;
+  *"Nạp lại"*)   kill -USR1 "$(wmpid)" ;; # FIX CRIT-04: SIGUSR1=restart binary, SIGHUP=reload xrdb only
   *"Tạm dừng"*)
     lock_screen &
     if [ "$ctl" = "systemctl" ]; then

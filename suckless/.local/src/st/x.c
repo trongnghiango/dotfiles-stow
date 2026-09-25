@@ -867,7 +867,9 @@ xloadcols(void)
 int
 xgetcolor(int x, unsigned char *r, unsigned char *g, unsigned char *b)
 {
-	if (!BETWEEN(x, 0, dc.collen))
+	/* FIX CRIT-01: BETWEEN(x,0,collen) dùng <= nên cho phép x==collen (off-by-one).
+	 * Kiểm tra chính xác: chỉ số hợp lệ là [0, dc.collen-1]. */
+	if (x < 0 || (size_t)x >= dc.collen)
 		return 1;
 
 	*r = dc.col[x].color.red >> 8;
@@ -882,7 +884,8 @@ xsetcolorname(int x, const char *name)
 {
 	Color ncolor;
 
-	if (!BETWEEN(x, 0, dc.collen))
+	/* FIX CRIT-01: BETWEEN(x,0,collen) dùng <= nên cho phép x==collen (off-by-one). */
+	if (x < 0 || (size_t)x >= dc.collen)
 		return 1;
 
 	if (!xloadcolor(x, name, &ncolor))

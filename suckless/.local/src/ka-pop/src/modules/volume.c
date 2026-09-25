@@ -70,14 +70,21 @@ static void signal_dwmblocks_volume(void) {
     spawn_cmd(args);
 }
 
-/* Debounce điều khiển Master Output (30ms = 33 fps mượt mà, chống nghẽn PipeWire) */
+/* Debounce điều khiển Master Output (30ms = 33 fps mượt mà, chống nghẽn PipeWire / ALSA) */
 static gboolean apply_output_vol_timeout(gpointer data) {
     (void)data;
     if (g_target_out_vol >= 0) {
         char vol_str[16];
         snprintf(vol_str, sizeof(vol_str), "%d%%", g_target_out_vol);
-        char *args[] = {(char *)"wpctl", (char *)"set-volume", (char *)"@DEFAULT_AUDIO_SINK@", vol_str, NULL};
-        spawn_cmd(args);
+        const char *backend = getenv("AUDIO_BACKEND");
+        int use_alsa = (backend && !strcmp(backend, "alsa")) || (access("/usr/bin/wpctl", X_OK) != 0);
+        if (use_alsa) {
+            char *args[] = {(char *)"amixer", (char *)"sset", (char *)"Master", vol_str, NULL};
+            spawn_cmd(args);
+        } else {
+            char *args[] = {(char *)"wpctl", (char *)"set-volume", (char *)"@DEFAULT_AUDIO_SINK@", vol_str, NULL};
+            spawn_cmd(args);
+        }
         signal_dwmblocks_volume();
     }
     g_out_timeout_id = 0;
@@ -105,8 +112,15 @@ static gboolean apply_input_vol_timeout(gpointer data) {
     if (g_target_in_vol >= 0) {
         char vol_str[16];
         snprintf(vol_str, sizeof(vol_str), "%d%%", g_target_in_vol);
-        char *args[] = {(char *)"wpctl", (char *)"set-volume", (char *)"@DEFAULT_AUDIO_SOURCE@", vol_str, NULL};
-        spawn_cmd(args);
+        const char *backend = getenv("AUDIO_BACKEND");
+        int use_alsa = (backend && !strcmp(backend, "alsa")) || (access("/usr/bin/wpctl", X_OK) != 0);
+        if (use_alsa) {
+            char *args[] = {(char *)"amixer", (char *)"sset", (char *)"Capture", vol_str, NULL};
+            spawn_cmd(args);
+        } else {
+            char *args[] = {(char *)"wpctl", (char *)"set-volume", (char *)"@DEFAULT_AUDIO_SOURCE@", vol_str, NULL};
+            spawn_cmd(args);
+        }
     }
     g_in_timeout_id = 0;
     return G_SOURCE_REMOVE;
@@ -172,8 +186,15 @@ static void on_switch_default_device(GtkButton *btn, gpointer user_data) {
 
 static void on_master_mute_toggle(GtkButton *btn, gpointer user_data) {
     (void)user_data;
-    char *args[] = {(char *)"wpctl", (char *)"set-mute", (char *)"@DEFAULT_AUDIO_SINK@", (char *)"toggle", NULL};
-    spawn_cmd(args);
+    const char *backend = getenv("AUDIO_BACKEND");
+    int use_alsa = (backend && !strcmp(backend, "alsa")) || (access("/usr/bin/wpctl", X_OK) != 0);
+    if (use_alsa) {
+        char *args[] = {(char *)"amixer", (char *)"sset", (char *)"Master", (char *)"toggle", NULL};
+        spawn_cmd(args);
+    } else {
+        char *args[] = {(char *)"wpctl", (char *)"set-mute", (char *)"@DEFAULT_AUDIO_SINK@", (char *)"toggle", NULL};
+        spawn_cmd(args);
+    }
     signal_dwmblocks_volume();
 
     g_is_out_muted = !g_is_out_muted;
@@ -321,14 +342,36 @@ GtkWidget* build_volume_window(void) {
         }
     }
 
-    /* Kiểm tra thêm trạng thái MUTE nếu chưa thấy trong status */
-    char mute_chk[128] = {0};
-    char *mute_args[] = {(char *)"wpctl", (char *)"get-volume", (char *)"@DEFAULT_AUDIO_SINK@", NULL};
-    if (exec_capture(mute_args, mute_chk, sizeof(mute_chk)) == 0) {
-        if (strstr(mute_chk, "[MUTED]")) is_out_muted = 1;
-        float v_chk = 0.5f;
-        if (sscanf(mute_chk, "Volume: %f", &v_chk) >= 1) {
-            master_out_vol = (int)(v_chk * 100.0f + 0.5f);
+    const char *backend = getenv("AUDIO_BACKEND");
+    int use_alsa = (backend && !strcmp(backend, "alsa")) || (access("/usr/bin/wpctl", X_OK) != 0);
+
+    /* Hỗ trợ ALSA: Nếu chạy backend ALSA hoặc không tìm thấy Sink từ wpctl, đọc trực tiếp qua amixer */
+    if (use_alsa || sink_count == 0) {
+        char alsa_buf[1024] = {0};
+        char *alsa_args[] = {(char *)"amixer", (char *)"sget", (char *)"Master", NULL};
+        if (exec_capture(alsa_args, alsa_buf, sizeof(alsa_buf)) == 0) {
+            char *p = strstr(alsa_buf, "[");
+            if (p) {
+                int v = 50;
+                if (sscanf(p, "[%d%%]", &v) == 1) master_out_vol = v;
+            }
+            if (strstr(alsa_buf, "[off]")) is_out_muted = 1;
+            strncpy(sinks[0].name, "ALSA Master (Phần cứng)", sizeof(sinks[0].name) - 1);
+            sinks[0].id = 1;
+            sinks[0].is_active = 1;
+            sinks[0].vol = master_out_vol;
+            sink_count = 1;
+        }
+    } else {
+        /* Kiểm tra thêm trạng thái MUTE nếu dùng PipeWire */
+        char mute_chk[128] = {0};
+        char *mute_args[] = {(char *)"wpctl", (char *)"get-volume", (char *)"@DEFAULT_AUDIO_SINK@", NULL};
+        if (exec_capture(mute_args, mute_chk, sizeof(mute_chk)) == 0) {
+            if (strstr(mute_chk, "[MUTED]")) is_out_muted = 1;
+            float v_chk = 0.5f;
+            if (sscanf(mute_chk, "Volume: %f", &v_chk) >= 1) {
+                master_out_vol = (int)(v_chk * 100.0f + 0.5f);
+            }
         }
     }
 
@@ -338,7 +381,7 @@ GtkWidget* build_volume_window(void) {
     gtk_style_context_add_class(gtk_widget_get_style_context(g_mute_btn), is_out_muted ? "btn-active" : "badge");
     g_signal_connect(g_mute_btn, "clicked", G_CALLBACK(on_master_mute_toggle), NULL);
 
-    build_header(main_box, "Âm thanh (Audio)", "PipeWire • WirePlumber", g_mute_btn);
+    build_header(main_box, "Âm thanh (Audio)", use_alsa ? "ALSA Hardware Mixer" : "PipeWire • WirePlumber", g_mute_btn);
 
     /* 5. OUTPUT SECTION */
     GtkWidget *out_head_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);

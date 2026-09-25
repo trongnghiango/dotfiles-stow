@@ -22,7 +22,6 @@ B,libxft-dev,2,dwm+st,FreeType font rendering library for DWM and ST.
 B,libxrender-dev,2,dwm+st,X Rendering Extension client library headers.
 B,libxcb1-dev,2,dwm,X C Binding client library headers.
 B,libxcb-res0-dev,2,dwm,X C Binding resource extension headers (swallow patch).
-B,libyajl-dev,2,dwm,Yet Another JSON Library headers for DWM IPC patch.
 B,libxext-dev,2,dwm,X11 miscellaneous extensions headers.
 B,libasound2-dev,2,dwmblocks,ALSA sound library development headers (required for dwmblocks native volume).
 B,libxfixes-dev,2,dwm,XFixes extension library headers (required for ka-clipd).

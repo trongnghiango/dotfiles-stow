@@ -383,8 +383,12 @@ int main(int argc, char *argv[]) {
                         XFree(prop_ret);
                     }
 
-                    /* Request clipboard content in UTF8_STRING */
+                    /* Request clipboard content in UTF8_STRING.
+                     * FIX CRIT-05: XConvertSelection() đệm request vào Xlib buffer.
+                     * Phải XFlush() ngay, nếu không poll() sẽ chặn mãi vì server
+                     * chưa nhận được request -> không gửi SelectionNotify -> deadlock. */
                     XConvertSelection(dpy, clip_atom, utf8_atom, prop_atom, helper_win, CurrentTime);
+                    XFlush(dpy);
                 }
             } else if (ev.type == SelectionNotify) {
                 XSelectionEvent *sev = (XSelectionEvent *)&ev;
@@ -396,6 +400,9 @@ int main(int argc, char *argv[]) {
         }
 
         if (!g_running) break;
+        /* FIX CRIT-05: Xả toàn bộ request còn tồn đọng trong buffer Xlib
+         * trước khi block trên poll(), tránh mất sự kiện SelectionNotify. */
+        XFlush(dpy);
         if (poll(&pfd, 1, -1) < 0 && errno == EINTR) {
             continue;
         }

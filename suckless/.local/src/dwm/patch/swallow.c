@@ -59,6 +59,9 @@ unswallow(Client *c)
 	XWindowChanges wc;
 	c->win = c->swallowing->win;
 
+	/* FIX CRIT-02: Phải giải phóng tài nguyên XRender icon của client bị nuốt
+	 * trước khi free struct, tránh rò rỉ Picture/Pixmap vĩnh viễn trên X server. */
+	freeicon(c->swallowing);
 	free(c->swallowing);
 	c->swallowing = NULL;
 

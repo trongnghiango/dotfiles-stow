@@ -433,10 +433,11 @@ setup_suckless() {
     fi
   done
 
-  # Tự động nạp lại DWM mới ngay lập tức qua SIGHUP nếu DWM đang chạy
+  # FIX CRIT-04: SIGUSR1 mới là tín hiệu khởi động lại nhị phân DWM.
+  # SIGHUP chỉ nạp lại màu xrdb in-process, KHÔNG restart session.
   if pidof dwm &>/dev/null; then
-    log_info "Đang gửi tín hiệu SIGHUP để nạp lại DWM mới tức thì (seamless restart)..."
-    kill -HUP "$(pidof dwm)" 2>/dev/null || true
+    log_info "Đang gửi SIGUSR1 để khởi động lại DWM với binary mới (seamless restart)..."
+    kill -USR1 "$(pidof dwm)" 2>/dev/null || true
   fi
 
   log_success "Hoàn tất biên dịch Suckless tools."

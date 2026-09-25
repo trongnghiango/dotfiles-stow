@@ -69,10 +69,11 @@ export LESS_TERMCAP_us="$(printf '%b' '[1;32m')"
 export LESS_TERMCAP_ue="$(printf '%b' '[0m')"
 export LESSOPEN="| bat --style=plain --color=always %s 2>/dev/null"
 export QT_QPA_PLATFORMTHEME="gtk3"        # Have QT use GTK3 theme (Arc-Gruvbox / Dark).
-export GTK_IM_MODULE="fcitx"
-export QT_IM_MODULE="fcitx"
-export XMODIFIERS="@im=fcitx"
-export INPUT_METHOD="fcitx"
+# FIX: Thống nhất Single Source of Truth cho bộ gõ tiếng Việt Fcitx5
+export GTK_IM_MODULE="fcitx5"
+export QT_IM_MODULE="fcitx5"
+export XMODIFIERS="@im=fcitx5"
+export INPUT_METHOD="fcitx5"
 export SDL_IM_MODULE="fcitx"
 export GLFW_IM_MODULE="ibus"
 export MOZ_USE_XINPUT2=1                  # Mozilla smooth scrolling/touchpads.

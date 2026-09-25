@@ -57,7 +57,6 @@ arch_setup_suckless_deps() {
     harfbuzz
     fontconfig
     libxrender
-    yajl
     libxext
     alsa-lib
     libxfixes

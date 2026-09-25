@@ -1,5 +1,4 @@
-/* Settings */
-static int enablegaps = 1;
+/* Settings (per-tag gaps handled via selmon->pertag->enablegaps) */
 
 static void
 setgaps(int oh, int ov, int ih, int iv)

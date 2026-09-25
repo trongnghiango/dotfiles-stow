@@ -3,6 +3,7 @@
 # Ghi log khởi động X11 để debug (chỉ bật khi DEBUG=1 để tránh nghẽn I/O trên ổ cứng cũ)
 if [ -n "$DEBUG" ]; then
   exec >"$HOME/.xinitrc.log" 2>&1
+  chmod 0600 "$HOME/.xinitrc.log" 2>/dev/null || true
   set -x
 fi
 
@@ -23,7 +24,10 @@ fi
 # ==============================================================================
 # 2. NẠP CẤU HÌNH BIẾN MÔI TRƯỜNG CÁ NHÂN, HARDWARE PROFILE & XRESOURCES
 # ==============================================================================
+# FIX CRIT-06: Tạm thời tắt set -x trước khi nạp profile để ngăn rò rỉ API token ra log
+[ -n "$DEBUG" ] && set +x
 [ -f "$HOME/.config/shell/profile" ] && . "$HOME/.config/shell/profile"
+[ -n "$DEBUG" ] && set -x
 
 # Nạp GTK_THEME theo theme hiện tại để Qt/GTK luôn đồng bộ dark/light
 THEME_CURRENT="${XDG_CONFIG_HOME:-$HOME/.config}/theme/colors/current.conf"
@@ -179,7 +183,11 @@ renice -n -5 -p $$ 2>/dev/null || true
 # Bẫy dọn dẹp các tiến trình daemon nền khi thoát phiên làm việc (Tránh tiến trình mồ côi)
 cleanup_session() {
   pkill -P $$ 2>/dev/null || true
-  pkill -u "$USER" -x "dunst|picom|fcitx5|dwmblocks|ka-clipd|unclutter|udiskie" 2>/dev/null || true
+  # FIX: Dọn dẹp sạch toàn bộ daemon nền tránh tiến trình mồ côi (orphan daemons)
+  for proc in dunst picom fcitx5 dwmblocks ka-clipd unclutter udiskie xfce4-power-manager mpd xcape; do
+    pkill -u "$USER" -x "$proc" 2>/dev/null || true
+  done
+  pkill -u "$USER" -f "polkit.*authentication-agent-1" 2>/dev/null || true
 }
 trap cleanup_session EXIT INT TERM
 

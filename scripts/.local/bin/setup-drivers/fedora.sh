@@ -28,7 +28,6 @@ fedora_setup_suckless_deps() {
     harfbuzz-devel
     fontconfig-devel
     libXrender-devel
-    yajl-devel
     libXext-devel
     alsa-lib-devel
     libXfixes-devel

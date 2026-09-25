@@ -220,7 +220,6 @@ debian_setup_suckless_deps() {
     libharfbuzz-dev
     libfontconfig1-dev
     libxrender-dev
-    libyajl-dev
     libxext-dev
     libasound2-dev
     libxfixes-dev

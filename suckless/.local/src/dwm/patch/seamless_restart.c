@@ -42,10 +42,10 @@ restoreclientstate(Client *c)
 void setmonitorfields(Monitor *m)
 {
 	unsigned int i;
-	char atom[22] = {0};
+	char atom[64] = {0}; /* FIX CRIT-03: enlarged to prevent stack overflow with multi-digit monitor indices */
 	Atom monitor_fields;
 
-	sprintf(atom, "_DWM_MONITOR_FIELDS_%u", m->num);
+	snprintf(atom, sizeof(atom), "_DWM_MONITOR_FIELDS_%u", m->num);
 	monitor_fields = XInternAtom(dpy, atom, False);
 
 	/* Perists workspace information in 32 bits laid out like this:
@@ -94,10 +94,10 @@ getmonitorfields(Monitor *m)
 	unsigned int tags = m->tagset[m->seltags] << 1;
 	unsigned long dl, nitems;
 	unsigned char *p = NULL;
-	char atom[22] = {0};
+	char atom[64] = {0}; /* FIX CRIT-03: enlarged to prevent stack overflow with multi-digit monitor indices */
 	Atom da, state = None;
 
-	sprintf(atom, "_DWM_MONITOR_FIELDS_%u", m->num);
+	snprintf(atom, sizeof(atom), "_DWM_MONITOR_FIELDS_%u", m->num);
 	Atom dwm_monitor = XInternAtom(dpy, atom, False);
 	if (!dwm_monitor)
 		return 0;
@@ -138,10 +138,10 @@ getmonitorfields(Monitor *m)
 void
 setmonitortags(Monitor *m)
 {
-	char atom[22] = {0};
+	char atom[64] = {0}; /* FIX CRIT-03: enlarged to prevent stack overflow with multi-digit monitor indices */
 	Atom monitor_tags;
 
-	sprintf(atom, "_DWM_MONITOR_TAGS_%u", m->num);
+	snprintf(atom, sizeof(atom), "_DWM_MONITOR_TAGS_%u", m->num);
 	monitor_tags = XInternAtom(dpy, atom, False);
 
 	uint32_t data[] = { m->tagset[m->seltags] };
@@ -154,10 +154,10 @@ getmonitortags(Monitor *m)
 	int di;
 	unsigned long dl, nitems;
 	unsigned char *p = NULL;
-	char atom[22] = {0};
+	char atom[64] = {0}; /* FIX CRIT-03: enlarged to prevent stack overflow with multi-digit monitor indices */
 	Atom da, monitor_tags = None, tags;
 
-	sprintf(atom, "_DWM_MONITOR_TAGS_%u", m->num);
+	snprintf(atom, sizeof(atom), "_DWM_MONITOR_TAGS_%u", m->num);
 	monitor_tags = XInternAtom(dpy, atom, False);
 
 	if (!(XGetWindowProperty(dpy, root, monitor_tags, 0L, sizeof dl,
@@ -246,4 +246,3 @@ getclienttags(Client *c)
 	c->tags = tags & TAGMASK;
 	return 1;
 }
-
