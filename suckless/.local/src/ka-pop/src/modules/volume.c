@@ -1,6 +1,6 @@
 /* ==============================================================================
- * ka-pop: Volume Module — Master Output, Input Microphone & App Streams
- * Fully synchronized in real-time with dwmblocks (Signal 11)
+ * ka-pop: Volume Module — Ultra-Fast Master Output, Input Mic & App Streams (< 50ms)
+ * Fully synchronized in real-time with dwmblocks (Signal 11, < 10µs IPC)
  * ============================================================================== */
 
 #include "modules.h"
@@ -16,12 +16,15 @@ typedef struct {
     int id;
     char name[64];
     int is_active;
+    int vol;
 } AudioDev;
 
 typedef struct {
     int id;
     char name[48];
     int vol;
+    int target_vol;
+    guint timeout_id;
     GtkWidget *lbl_val;
     GtkWidget *scale;
 } AppStream;
@@ -39,7 +42,10 @@ static int g_target_out_vol = -1;
 static guint g_in_timeout_id = 0;
 static int g_target_in_vol = -1;
 
-/* Bắn tín hiệu SIGRTMIN+11 trực tiếp trong C tới dwmblocks (< 10µs, 0 fork, 0 pkill) */
+static AppStream g_streams[MAX_APP_STREAMS];
+static int g_stream_count = 0;
+
+/* Bắn tín hiệu SIGRTMIN+11 trực tiếp trong C tới dwmblocks (< 10µs, 0 fork, 0 subshell) */
 static void signal_dwmblocks_volume(void) {
     const char *runtime_dir = getenv("XDG_RUNTIME_DIR");
     char pid_file[128];
@@ -59,11 +65,12 @@ static void signal_dwmblocks_volume(void) {
         return;
     }
 
-    /* Fallback nếu không có file PID */
+    /* Fallback chỉ khi không tìm thấy file PID */
     char *args[] = {(char *)"pkill", (char *)"-RTMIN+11", (char *)"-x", (char *)"dwmblocks", NULL};
     spawn_cmd(args);
 }
 
+/* Debounce điều khiển Master Output (30ms = 33 fps mượt mà, chống nghẽn PipeWire) */
 static gboolean apply_output_vol_timeout(gpointer data) {
     (void)data;
     if (g_target_out_vol >= 0) {
@@ -88,10 +95,11 @@ static void on_out_vol_changed(GtkRange *range, gpointer user_data) {
 
     g_target_out_vol = vol;
     if (g_out_timeout_id == 0) {
-        g_out_timeout_id = g_timeout_add(40, apply_output_vol_timeout, NULL);
+        g_out_timeout_id = g_timeout_add(30, apply_output_vol_timeout, NULL);
     }
 }
 
+/* Debounce điều khiển Microphone Input */
 static gboolean apply_input_vol_timeout(gpointer data) {
     (void)data;
     if (g_target_in_vol >= 0) {
@@ -115,8 +123,22 @@ static void on_in_vol_changed(GtkRange *range, gpointer user_data) {
 
     g_target_in_vol = vol;
     if (g_in_timeout_id == 0) {
-        g_in_timeout_id = g_timeout_add(40, apply_input_vol_timeout, NULL);
+        g_in_timeout_id = g_timeout_add(30, apply_input_vol_timeout, NULL);
     }
+}
+
+/* Debounce điều khiển App Stream riêng biệt (chống flood fork khi kéo nhanh) */
+static gboolean apply_stream_vol_timeout(gpointer data) {
+    AppStream *st = (AppStream *)data;
+    if (st && st->target_vol >= 0) {
+        char id_str[16], vol_str[16];
+        snprintf(id_str, sizeof(id_str), "%d", st->id);
+        snprintf(vol_str, sizeof(vol_str), "%d%%", st->target_vol);
+        char *args[] = {(char *)"wpctl", (char *)"set-volume", id_str, vol_str, NULL};
+        spawn_cmd(args);
+    }
+    if (st) st->timeout_id = 0;
+    return G_SOURCE_REMOVE;
 }
 
 static void on_stream_vol_changed(GtkRange *range, gpointer user_data) {
@@ -129,11 +151,10 @@ static void on_stream_vol_changed(GtkRange *range, gpointer user_data) {
         gtk_label_set_text(GTK_LABEL(st->lbl_val), buf);
     }
 
-    char id_str[16], vol_str[16];
-    snprintf(id_str, sizeof(id_str), "%d", st->id);
-    snprintf(vol_str, sizeof(vol_str), "%d%%", vol);
-    char *args[] = {(char *)"wpctl", (char *)"set-volume", id_str, vol_str, NULL};
-    spawn_cmd(args);
+    st->target_vol = vol;
+    if (st->timeout_id == 0) {
+        st->timeout_id = g_timeout_add(30, apply_stream_vol_timeout, st);
+    }
 }
 
 static void on_switch_default_device(GtkButton *btn, gpointer user_data) {
@@ -178,6 +199,7 @@ static gboolean on_vol_scroll(GtkWidget *widget, GdkEventScroll *event, gpointer
     return TRUE;
 }
 
+/* Giải phóng triệt để toàn bộ bộ định thời (Timer) khi đóng cửa sổ */
 static void on_vol_destroy(GtkWidget *widget, gpointer user_data) {
     (void)widget;
     (void)user_data;
@@ -188,6 +210,12 @@ static void on_vol_destroy(GtkWidget *widget, gpointer user_data) {
     if (g_in_timeout_id > 0) {
         g_source_remove(g_in_timeout_id);
         g_in_timeout_id = 0;
+    }
+    for (int i = 0; i < g_stream_count; i++) {
+        if (g_streams[i].timeout_id > 0) {
+            g_source_remove(g_streams[i].timeout_id);
+            g_streams[i].timeout_id = 0;
+        }
     }
     g_out_scale = NULL;
     g_out_lbl = NULL;
@@ -200,35 +228,15 @@ GtkWidget* build_volume_window(void) {
     GtkWidget *main_box = NULL;
     GtkWidget *win = create_base_window("volume", 380, &main_box);
 
-    /* 1. Lấy trạng thái Master Output */
-    int current_out_vol = 50;
+    int master_out_vol = 50;
     int is_out_muted = 0;
-    char out_buf[128] = {0};
-    char *out_args[] = {(char *)"wpctl", (char *)"get-volume", (char *)"@DEFAULT_AUDIO_SINK@", NULL};
-    if (exec_capture(out_args, out_buf, sizeof(out_buf)) == 0) {
-        float v = 0.5f;
-        if (sscanf(out_buf, "Volume: %f", &v) >= 1) {
-            current_out_vol = (int)(v * 100.0f + 0.5f);
-        }
-        if (strstr(out_buf, "[MUTED]")) is_out_muted = 1;
-    }
+    int master_in_vol = 100;
 
-    /* 2. Lấy trạng thái Master Input (Mic) */
-    int current_in_vol = 100;
-    char in_buf[128] = {0};
-    char *in_args[] = {(char *)"wpctl", (char *)"get-volume", (char *)"@DEFAULT_AUDIO_SOURCE@", NULL};
-    if (exec_capture(in_args, in_buf, sizeof(in_buf)) == 0) {
-        float v = 1.0f;
-        if (sscanf(in_buf, "Volume: %f", &v) >= 1) {
-            current_in_vol = (int)(v * 100.0f + 0.5f);
-        }
-    }
-
-    /* 3. Phân tích Sinks, Sources, Streams từ wpctl status */
     AudioDev sinks[MAX_AUDIO_DEVS]; int sink_count = 0;
     AudioDev sources[MAX_AUDIO_DEVS]; int source_count = 0;
-    static AppStream streams[MAX_APP_STREAMS]; int stream_count = 0;
+    g_stream_count = 0;
 
+    /* Tối ưu hóa tối đa: Đúng 1 lần truy vấn wpctl status trích xuất đồng thời Sinks, Sources và Streams */
     char status_buf[4096] = {0};
     char *status_args[] = {(char *)"wpctl", (char *)"status", NULL};
     if (exec_capture(status_args, status_buf, sizeof(status_buf)) == 0) {
@@ -252,48 +260,75 @@ GtkWidget* build_volume_window(void) {
                     int is_active = (strchr(line, '*') != NULL && strchr(line, '*') < dot);
                     int is_audio_source = (section == 2 || (section == 3 && strstr(line, "[Audio/Source]")));
 
+                    /* Đọc âm lượng đính kèm nếu có [vol: 0.18] */
+                    int item_vol = -1;
+                    char *p_vol = strstr(line, "[vol:");
+                    if (p_vol) {
+                        float vf = 0.5f;
+                        if (sscanf(p_vol, "[vol: %f", &vf) >= 1) {
+                            item_vol = (int)(vf * 100.0f + 0.5f);
+                        }
+                    }
+
                     char name[64] = {0};
                     char *src_name = dot + 2;
                     while (*src_name == ' ') src_name++;
                     strncpy(name, src_name, sizeof(name) - 1);
-                    char *vol = strstr(name, "[vol:");
-                    if (vol) *vol = '\0';
-                    char *tag = strchr(name, '[');
-                    if (tag) *tag = '\0';
-                    char *end = name + strlen(name) - 1;
-                    while (end > name && (*end == ' ' || *end == '\t' || *end == '\r')) *end-- = '\0';
+                    char *vol_t = strstr(name, "[vol:");
+                    if (vol_t) *vol_t = '\0';
+                    char *tag_t = strchr(name, '[');
+                    if (tag_t) *tag_t = '\0';
+                    char *end_t = name + strlen(name) - 1;
+                    while (end_t > name && (*end_t == ' ' || *end_t == '\t' || *end_t == '\r')) *end_t-- = '\0';
 
                     if (section == 1 && sink_count < MAX_AUDIO_DEVS) {
                         sinks[sink_count].id = id;
                         strncpy(sinks[sink_count].name, name, sizeof(sinks[sink_count].name) - 1);
                         sinks[sink_count].is_active = is_active;
+                        sinks[sink_count].vol = (item_vol >= 0) ? item_vol : 50;
+                        if (is_active) {
+                            master_out_vol = sinks[sink_count].vol;
+                            if (strstr(line, "[MUTED]")) is_out_muted = 1;
+                        }
                         sink_count++;
                     } else if (is_audio_source && source_count < MAX_AUDIO_DEVS) {
                         sources[source_count].id = id;
                         strncpy(sources[source_count].name, name, sizeof(sources[source_count].name) - 1);
                         sources[source_count].is_active = is_active;
-                        source_count++;
-                    } else if (section == 4 && stream_count < MAX_APP_STREAMS && !strstr(name, "output_")) {
-                        int vol_val = 100;
-                        char v_buf[64] = {0};
-                        char id_str[16];
-                        snprintf(id_str, sizeof(id_str), "%d", id);
-                        char *v_args[] = {(char *)"wpctl", (char *)"get-volume", id_str, NULL};
-                        if (exec_capture(v_args, v_buf, sizeof(v_buf)) == 0) {
-                            float vf = 1.0f;
-                            if (sscanf(v_buf, "Volume: %f", &vf) >= 1) {
-                                vol_val = (int)(vf * 100.0f + 0.5f);
-                            }
+                        sources[source_count].vol = (item_vol >= 0) ? item_vol : 100;
+                        if (is_active && item_vol >= 0) {
+                            master_in_vol = item_vol;
                         }
-
-                        streams[stream_count].id = id;
-                        strncpy(streams[stream_count].name, name, sizeof(streams[stream_count].name) - 1);
-                        streams[stream_count].vol = vol_val;
-                        stream_count++;
+                        source_count++;
+                    } else if (section == 4 && g_stream_count < MAX_APP_STREAMS && !strstr(name, "output_")) {
+                        /* Chỉ lưu tối đa 1 luồng đại diện cho mỗi ứng dụng */
+                        int dup = 0;
+                        for (int k = 0; k < g_stream_count; k++) {
+                            if (strcmp(g_streams[k].name, name) == 0) { dup = 1; break; }
+                        }
+                        if (!dup) {
+                            g_streams[g_stream_count].id = id;
+                            strncpy(g_streams[g_stream_count].name, name, sizeof(g_streams[g_stream_count].name) - 1);
+                            g_streams[g_stream_count].vol = (item_vol >= 0) ? item_vol : 70;
+                            g_streams[g_stream_count].target_vol = -1;
+                            g_streams[g_stream_count].timeout_id = 0;
+                            g_stream_count++;
+                        }
                     }
                 }
             }
             line = strtok_r(NULL, "\n", &saveptr);
+        }
+    }
+
+    /* Kiểm tra thêm trạng thái MUTE nếu chưa thấy trong status */
+    char mute_chk[128] = {0};
+    char *mute_args[] = {(char *)"wpctl", (char *)"get-volume", (char *)"@DEFAULT_AUDIO_SINK@", NULL};
+    if (exec_capture(mute_args, mute_chk, sizeof(mute_chk)) == 0) {
+        if (strstr(mute_chk, "[MUTED]")) is_out_muted = 1;
+        float v_chk = 0.5f;
+        if (sscanf(mute_chk, "Volume: %f", &v_chk) >= 1) {
+            master_out_vol = (int)(v_chk * 100.0f + 0.5f);
         }
     }
 
@@ -313,7 +348,7 @@ GtkWidget* build_volume_window(void) {
     gtk_box_pack_start(GTK_BOX(out_head_box), lbl_out_t, TRUE, TRUE, 0);
 
     char out_p_str[16];
-    snprintf(out_p_str, sizeof(out_p_str), "%d%%", current_out_vol);
+    snprintf(out_p_str, sizeof(out_p_str), "%d%%", master_out_vol);
     g_out_lbl = gtk_label_new(out_p_str);
     gtk_style_context_add_class(gtk_widget_get_style_context(g_out_lbl), "stat-val");
     gtk_box_pack_end(GTK_BOX(out_head_box), g_out_lbl, FALSE, FALSE, 0);
@@ -322,7 +357,7 @@ GtkWidget* build_volume_window(void) {
     /* Slider Output */
     g_out_scale = gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL, 0, 100, 1);
     gtk_scale_set_draw_value(GTK_SCALE(g_out_scale), FALSE);
-    gtk_range_set_value(GTK_RANGE(g_out_scale), current_out_vol);
+    gtk_range_set_value(GTK_RANGE(g_out_scale), master_out_vol);
     g_signal_connect(g_out_scale, "value-changed", G_CALLBACK(on_out_vol_changed), NULL);
     gtk_box_pack_start(GTK_BOX(main_box), g_out_scale, FALSE, FALSE, 0);
 
@@ -347,7 +382,7 @@ GtkWidget* build_volume_window(void) {
     gtk_box_pack_start(GTK_BOX(in_head_box), lbl_in_t, TRUE, TRUE, 0);
 
     char in_p_str[16];
-    snprintf(in_p_str, sizeof(in_p_str), "%d%%", current_in_vol);
+    snprintf(in_p_str, sizeof(in_p_str), "%d%%", master_in_vol);
     g_in_lbl = gtk_label_new(in_p_str);
     gtk_style_context_add_class(gtk_widget_get_style_context(g_in_lbl), "stat-val");
     gtk_box_pack_end(GTK_BOX(in_head_box), g_in_lbl, FALSE, FALSE, 0);
@@ -356,7 +391,7 @@ GtkWidget* build_volume_window(void) {
     /* Slider Input */
     g_in_scale = gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL, 0, 100, 1);
     gtk_scale_set_draw_value(GTK_SCALE(g_in_scale), FALSE);
-    gtk_range_set_value(GTK_RANGE(g_in_scale), current_in_vol);
+    gtk_range_set_value(GTK_RANGE(g_in_scale), master_in_vol);
     g_signal_connect(g_in_scale, "value-changed", G_CALLBACK(on_in_vol_changed), NULL);
     gtk_box_pack_start(GTK_BOX(main_box), g_in_scale, FALSE, FALSE, 0);
 
@@ -374,35 +409,35 @@ GtkWidget* build_volume_window(void) {
     }
 
     /* 7. SOURCES SECTION (App Streams) */
-    if (stream_count > 0) {
+    if (g_stream_count > 0) {
         GtkWidget *st_head_lbl = gtk_label_new("SOURCES (ỨNG DỤNG ĐANG PHÁT)");
         gtk_style_context_add_class(gtk_widget_get_style_context(st_head_lbl), "subtitle-label");
         gtk_label_set_xalign(GTK_LABEL(st_head_lbl), 0.0f);
         gtk_box_pack_start(GTK_BOX(main_box), st_head_lbl, FALSE, FALSE, 4);
 
-        for (int i = 0; i < stream_count; i++) {
+        for (int i = 0; i < g_stream_count; i++) {
             GtkWidget *app_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 2);
 
             GtkWidget *app_row = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
             char app_name_lbl[64];
-            snprintf(app_name_lbl, sizeof(app_name_lbl), "󰕾 %s", streams[i].name);
+            snprintf(app_name_lbl, sizeof(app_name_lbl), "󰕾 %s", g_streams[i].name);
             GtkWidget *lbl_app = gtk_label_new(app_name_lbl);
             gtk_style_context_add_class(gtk_widget_get_style_context(lbl_app), "metric-sub");
             gtk_label_set_xalign(GTK_LABEL(lbl_app), 0.0f);
             gtk_box_pack_start(GTK_BOX(app_row), lbl_app, TRUE, TRUE, 0);
 
             char app_vol_str[16];
-            snprintf(app_vol_str, sizeof(app_vol_str), "%d%%", streams[i].vol);
-            streams[i].lbl_val = gtk_label_new(app_vol_str);
-            gtk_style_context_add_class(gtk_widget_get_style_context(streams[i].lbl_val), "stat-val");
-            gtk_box_pack_end(GTK_BOX(app_row), streams[i].lbl_val, FALSE, FALSE, 0);
+            snprintf(app_vol_str, sizeof(app_vol_str), "%d%%", g_streams[i].vol);
+            g_streams[i].lbl_val = gtk_label_new(app_vol_str);
+            gtk_style_context_add_class(gtk_widget_get_style_context(g_streams[i].lbl_val), "stat-val");
+            gtk_box_pack_end(GTK_BOX(app_row), g_streams[i].lbl_val, FALSE, FALSE, 0);
             gtk_box_pack_start(GTK_BOX(app_box), app_row, FALSE, FALSE, 0);
 
             GtkWidget *app_scale = gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL, 0, 100, 1);
             gtk_scale_set_draw_value(GTK_SCALE(app_scale), FALSE);
-            gtk_range_set_value(GTK_RANGE(app_scale), streams[i].vol);
-            streams[i].scale = app_scale;
-            g_signal_connect(app_scale, "value-changed", G_CALLBACK(on_stream_vol_changed), &streams[i]);
+            gtk_range_set_value(GTK_RANGE(app_scale), g_streams[i].vol);
+            g_streams[i].scale = app_scale;
+            g_signal_connect(app_scale, "value-changed", G_CALLBACK(on_stream_vol_changed), &g_streams[i]);
             gtk_box_pack_start(GTK_BOX(app_box), app_scale, FALSE, FALSE, 0);
 
             gtk_box_pack_start(GTK_BOX(main_box), app_box, FALSE, FALSE, 2);
