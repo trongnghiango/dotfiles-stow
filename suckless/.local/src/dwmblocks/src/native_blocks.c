@@ -207,7 +207,7 @@ static void native_network(char *output, size_t max_len, uint8_t button) {
     if (button == 1) {
         spawn_pop("network");
     } else if (button == 3) {
-        char *args[] = {(char *)"st", (char *)"-e", (char *)"nmtui", NULL};
+        char *args[] = {(char *)"ka-wifi", NULL};
         spawn_cmd(args);
     }
 

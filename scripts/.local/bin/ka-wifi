@@ -1,0 +1,352 @@
+#!/usr/bin/env bash
+# ==============================================================================
+# ka-wifi — Trình quản lý kết nối Wi-Fi toàn diện (Thay thế hoàn toàn nmtui)
+# Giao diện Rofi/dmenu tương tác qua ka-menu & CLI nhanh, hỗ trợ QR code
+# ==============================================================================
+set -euo pipefail
+
+MENU_CMD="ka-menu"
+
+notify() {
+  local title="$1"
+  local msg="$2"
+  local urgency="${3:-normal}"
+  local icon="${4:-network-wireless}"
+
+  if command -v dunstify >/dev/null 2>&1; then
+    dunstify -a "ka-wifi" -u "$urgency" -i "$icon" "$title" "$msg" 2>/dev/null || true
+  elif command -v notify-send >/dev/null 2>&1; then
+    notify-send -a "ka-wifi" -u "$urgency" -i "$icon" "$title" "$msg" 2>/dev/null || true
+  fi
+}
+
+get_wifi_device() {
+  nmcli -t -f DEVICE,TYPE dev status 2>/dev/null | awk -F: '$2=="wifi"{print $1; exit}'
+}
+
+is_wifi_enabled() {
+  [ "$(nmcli radio wifi 2>/dev/null)" = "enabled" ]
+}
+
+cmd_status() {
+  local dev
+  dev="$(get_wifi_device)"
+  if [[ -z "$dev" ]]; then
+    echo "Không tìm thấy thiết bị Wi-Fi."
+    return 1
+  fi
+
+  if ! is_wifi_enabled; then
+    echo "Trạng thái: Wi-Fi đang TẮT (Radio disabled)"
+    return 0
+  fi
+
+  local active_ssid signal bssid
+  active_ssid="$(nmcli -t -f active,ssid dev wifi 2>/dev/null | awk -F: '$1=="yes"{print $2; exit}')"
+  if [[ -n "$active_ssid" ]]; then
+    local ip
+    ip="$(ip -4 addr show dev "$dev" 2>/dev/null | awk '/inet /{print $2; exit}')"
+    echo "Thiết bị      : $dev"
+    echo "Đang kết nối  : $active_ssid"
+    echo "Địa chỉ IP    : ${ip:-Chưa nhận}"
+    nmcli -t -f IN-USE,SSID,SIGNAL,BARS,SECURITY,FREQ dev wifi 2>/dev/null | awk -F: -v s="$active_ssid" '$2==s{printf "Tần số/Kênh   : %s\nCường độ sóng : %s%% (%s)\nBảo mật       : %s\n", $6, $3, $4, $5; exit}'
+  else
+    echo "Thiết bị      : $dev"
+    echo "Trạng thái    : Chưa kết nối mạng nào."
+  fi
+}
+
+cmd_toggle() {
+  if is_wifi_enabled; then
+    nmcli radio wifi off
+    notify "Wi-Fi" "Đã tắt Wi-Fi" "low" "network-wireless-offline"
+    echo "Đã tắt Wi-Fi."
+  else
+    nmcli radio wifi on
+    notify "Wi-Fi" "Đã bật Wi-Fi, đang tìm kiếm mạng..." "normal" "network-wireless"
+    echo "Đã bật Wi-Fi."
+  fi
+}
+
+cmd_disconnect() {
+  local dev
+  dev="$(get_wifi_device)"
+  if [[ -n "$dev" ]]; then
+    nmcli dev disconnect "$dev" 2>/dev/null || true
+    notify "Wi-Fi" "Đã ngắt kết nối Wi-Fi" "normal" "network-wireless-disconnected"
+    echo "Đã ngắt kết nối."
+  fi
+}
+
+cmd_qr() {
+  local active_ssid
+  active_ssid="$(nmcli -t -f active,ssid dev wifi 2>/dev/null | awk -F: '$1=="yes"{print $2; exit}')"
+  if [[ -z "$active_ssid" ]]; then
+    echo "Chưa kết nối mạng Wi-Fi nào để tạo mã QR." >&2
+    notify "Wi-Fi QR" "Chưa kết nối mạng Wi-Fi nào" "low" "dialog-information"
+    return 1
+  fi
+
+  local pass_info
+  pass_info="$(nmcli dev wifi show-password 2>/dev/null || true)"
+  local pass
+  pass="$(echo "$pass_info" | awk -F': ' '/Password:/{print $2; exit}')"
+  local sec
+  sec="$(echo "$pass_info" | awk -F': ' '/Security:/{print $2; exit}')"
+
+  local qr_string="WIFI:S:$active_ssid;T:${sec:-WPA};P:${pass:-};;"
+
+  if command -v qrencode >/dev/null 2>&1; then
+    local tmp_qr
+    tmp_qr="$(mktemp -p "${XDG_RUNTIME_DIR:-/tmp}" wifi-qr-XXXXXX.png)"
+    qrencode -s 10 -m 2 -o "$tmp_qr" "$qr_string"
+    if command -v nsxiv >/dev/null 2>&1; then
+      ( nsxiv -b "$tmp_qr" >/dev/null 2>&1 && rm -f "$tmp_qr" ) &
+    elif command -v feh >/dev/null 2>&1; then
+      ( feh "$tmp_qr" >/dev/null 2>&1 && rm -f "$tmp_qr" ) &
+    else
+      qrencode -t ANSI256 "$qr_string"
+      rm -f "$tmp_qr"
+    fi
+  else
+    echo "SSID    : $active_ssid"
+    echo "Mật khẩu: ${pass:-Không mật khẩu}"
+  fi
+}
+
+cmd_connect_interactive() {
+  local target_ssid="${1:-}"
+  local pass="${2:-}"
+
+  if ! is_wifi_enabled; then
+    local turn_on
+    turn_on=$(printf "Bật Wi-Fi\nHủy bỏ" | $MENU_CMD -p "Wi-Fi đang tắt:")
+    if [[ "$turn_on" == "Bật Wi-Fi" ]]; then
+      cmd_toggle
+      sleep 1.5
+    else
+      return 0
+    fi
+  fi
+
+  # 1. Nếu chưa chỉ định SSID: mở menu chọn mạng
+  if [[ -z "$target_ssid" ]]; then
+    # Lấy danh sách kết nối đã lưu
+    local saved_conns
+    saved_conns="$(nmcli -t -f NAME,TYPE con show 2>/dev/null | awk -F: '$2=="802-11-wireless"{print $1}')"
+
+    # Quét mạng và lọc trùng lặp
+    local raw_list
+    raw_list=$(nmcli -t -f IN-USE,SSID,SIGNAL,BARS,SECURITY dev wifi list --rescan auto 2>/dev/null | awk -F: '
+      $2 != "" {
+        in_use = $1
+        ssid = $2
+        signal = $3
+        bars = $4
+        sec = ($5 == "" || $5 == "--") ? "Open" : $5
+        if (!seen[ssid] || signal > max_sig[ssid]) {
+          seen[ssid] = 1
+          max_sig[ssid] = signal
+          list[ssid] = sprintf("%s:%s:%s:%s:%s", in_use, ssid, signal, bars, sec)
+        }
+      }
+      END {
+        for (s in list) print list[s]
+      }
+    ' | sort -t: -k1,1r -k3,3nr)
+
+    if [[ -z "$raw_list" ]]; then
+      notify "Wi-Fi" "Không tìm thấy mạng Wi-Fi nào gần đây." "normal"
+      return 0
+    fi
+
+    local menu_items=""
+    local active_found=""
+
+    while IFS=':' read -r in_use ssid signal bars sec; do
+      [ -z "$ssid" ] && continue
+      local is_saved=false
+      if echo "$saved_conns" | grep -Fxq "$ssid"; then
+        is_saved=true
+      fi
+
+      local prefix="󰤨"
+      local tag=""
+      if [[ "$in_use" == "*" ]]; then
+        prefix="✔"
+        tag="[ĐANG KẾT NỐI] "
+        active_found="$ssid"
+      elif [[ "$is_saved" == true ]]; then
+        prefix="★"
+        tag="[ĐÃ LƯU] "
+      fi
+
+      local lock_icon="🔒"
+      [[ "$sec" == "Open" ]] && lock_icon="🔓"
+
+      local line
+      line=$(printf "%-2s %-16s %-25s (%2s%%  %-4s  %s %s)" "$prefix" "$tag" "$ssid" "$signal" "$bars" "$lock_icon" "$sec")
+      menu_items="${menu_items}${line}\n"
+    done <<< "$raw_list"
+
+    # Thêm các chức năng điều khiển nhanh
+    menu_items="${menu_items}────────────────────────────────────────────────\n"
+    menu_items="${menu_items}🔄 Quét lại mạng Wi-Fi (Rescan)\n"
+    if [[ -n "$active_found" ]]; then
+      menu_items="${menu_items}📱 Chia sẻ mã QR mạng hiện tại (Share QR)\n"
+      menu_items="${menu_items}❌ Ngắt kết nối hiện tại ($active_found)\n"
+    fi
+    menu_items="${menu_items}📶 Tắt Wi-Fi (Turn Off)\n"
+
+    local selected
+    selected=$(printf "%b" "$menu_items" | $MENU_CMD -p "Kết nối Wi-Fi:")
+    [[ -z "$selected" ]] && return 0
+
+    # Xử lý các tác vụ điều khiển
+    case "$selected" in
+      *"Quét lại"*)
+        nmcli dev wifi rescan 2>/dev/null || true
+        notify "Wi-Fi" "Đã gửi yêu cầu quét lại sóng Wi-Fi..." "low"
+        sleep 1
+        cmd_connect_interactive
+        return 0
+        ;;
+      *"Chia sẻ mã QR"*)
+        cmd_qr
+        return 0
+        ;;
+      *"Ngắt kết nối"*)
+        cmd_disconnect
+        return 0
+        ;;
+      *"Tắt Wi-Fi"*)
+        cmd_toggle
+        return 0
+        ;;
+      *"───────"*)
+        return 0
+        ;;
+    esac
+
+    # Trích xuất SSID từ dòng đã chọn
+    # Format: Prefix  Tag  SSID  (Signal ...)
+    local chosen_clean
+    chosen_clean="$(echo "$selected" | sed -E 's/^[✔★󰤨[:space:]]+//; s/[(ĐANG KẾT NỐI|ĐÃ LƯU)][[:space:]]+//; s/[[:space:]]*(.*//')"
+    chosen_clean="$(echo "$chosen_clean" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
+
+    if [[ -z "$chosen_clean" ]]; then
+      return 0
+    fi
+
+    target_ssid="$chosen_clean"
+
+    # Nếu click vào mạng đang kết nối: mở menu tùy chọn
+    if [[ "$target_ssid" == "$active_found" ]]; then
+      local act
+      act=$(printf "📱 Hiện mã QR kết nối\n❌ Ngắt kết nối mạng này\n🗑 Quên mạng này (Forget)" | $MENU_CMD -p "Mạng: $target_ssid")
+      case "$act" in
+        *"mã QR"*)   cmd_qr ;;
+        *"Ngắt kết"*) cmd_disconnect ;;
+        *"Quên mạng"*)
+          nmcli con delete id "$target_ssid" 2>/dev/null || true
+          notify "Wi-Fi" "Đã xóa cấu hình mạng $target_ssid" "normal"
+          ;;
+      esac
+      return 0
+    fi
+  fi
+
+  # 2. Thực hiện kết nối tới target_ssid
+  local is_known=false
+  if nmcli -t -f NAME,TYPE con show 2>/dev/null | awk -F: '$2=="802-11-wireless"{print $1}' | grep -Fxq "$target_ssid"; then
+    is_known=true
+  fi
+
+  notify "Wi-Fi" "Đang kết nối tới '$target_ssid'..." "low"
+
+  # Nếu là mạng đã lưu cấu hình: kết nối trực tiếp
+  if [[ "$is_known" == true ]]; then
+    if nmcli con up id "$target_ssid" 2>/dev/null; then
+      notify "Wi-Fi" "Đã kết nối thành công tới $target_ssid" "normal" "network-wireless"
+      pkill -RTMIN+4 -x dwmblocks 2>/dev/null || true
+      return 0
+    fi
+  fi
+
+  # Kiểm tra xem mạng có mã hóa không
+  local sec_type
+  sec_type=$(nmcli -t -f SSID,SECURITY dev wifi list 2>/dev/null | awk -F: -v s="$target_ssid" '$1==s{print $2; exit}')
+
+  if [[ -z "$sec_type" || "$sec_type" == "--" ]]; then
+    # Mạng Open: không cần mật khẩu
+    if nmcli dev wifi connect "$target_ssid" 2>/dev/null; then
+      notify "Wi-Fi" "Đã kết nối thành công tới $target_ssid (Mạng mở)" "normal" "network-wireless"
+      pkill -RTMIN+4 -x dwmblocks 2>/dev/null || true
+      return 0
+    else
+      notify "Lỗi Wi-Fi" "Không thể kết nối tới $target_ssid" "critical" "network-wireless-offline"
+      return 1
+    fi
+  fi
+
+  # Mạng có mật khẩu: hỏi mật khẩu qua ka-menu
+  if [[ -z "$pass" ]]; then
+    pass=$(printf "" | $MENU_CMD -p "Nhập mật khẩu [$target_ssid]:")
+  fi
+
+  if [[ -z "$pass" ]]; then
+    echo "Hủy nhập mật khẩu."
+    return 0
+  fi
+
+  if nmcli dev wifi connect "$target_ssid" password "$pass" 2>/dev/null; then
+    notify "Wi-Fi Thành công" "Đã kết nối tới $target_ssid" "normal" "network-wireless"
+    pkill -RTMIN+4 -x dwmblocks 2>/dev/null || true
+    echo "Kết nối thành công tới $target_ssid."
+  else
+    notify "Lỗi Wi-Fi" "Kết nối thất bại tới $target_ssid. Vui lòng kiểm tra lại mật khẩu!" "critical" "network-wireless-offline"
+    echo "Lỗi: Không thể kết nối tới $target_ssid." >&2
+    return 1
+  fi
+}
+
+# --- CLI DISPATCHER ---
+ACTION="${1:-menu}"
+shift || true
+
+case "$ACTION" in
+  menu|connect|"")
+    cmd_connect_interactive "$@"
+    ;;
+  scan|list|ls)
+    nmcli -t -f IN-USE,SSID,SIGNAL,BARS,SECURITY,FREQ dev wifi list
+    ;;
+  status|show)
+    cmd_status
+    ;;
+  toggle)
+    cmd_toggle
+    ;;
+  on)
+    nmcli radio wifi on
+    echo "Wi-Fi on."
+    ;;
+  off)
+    nmcli radio wifi off
+    echo "Wi-Fi off."
+    ;;
+  disconnect)
+    cmd_disconnect
+    ;;
+  qr)
+    cmd_qr
+    ;;
+  rescan)
+    nmcli dev wifi rescan
+    echo "Đã yêu cầu quét lại sóng Wi-Fi."
+    ;;
+  *)
+    echo "Cách dùng: ka-wifi [menu|connect|scan|status|toggle|on|off|disconnect|qr|rescan]"
+    exit 1
+    ;;
+esac
