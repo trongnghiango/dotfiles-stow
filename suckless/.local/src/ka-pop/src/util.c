@@ -6,6 +6,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 
 void spawn_async(const char *cmd) {
     if (!cmd) return;
@@ -74,6 +75,7 @@ int exec_capture(char *const argv[], char *output, size_t max_len) {
     }
     output[total] = '\0';
     close(pfd[0]);
+    waitpid(pid, NULL, 0);
     return 0;
 }
 

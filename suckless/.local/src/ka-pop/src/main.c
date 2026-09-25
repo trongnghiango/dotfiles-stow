@@ -47,6 +47,7 @@ int main(int argc, char *argv[]) {
     if (win) {
         gtk_widget_show_all(win);
         gtk_main();
+        gtk_widget_destroy(win);
     }
 
     return 0;
