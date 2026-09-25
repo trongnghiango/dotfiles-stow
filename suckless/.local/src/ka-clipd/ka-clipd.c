@@ -15,6 +15,8 @@
 #include <unistd.h>
 #include <signal.h>
 #include <fcntl.h>
+#include <poll.h>
+#include <errno.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <X11/Xlib.h>
@@ -313,9 +315,19 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    signal(SIGINT, handle_signal);
-    signal(SIGTERM, handle_signal);
-    signal(SIGCHLD, SIG_IGN);
+    struct sigaction sa;
+    memset(&sa, 0, sizeof(sa));
+    sa.sa_handler = handle_signal;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = 0; /* Do NOT set SA_RESTART so poll() unblocks with EINTR */
+    sigaction(SIGINT, &sa, NULL);
+    sigaction(SIGTERM, &sa, NULL);
+
+    struct sigaction sa_ign;
+    memset(&sa_ign, 0, sizeof(sa_ign));
+    sa_ign.sa_handler = SIG_IGN;
+    sigaction(SIGCHLD, &sa_ign, NULL);
+
     XSetErrorHandler(handle_x_error);
     XSetIOErrorHandler(handle_x_io_error);
 
@@ -345,33 +357,47 @@ int main(int argc, char *argv[]) {
     /* Create an unmapped window to receive selection property notifications */
     Window helper_win = XCreateSimpleWindow(dpy, root, -10, -10, 1, 1, 0, 0, 0);
 
+    struct pollfd pfd;
+    pfd.fd = ConnectionNumber(dpy);
+    pfd.events = POLLIN;
+
     XEvent ev;
     while (g_running) {
-        XNextEvent(dpy, &ev);
+        while (XPending(dpy) > 0 && g_running) {
+            XNextEvent(dpy, &ev);
 
-        if (ev.type == event_base + XFixesSelectionNotify) {
-            XFixesSelectionNotifyEvent *sev = (XFixesSelectionNotifyEvent *)&ev;
-            if (sev->selection == clip_atom && sev->owner != None && sev->owner != helper_win) {
-                /* Check if password manager requested ignoring this selection */
-                Atom type_ret;
-                int format_ret;
-                unsigned long nitems_ret, bytes_after_ret;
-                unsigned char *prop_ret = NULL;
-                if (XGetWindowProperty(dpy, sev->owner, pwd_hint_atom, 0, 1024, False,
-                                       AnyPropertyType, &type_ret, &format_ret, &nitems_ret, &bytes_after_ret, &prop_ret) == Success && prop_ret) {
-                    XFree(prop_ret);
-                    continue; /* Ignore sensitive password data */
+            if (ev.type == event_base + XFixesSelectionNotify) {
+                XFixesSelectionNotifyEvent *sev = (XFixesSelectionNotifyEvent *)&ev;
+                if (sev->selection == clip_atom && sev->owner != None && sev->owner != helper_win) {
+                    /* Check if password manager requested ignoring this selection */
+                    Atom type_ret = None;
+                    int format_ret = 0;
+                    unsigned long nitems_ret = 0, bytes_after_ret = 0;
+                    unsigned char *prop_ret = NULL;
+                    if (XGetWindowProperty(dpy, sev->owner, pwd_hint_atom, 0, 1024, False,
+                                           AnyPropertyType, &type_ret, &format_ret, &nitems_ret, &bytes_after_ret, &prop_ret) == Success && prop_ret) {
+                        if (type_ret != None && nitems_ret > 0) {
+                            XFree(prop_ret);
+                            continue; /* Ignore sensitive password data */
+                        }
+                        XFree(prop_ret);
+                    }
+
+                    /* Request clipboard content in UTF8_STRING */
+                    XConvertSelection(dpy, clip_atom, utf8_atom, prop_atom, helper_win, CurrentTime);
                 }
+            } else if (ev.type == SelectionNotify) {
+                XSelectionEvent *sev = (XSelectionEvent *)&ev;
+                if (sev->property == prop_atom) {
+                    capture_text(dpy, helper_win, prop_atom);
+                    XDeleteProperty(dpy, helper_win, prop_atom);
+                }
+            }
+        }
 
-                /* Request clipboard content in UTF8_STRING */
-                XConvertSelection(dpy, clip_atom, utf8_atom, prop_atom, helper_win, CurrentTime);
-            }
-        } else if (ev.type == SelectionNotify) {
-            XSelectionEvent *sev = (XSelectionEvent *)&ev;
-            if (sev->property == prop_atom) {
-                capture_text(dpy, helper_win, prop_atom);
-                XDeleteProperty(dpy, helper_win, prop_atom);
-            }
+        if (!g_running) break;
+        if (poll(&pfd, 1, -1) < 0 && errno == EINTR) {
+            continue;
         }
     }
 

@@ -1,0 +1,5 @@
+#!/bin/sh
+# dunst-signal-hook — Trigger dwmblocks sb-notify (signal 8) on notification events
+# Called by dunst on incoming/updated notifications.
+
+pkill -RTMIN+8 -x dwmblocks 2>/dev/null || true

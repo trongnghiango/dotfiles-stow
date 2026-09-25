@@ -40,4 +40,3 @@ else
 
   notify-send -t 1000 "Fcitx5" "Đã khởi động (Tiếng Việt)"
 fi
-pkill -RTMIN+10 dwmblocks

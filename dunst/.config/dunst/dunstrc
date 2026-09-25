@@ -363,6 +363,11 @@
     # Bắt buộc phải tương tác mới tắt
     timeout = 0
 
+[dwmblocks_signal]
+    # Tự động gửi tín hiệu SIGRTMIN+8 cho dwmblocks để cập nhật icon sb-notify
+    summary = "*"
+    script = dunst-signal-hook
+
 # Every section that isn't one of the above is interpreted as a rules to
 # override settings for certain messages.
 #

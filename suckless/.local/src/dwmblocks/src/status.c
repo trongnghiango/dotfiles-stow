@@ -27,61 +27,74 @@ status status_new(const block *const blocks,
 }
 
 bool status_update(status *const status) {
-    (void)strncpy(status->previous, status->current, LEN(status->current));
+    memcpy(status->previous, status->current, sizeof(status->previous));
     status->current[0] = '\0';
 
+    size_t cur_len = 0;
+    const size_t max_len = sizeof(status->current) - 1;
     bool center_has_content = false;
     bool right_has_content = false;
 
     // Phân đoạn Center (giữa): ka-forecast, ka-clock
     for (unsigned short i = 0; i < status->block_count && i < CENTER_BLOCK_COUNT; ++i) {
         const block *const block = &status->blocks[i];
+        if (block->output[0] == '\0')
+            continue;
 
-        if (strlen(block->output) > 0) {
-            if (center_has_content) {
-                (void)strncat(status->current, DELIMITER, LEN(DELIMITER));
-            }
+        if (center_has_content && cur_len + strlen(DELIMITER) < max_len) {
+            strcat(status->current, DELIMITER);
+            cur_len += strlen(DELIMITER);
+        }
 
 #if CLICKABLE_BLOCKS
-            if (block->signal > 0) {
-                const char signal[] = {(char)block->signal, '\0'};
-                (void)strncat(status->current, signal, LEN(signal));
-            }
+        if (block->signal > 0 && cur_len + 1 < max_len) {
+            status->current[cur_len++] = (char)block->signal;
+            status->current[cur_len] = '\0';
+        }
 #endif
 
-            (void)strncat(status->current, block->icon, LEN(block->output));
-            (void)strncat(status->current, block->output, LEN(block->output));
-            center_has_content = true;
+        size_t icon_len = strlen(block->icon);
+        size_t out_len = strlen(block->output);
+        if (cur_len + icon_len + out_len < max_len) {
+            strcat(status->current, block->icon);
+            strcat(status->current, block->output);
+            cur_len += icon_len + out_len;
         }
+        center_has_content = true;
     }
 
     // Dấu phân cách ';' giữa Center và Right
-    size_t cur_len = strlen(status->current);
-    if (cur_len < sizeof(status->current) - 1) {
-        status->current[cur_len] = ';';
-        status->current[cur_len + 1] = '\0';
+    if (cur_len < max_len) {
+        status->current[cur_len++] = ';';
+        status->current[cur_len] = '\0';
     }
 
-    // Phân đoạn Right: sb-record, ka-volume, ka-battery, ka-network, ka-cpu, ka-memory
+    // Phân đoạn Right: sb-record, ka-volume, ka-battery, ka-network, ka-cpu, ka-memory, sb-notify
     for (unsigned short i = CENTER_BLOCK_COUNT; i < status->block_count; ++i) {
         const block *const block = &status->blocks[i];
+        if (block->output[0] == '\0')
+            continue;
 
-        if (strlen(block->output) > 0) {
-            if (right_has_content) {
-                (void)strncat(status->current, DELIMITER, LEN(DELIMITER));
-            }
+        if (right_has_content && cur_len + strlen(DELIMITER) < max_len) {
+            strcat(status->current, DELIMITER);
+            cur_len += strlen(DELIMITER);
+        }
 
 #if CLICKABLE_BLOCKS
-            if (block->signal > 0) {
-                const char signal[] = {(char)block->signal, '\0'};
-                (void)strncat(status->current, signal, LEN(signal));
-            }
+        if (block->signal > 0 && cur_len + 1 < max_len) {
+            status->current[cur_len++] = (char)block->signal;
+            status->current[cur_len] = '\0';
+        }
 #endif
 
-            (void)strncat(status->current, block->icon, LEN(block->output));
-            (void)strncat(status->current, block->output, LEN(block->output));
-            right_has_content = true;
+        size_t icon_len = strlen(block->icon);
+        size_t out_len = strlen(block->output);
+        if (cur_len + icon_len + out_len < max_len) {
+            strcat(status->current, block->icon);
+            strcat(status->current, block->output);
+            cur_len += icon_len + out_len;
         }
+        right_has_content = true;
     }
 
     return has_status_changed(status);

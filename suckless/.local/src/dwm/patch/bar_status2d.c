@@ -19,6 +19,48 @@ static char *termcolor[] = {
 	termcol8, termcol9, termcol10, termcol11, termcol12, termcol13, termcol14, termcol15,
 };
 
+static Clr termcolors[16];
+static int termcolors_inited = 0;
+
+static void
+init_termcolors(Drw *drw)
+{
+	if (termcolors_inited)
+		return;
+	for (int i = 0; i < 16; i++)
+		drw_clr_create(drw, &termcolors[i], termcolor[i]);
+	termcolors_inited = 1;
+}
+
+#define HEX_CACHE_SIZE 16
+static struct {
+	char hex[8];
+	Clr clr;
+	int used;
+} hex_cache[HEX_CACHE_SIZE];
+
+static Clr*
+get_hex_color(Drw *drw, const char *hex)
+{
+	for (int i = 0; i < HEX_CACHE_SIZE; i++) {
+		if (hex_cache[i].used && strcmp(hex_cache[i].hex, hex) == 0)
+			return &hex_cache[i].clr;
+	}
+	static int next_slot = 0;
+	int slot = next_slot;
+	next_slot = (next_slot + 1) % HEX_CACHE_SIZE;
+	if (hex_cache[slot].used) {
+		XftColorFree(drw->dpy, DefaultVisual(drw->dpy, drw->screen),
+		             DefaultColormap(drw->dpy, drw->screen), &hex_cache[slot].clr);
+		hex_cache[slot].used = 0;
+	}
+	drw_clr_create(drw, &hex_cache[slot].clr, hex);
+	strncpy(hex_cache[slot].hex, hex, sizeof(hex_cache[slot].hex) - 1);
+	hex_cache[slot].hex[sizeof(hex_cache[slot].hex) - 1] = '\0';
+	hex_cache[slot].used = 1;
+	return &hex_cache[slot].clr;
+}
+
 int
 width_status2d(Bar *bar, BarArg *a)
 {
@@ -96,7 +138,8 @@ drawstatusbar(BarArg *a, char* stext)
 					}
 					memcpy(buf, (char*)text+i+1, 7);
 					buf[7] = '\0';
-					drw_clr_create(drw, &drw->scheme[ColFg], buf);
+					Clr *hclr = get_hex_color(drw, buf);
+					if (hclr) drw->scheme[ColFg] = *hclr;
 					i += 7;
 				} else if (text[i] == 'b') {
 					char buf[8];
@@ -107,14 +150,17 @@ drawstatusbar(BarArg *a, char* stext)
 					}
 					memcpy(buf, (char*)text+i+1, 7);
 					buf[7] = '\0';
-					drw_clr_create(drw, &drw->scheme[ColBg], buf);
+					Clr *hclr = get_hex_color(drw, buf);
+					if (hclr) drw->scheme[ColBg] = *hclr;
 					i += 7;
 				} else if (text[i] == 'C') {
 					int c = atoi(text + ++i) % 16;
-					drw_clr_create(drw, &drw->scheme[ColFg], termcolor[c]);
+					init_termcolors(drw);
+					drw->scheme[ColFg] = termcolors[c];
 				} else if (text[i] == 'B') {
 					int c = atoi(text + ++i) % 16;
-					drw_clr_create(drw, &drw->scheme[ColBg], termcolor[c]);
+					init_termcolors(drw);
+					drw->scheme[ColBg] = termcolors[c];
 				} else if (text[i] == 'd') {
 					drw->scheme[ColFg] = scheme[SchemeNorm][ColFg];
 					drw->scheme[ColBg] = scheme[SchemeNorm][ColBg];

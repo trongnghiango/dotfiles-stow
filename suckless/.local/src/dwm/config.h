@@ -404,7 +404,7 @@ static const Key keys[] = {
 	{ 0, XF86XK_WWW,                               spawn,                  {.v = bravecmd } },
 	{ 0, XF86XK_ScreenSaver,                       spawn,                  SHCMD("slock & xset dpms force off; mpc pause; pauseallmpv") },
 	{ 0, XF86XK_TaskPane,                          spawn,                  {.v = (const char*[]){ "st", "-e", "htop", NULL } } },
-	{ 0, XF86XK_Mail,                              spawn,                  SHCMD("st -e neomutt ; pkill -RTMIN+12 dwmblocks") },
+	{ 0, XF86XK_Mail,                              spawn,                  {.v = (const char*[]){ "st", "-e", "neomutt", NULL } } },
 	{ 0, XF86XK_MyComputer,                        spawn,                  {.v = (const char*[]){ "st", "-e",  "lfub",  "/", NULL } } },
 	{ 0, XF86XK_Launch1,                           spawn,                  {.v = (const char*[]){ "xset", "dpms", "force", "off", NULL } } },
 	{ 0, XF86XK_TouchpadToggle,                    spawn,                  SHCMD("(synclient | grep 'TouchpadOff.*1' && synclient TouchpadOff=0) || synclient TouchpadOff=1") },
