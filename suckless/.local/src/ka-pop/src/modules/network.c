@@ -6,9 +6,53 @@
 #include "ui.h"
 #include "util.h"
 
-static void on_dns_dhcp(GtkButton *b, gpointer u) { (void)b; (void)u; char *args[] = {(char *)"set-dns", (char *)"dhcp", NULL}; spawn_cmd(args); gtk_main_quit(); }
-static void on_dns_cf(GtkButton *b, gpointer u) { (void)b; (void)u; char *args[] = {(char *)"set-dns", (char *)"cloudflare", NULL}; spawn_cmd(args); gtk_main_quit(); }
-static void on_dns_gg(GtkButton *b, gpointer u) { (void)b; (void)u; char *args[] = {(char *)"set-dns", (char *)"google", NULL}; spawn_cmd(args); gtk_main_quit(); }
+static GtkWidget *g_btn_dhcp = NULL;
+static GtkWidget *g_btn_cf = NULL;
+static GtkWidget *g_btn_gg = NULL;
+
+static void update_dns_ui_state(int active_dns) {
+    if (!g_btn_dhcp || !g_btn_cf || !g_btn_gg) return;
+
+    GtkStyleContext *ctx_dhcp = gtk_widget_get_style_context(g_btn_dhcp);
+    GtkStyleContext *ctx_cf   = gtk_widget_get_style_context(g_btn_cf);
+    GtkStyleContext *ctx_gg   = gtk_widget_get_style_context(g_btn_gg);
+
+    gtk_style_context_remove_class(ctx_dhcp, "btn-active");
+    gtk_style_context_remove_class(ctx_dhcp, "action-btn");
+    gtk_style_context_remove_class(ctx_cf,   "btn-active");
+    gtk_style_context_remove_class(ctx_cf,   "action-btn");
+    gtk_style_context_remove_class(ctx_gg,   "btn-active");
+    gtk_style_context_remove_class(ctx_gg,   "action-btn");
+
+    gtk_style_context_add_class(ctx_dhcp, (active_dns == 0) ? "btn-active" : "action-btn");
+    gtk_style_context_add_class(ctx_cf,   (active_dns == 1) ? "btn-active" : "action-btn");
+    gtk_style_context_add_class(ctx_gg,   (active_dns == 2) ? "btn-active" : "action-btn");
+
+    gtk_button_set_label(GTK_BUTTON(g_btn_dhcp), (active_dns == 0) ? "✔ DHCP" : "DHCP");
+    gtk_button_set_label(GTK_BUTTON(g_btn_cf),   (active_dns == 1) ? "✔ Cloudflare" : "Cloudflare");
+    gtk_button_set_label(GTK_BUTTON(g_btn_gg),   (active_dns == 2) ? "✔ Google" : "Google");
+}
+
+static void on_dns_dhcp(GtkButton *b, gpointer u) {
+    (void)b; (void)u;
+    char *args[] = {(char *)"set-dns", (char *)"dhcp", NULL};
+    spawn_cmd(args);
+    update_dns_ui_state(0);
+}
+
+static void on_dns_cf(GtkButton *b, gpointer u) {
+    (void)b; (void)u;
+    char *args[] = {(char *)"set-dns", (char *)"cloudflare", NULL};
+    spawn_cmd(args);
+    update_dns_ui_state(1);
+}
+
+static void on_dns_gg(GtkButton *b, gpointer u) {
+    (void)b; (void)u;
+    char *args[] = {(char *)"set-dns", (char *)"google", NULL};
+    spawn_cmd(args);
+    update_dns_ui_state(2);
+}
 
 static void on_open_wifi_manager(GtkButton *b, gpointer u) {
     (void)b; (void)u;
@@ -204,21 +248,32 @@ GtkWidget* build_network_window(void) {
     gtk_box_pack_start(GTK_BOX(main_box), dns_title, FALSE, FALSE, 4);
 
     GtkWidget *dns_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6);
-    GtkWidget *btn_dhcp = gtk_button_new_with_label("DHCP");
-    GtkWidget *btn_cf = gtk_button_new_with_label("Cloudflare");
-    GtkWidget *btn_gg = gtk_button_new_with_label("Google");
+    g_btn_dhcp = gtk_button_new_with_label("DHCP");
+    g_btn_cf   = gtk_button_new_with_label("Cloudflare");
+    g_btn_gg   = gtk_button_new_with_label("Google");
 
-    gtk_style_context_add_class(gtk_widget_get_style_context(btn_dhcp), "action-btn");
-    gtk_style_context_add_class(gtk_widget_get_style_context(btn_cf), "action-btn");
-    gtk_style_context_add_class(gtk_widget_get_style_context(btn_gg), "action-btn");
+    g_signal_connect(g_btn_dhcp, "clicked", G_CALLBACK(on_dns_dhcp), NULL);
+    g_signal_connect(g_btn_cf,   "clicked", G_CALLBACK(on_dns_cf), NULL);
+    g_signal_connect(g_btn_gg,   "clicked", G_CALLBACK(on_dns_gg), NULL);
 
-    g_signal_connect(btn_dhcp, "clicked", G_CALLBACK(on_dns_dhcp), NULL);
-    g_signal_connect(btn_cf, "clicked", G_CALLBACK(on_dns_cf), NULL);
-    g_signal_connect(btn_gg, "clicked", G_CALLBACK(on_dns_gg), NULL);
+    /* Nhận diện DNS hiện tại để làm sáng rực nút tương ứng */
+    int active_dns = 0;
+    char dns_buf[512] = {0};
+    char *dns_args[] = {(char *)"nmcli", (char *)"-t", (char *)"-f", (char *)"IP4.DNS", (char *)"dev", (char *)"show", NULL};
+    if (exec_capture(dns_args, dns_buf, sizeof(dns_buf)) == 0) {
+        if (strstr(dns_buf, "1.1.1.1")) {
+            active_dns = 1;
+        } else if (strstr(dns_buf, "8.8.8.8")) {
+            active_dns = 2;
+        } else {
+            active_dns = 0;
+        }
+    }
+    update_dns_ui_state(active_dns);
 
-    gtk_box_pack_start(GTK_BOX(dns_box), btn_dhcp, TRUE, TRUE, 0);
-    gtk_box_pack_start(GTK_BOX(dns_box), btn_cf, TRUE, TRUE, 0);
-    gtk_box_pack_start(GTK_BOX(dns_box), btn_gg, TRUE, TRUE, 0);
+    gtk_box_pack_start(GTK_BOX(dns_box), g_btn_dhcp, TRUE, TRUE, 0);
+    gtk_box_pack_start(GTK_BOX(dns_box), g_btn_cf,   TRUE, TRUE, 0);
+    gtk_box_pack_start(GTK_BOX(dns_box), g_btn_gg,   TRUE, TRUE, 0);
     gtk_box_pack_start(GTK_BOX(main_box), dns_box, FALSE, FALSE, 0);
 
     build_footer(main_box, "Esc để đóng • Click chuột phải icon bar để mở nhanh");

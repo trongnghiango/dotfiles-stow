@@ -133,6 +133,21 @@ void apply_theme_css(GtkWidget *window, const ThemeColors *c) {
         "  color: #%s;"
         "  border-color: #%s;"
         "}"
+        ".btn-active {"
+        "  background-image: none;"
+        "  background-color: #%s;"
+        "  color: #%s;"
+        "  border: 1px solid #%s;"
+        "  border-radius: 0px;"
+        "  padding: 5px 12px;"
+        "  font-size: 11px;"
+        "  font-weight: 700;"
+        "}"
+        ".btn-active:hover {"
+        "  background-color: #%s;"
+        "  color: #%s;"
+        "  border-color: #%s;"
+        "}"
         "scale trough {"
         "  min-height: 8px;"
         "  border-radius: 0px;"
@@ -179,6 +194,8 @@ void apply_theme_css(GtkWidget *window, const ThemeColors *c) {
         c->card_bg, c->accent, c->border,
         c->card_bg, c->fg, c->border,
         c->accent, c->bg, c->accent,
+        c->accent, c->bg, c->accent,
+        c->accent, c->bg, c->fg,
         c->accent, c->accent, c->bg,
         c->card_bg, c->fg, c->border,
         c->card_bg, c->fg, c->border,

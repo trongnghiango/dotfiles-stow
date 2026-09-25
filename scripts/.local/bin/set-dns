@@ -71,6 +71,15 @@ if command -v nmcli >/dev/null 2>&1 && systemctl is-active --quiet NetworkManage
 
   echo "[INFO] Using NetworkManager ($CONNECTION on $DEVICE)"
 
+  notify() {
+    local msg="$1"
+    if command -v dunstify >/dev/null 2>&1; then
+      dunstify -a "set-dns" -u normal -i "network-wireless" "DNS Hệ Thống" "$msg" 2>/dev/null || true
+    elif command -v notify-send >/dev/null 2>&1; then
+      notify-send -a "set-dns" -u normal -i "network-wireless" "DNS Hệ Thống" "$msg" 2>/dev/null || true
+    fi
+  }
+
   run_nmcli() {
     if nmcli "$@" 2>/dev/null; then
       return 0
@@ -82,11 +91,17 @@ if command -v nmcli >/dev/null 2>&1 && systemctl is-active --quiet NetworkManage
     fi
   }
 
+  # Dọn dẹp file ghi đè DNS toàn cục cũ của Omarchy (nếu có quyền)
+  if [[ -f /etc/NetworkManager/conf.d/20-omarchy-dns.conf ]] && command -v sudo >/dev/null 2>&1; then
+    sudo -n rm -f /etc/NetworkManager/conf.d/20-omarchy-dns.conf 2>/dev/null && nmcli general reload 2>/dev/null || true
+  fi
+
   if [[ "$DNS_PROVIDER" == "dhcp" || "$DNS_PROVIDER" == "auto" ]]; then
     run_nmcli connection modify "$CONNECTION" ipv4.ignore-auto-dns no ipv4.dns ""
     if ip -6 route show default >/dev/null 2>&1 && ip -6 route show default | grep -q .; then
       run_nmcli connection modify "$CONNECTION" ipv6.ignore-auto-dns no ipv6.dns "" || true
     fi
+    notify "Đã chuyển về DNS mặc định (DHCP)"
     echo "[OK] Reset DNS to DHCP (Automatic)."
   else
     run_nmcli connection modify "$CONNECTION" ipv4.ignore-auto-dns yes ipv4.dns "$DNS4"
@@ -97,6 +112,7 @@ if command -v nmcli >/dev/null 2>&1 && systemctl is-active --quiet NetworkManage
         run_nmcli connection modify "$CONNECTION" ipv6.ignore-auto-dns no ipv6.dns "" || true
       fi
     fi
+    notify "Đã chuyển sang DNS $DNS_PROVIDER ($DNS4)"
     echo "[OK] Set DNS to $DNS_PROVIDER ($DNS4)."
   fi
 
