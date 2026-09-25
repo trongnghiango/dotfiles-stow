@@ -1,0 +1,113 @@
+#!/usr/bin/env bash
+# ==============================================================================
+# ka-weather — Cập nhật dữ liệu vi khí hậu & Radar mưa tức thời (Nowcasting)
+# Tự động đồng bộ icon chuẩn giữa dwmblocks (Signal 14) và ka-pop forecast
+# ==============================================================================
+set -euo pipefail
+
+CACHE_FILE="${XDG_CACHE_HOME:-$HOME/.cache}/weatherreport"
+LOC_FILE="${XDG_CONFIG_HOME:-$HOME/.config}/weather_location"
+mkdir -p "$(dirname "$CACHE_FILE")" 2>/dev/null || true
+if ! touch "$CACHE_FILE" 2>/dev/null; then
+  CACHE_FILE="/tmp/weatherreport"
+fi
+
+LAT="10.823"
+LON="106.686"
+CITY="Gò Vấp, TP.HCM"
+
+if [[ -f "$LOC_FILE" ]]; then
+  read -r LAT LON CITY < "$LOC_FILE" || true
+fi
+
+URL="https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,weather_code,wind_speed_10m&minutely_15=precipitation,weather_code&forecast_minutely_15=8&hourly=precipitation_probability,precipitation&forecast_hours=6&timezone=auto"
+
+RAW="$(curl -s --max-time 5 "$URL" 2>/dev/null || true)"
+if [[ -z "$RAW" || "$RAW" != *"current"* ]]; then
+  echo "Lỗi: Không thể kết nối API thời tiết Open-Meteo." >&2
+  exit 1
+fi
+
+PARSED="$(echo "$RAW" | jq -c --arg city "$CITY" '
+  def wmo_icon(code; is_day):
+    if code == 0 then (if is_day == 1 then "󰖙" else "󰖔" end)
+    elif code == 1 or code == 2 then (if is_day == 1 then "󰖕" else "󰼱" end)
+    elif code == 3 then "󰖐"
+    elif code == 45 or code == 48 then "󰖑"
+    elif code >= 51 and code <= 57 then "󰖗"
+    elif (code >= 61 and code <= 67) or (code >= 80 and code <= 82) then "󰖖"
+    elif (code >= 71 and code <= 77) or (code >= 85 and code <= 86) then "󰖘"
+    elif code >= 95 and code <= 99 then "󰙾"
+    else (if is_day == 1 then "󰖙" else "󰖔" end)
+    end;
+
+  def wmo_desc(code):
+    if code == 0 then "Trời quang đãng"
+    elif code == 1 then "Ít mây"
+    elif code == 2 then "Mây rải rác"
+    elif code == 3 then "Nhiều mây, u ám"
+    elif code == 45 or code == 48 then "Có sương mù"
+    elif code >= 51 and code <= 55 then "Mưa phùn nhẹ"
+    elif code == 56 or code == 57 then "Mưa phùn lạnh buốt"
+    elif code == 61 then "Mưa rào nhẹ"
+    elif code == 63 then "Mưa rào vừa"
+    elif code == 65 then "Mưa to xối xả"
+    elif code >= 80 and code <= 82 then "Mưa dông từng đợt"
+    elif code >= 95 and code <= 99 then "Dông sét nguy hiểm"
+    else "Thời tiết bình thường"
+    end;
+
+  .current as $c |
+  .minutely_15 as $m |
+  .hourly as $h |
+
+  ([range(0; $m.time | length)] | map(select($m.precipitation[.] > 0.1))) as $rain_idx |
+  (if ($rain_idx | length) > 0 then 1 else 0 end) as $rain_soon |
+  (if $rain_soon == 1 then ($m.time[$rain_idx[0]] | split("T")[1]) else "" end) as $rain_time |
+  (if $rain_soon == 1 then ($m.precipitation[$rain_idx[0]]) else 0 end) as $rain_mm |
+  ($h.precipitation_probability[0] // 0) as $prob |
+
+  {
+    city: $city,
+    temp: ($c.temperature_2m | round),
+    feels_like: ($c.apparent_temperature | round),
+    humidity: ($c.relative_humidity_2m | round),
+    wind_speed: ($c.wind_speed_10m | round),
+    is_day: $c.is_day,
+    weather_code: $c.weather_code,
+    icon: wmo_icon($c.weather_code; $c.is_day),
+    desc: wmo_desc($c.weather_code),
+    rain_now_mm: $c.precipitation,
+    rain_soon: $rain_soon,
+    rain_soon_time: $rain_time,
+    rain_soon_prob: $prob,
+    rain_soon_mm: $rain_mm,
+    timeline: [
+      range(0; [4, ($m.time | length)] | min) | {
+        time: ($m.time[.] | split("T")[1]),
+        mm: $m.precipitation[.],
+        icon: wmo_icon($m.weather_code[.]; $c.is_day)
+      }
+    ]
+  }
+')"
+
+# Ghi an toàn vào file cache (atomic via tmp file)
+TMP_DIR="/tmp"
+if [[ -n "${XDG_RUNTIME_DIR:-}" && -w "$XDG_RUNTIME_DIR" ]]; then
+  TMP_DIR="$XDG_RUNTIME_DIR"
+fi
+echo "$PARSED" > "$CACHE_FILE"
+
+# Gửi tín hiệu Signal 14 (SIGRTMIN+14) làm mới block thời tiết trên dwmblocks tức thì
+PID_FILE="${XDG_RUNTIME_DIR:-/tmp}/dwmblocks.pid"
+if [[ -f "$PID_FILE" ]]; then
+  pid="$(cat "$PID_FILE" 2>/dev/null || true)"
+  if [[ -n "$pid" && "$pid" -gt 0 ]]; then
+    kill -RTMIN+14 "$pid" 2>/dev/null || true
+  fi
+else
+  pkill -RTMIN+14 -x dwmblocks 2>/dev/null || true
+fi
+
+echo "Đã cập nhật thời tiết: $(echo "$PARSED" | jq -r '.icon + " " + (.temp|tostring) + "°C • " + .desc')"

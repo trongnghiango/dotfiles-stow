@@ -72,9 +72,23 @@ GtkWidget* build_battery_window(void) {
 
     build_header(main_box, "Quản lý năng lượng", "ThinkPad Battery & Display", badge);
 
+    const char *bat_ico = "󰂃";
+    if (strcmp(status, "Charging") == 0) {
+        bat_ico = "󰂄";
+    } else if (strcmp(status, "Full") == 0) {
+        bat_ico = "󰁹";
+    } else {
+        if (cap >= 90) bat_ico = "󰁹";
+        else if (cap >= 70) bat_ico = "󰂁";
+        else if (cap >= 50) bat_ico = "󰁿";
+        else if (cap >= 30) bat_ico = "󰁽";
+        else if (cap >= 15) bat_ico = "󰁻";
+        else bat_ico = "󰁺";
+    }
+
     GtkWidget *bat_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 12);
     char cap_str[32];
-    snprintf(cap_str, sizeof(cap_str), "%s %d%%", strcmp(status, "Charging") == 0 ? "󰂄" : "󰁹", cap);
+    snprintf(cap_str, sizeof(cap_str), "%s %d%%", bat_ico, cap);
     GtkWidget *lbl_cap = gtk_label_new(cap_str);
     gtk_style_context_add_class(gtk_widget_get_style_context(lbl_cap), "metric-big");
     gtk_box_pack_start(GTK_BOX(bat_box), lbl_cap, FALSE, FALSE, 0);

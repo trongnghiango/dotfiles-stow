@@ -42,6 +42,7 @@ usage() {
   echo -e "  ${GREEN}pop${RESET}     <module>                              Bật/Tắt thẻ popup Omarchy (volume, clock, battery, cpu, mem, net, weather)"
   echo -e "  ${GREEN}dns${RESET}    [dhcp|cloudflare|google|custom <ip>]  Chuyển đổi máy chủ phân giải DNS nhanh"
   echo -e "  ${GREEN}wifi${RESET}   [menu|connect|scan|status|toggle|qr]   Quản lý & kết nối Wi-Fi toàn diện (thay thế nmtui)"
+  echo -e "  ${GREEN}weather${RESET}                                        Cập nhật vi khí hậu & radar mưa tức thời (Nowcasting 1km²)"
   echo -e "  ${GREEN}dev${RESET}    [setup|status|update]                 Quản lý toàn bộ dev runtimes (Node, Python, Go, Rust, Bun, PNPM) qua Mise"
   echo -e "  ${GREEN}ocr${RESET}    [--lang eng|vie] [--stdout]           Bóc tách chữ trên màn hình bằng OCR vào Clipboard"
   echo -e "  ${GREEN}record${RESET} [toggle|status]                      Bật/Tắt quay video màn hình"
@@ -343,6 +344,9 @@ case "$SUBCMD" in
     ;;
   wifi|wlan)
     ka-wifi "$@"
+    ;;
+  weather|forecast)
+    ka-weather "$@"
     ;;
   ocr)
     cmd_ocr "$@"

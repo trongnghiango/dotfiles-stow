@@ -167,10 +167,17 @@ GtkWidget* build_network_window(void) {
         if (p_via) sscanf(p_via + 4, "%63s", gw_buf);
     }
 
-    /* 3. Header hiển thị trạng thái Wi-Fi */
+    /* 3. Header hiển thị trạng thái Wi-Fi (đồng bộ biểu tượng sóng với dwmblocks) */
+    int sig_val = atoi(active_signal);
+    const char *wifi_ico = "󰤨";
+    if (sig_val >= 75) wifi_ico = "󰤨";
+    else if (sig_val >= 50) wifi_ico = "󰤥";
+    else if (sig_val >= 25) wifi_ico = "󰤢";
+    else wifi_ico = "󰤟";
+
     char subtitle[128];
     if (is_connected) {
-        snprintf(subtitle, sizeof(subtitle), "󰤨 %s • %s", active_freq, active_signal);
+        snprintf(subtitle, sizeof(subtitle), "%s %s • %s", wifi_ico, active_freq, active_signal);
     } else {
         snprintf(subtitle, sizeof(subtitle), "󰤮 Thiết bị ngoại tuyến");
     }

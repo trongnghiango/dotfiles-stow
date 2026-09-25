@@ -388,6 +388,9 @@ static void native_volume(char *output, size_t max_len, uint8_t button) {
 static void native_forecast(char *output, size_t max_len, uint8_t button) {
     if (button == 1) {
         spawn_pop("forecast");
+    } else if (button == 3) {
+        char *args[] = {(char *)"ka-weather", NULL};
+        spawn_cmd(args);
     }
 
     const char *home = getenv("HOME");
@@ -396,37 +399,40 @@ static void native_forecast(char *output, size_t max_len, uint8_t button) {
 
     FILE *f = fopen(cache_path, "r");
     if (!f) {
-        snprintf(output, max_len, "󰖕");
+        f = fopen("/tmp/weatherreport", "r");
+    }
+    if (!f) {
+        snprintf(output, max_len, "󰖕 --°C");
         return;
     }
 
-    char buf[2048];
-    char icon_code[16] = "01d";
+    char buf[2048] = {0};
+    char icon[16] = "󰖕";
+    int temp = 25;
+    int rain_soon = 0;
+    char rain_time[16] = {0};
+
     if (fgets(buf, sizeof(buf), f)) {
         char *p_icon = strstr(buf, "\"icon\":\"");
-        if (p_icon) {
-            sscanf(p_icon + 8, "%15[^\"]", icon_code);
-        }
+        if (p_icon) sscanf(p_icon + 8, "%15[^\"]", icon);
+
+        char *p_temp = strstr(buf, "\"temp\":");
+        if (p_temp) sscanf(p_temp + 7, "%d", &temp);
+
+        char *p_rsoon = strstr(buf, "\"rain_soon\":");
+        if (p_rsoon) sscanf(p_rsoon + 12, "%d", &rain_soon);
+
+        char *p_rtime = strstr(buf, "\"rain_soon_time\":\"");
+        if (p_rtime) sscanf(p_rtime + 18, "%15[^\"]", rain_time);
     }
     fclose(f);
 
-    int is_night = (strchr(icon_code, 'n') != NULL);
-    int code_num = atoi(icon_code);
-
-    const char *ico = "󰖕";
-    switch (code_num) {
-        case 1:  ico = is_night ? "󰖔" : "󰖙"; break;
-        case 2:  ico = is_night ? "󰼱" : "󰖕"; break;
-        case 3:
-        case 4:  ico = "󰖐"; break;
-        case 9:
-        case 10: ico = "󰖖"; break;
-        case 11: ico = "󰖓"; break;
-        case 13: ico = "󰖘"; break;
-        case 50: ico = "󰖑"; break;
-        default: ico = is_night ? "󰖔" : "󰖙"; break;
+    /* Cảnh báo mưa tức thì trên Statusbar nếu phát hiện có mưa trong 1-2h tới */
+    if (rain_soon && rain_time[0]) {
+        snprintf(output, max_len, "🌧 %s", rain_time);
+    } else {
+        snprintf(output, max_len, "%s %d°C", icon, temp);
     }
-    snprintf(output, max_len, "%s", ico);
 }
 
 // -----------------------------------------------------------------------------
