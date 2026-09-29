@@ -137,7 +137,6 @@ E,nerd-fonts-symbols,10,dwmblocks,Symbols Nerd Font (Icons & Glyphs) for DWM bar
 ,unzip,11,system,Unzips zip archives.
 ,usbutils,11,system,Queries USB details on CLI (lsusb).
 ,xdg-desktop-portal-gtk,11,system,GTK implementation for portals.
-,xfce4-power-manager,11,system,Power manager for battery and display.
 ,zip,11,system,Creates ZIP archives.
 ,zsh,11,zsh,Zsh shell.
 

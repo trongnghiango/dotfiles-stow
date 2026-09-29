@@ -154,7 +154,9 @@ command -v setbg >/dev/null 2>&1 && setbg "$HOME/Pictures/Wallpapers/" &
 # ==============================================================================
 # 6. KHỞI CHẠY CÁC ỨNG DỤNG NỀN & TRAYER CHUNG
 # ==============================================================================
-autostart="dunst udiskie xfce4-power-manager fcitx5 mpd unclutter"
+autostart="dunst udiskie fcitx5 unclutter"
+# Cấu hình X11 DPMS chuẩn: Standby 10m, Suspend 15m, Off 20m (thay thế xfce4-power-manager)
+xset dpms 600 900 1200 2>/dev/null || true
 [ "${PICOM_BACKEND:-glx}" != "none" ] && autostart="$autostart picom"
 for program in $autostart; do
   if command -v "$program" >/dev/null 2>&1; then
@@ -176,15 +178,11 @@ command -v dwmblocks >/dev/null 2>&1 && dwmblocks &
 # ==============================================================================
 # 8. KHỞI ĐỘNG WINDOW MANAGER
 # ==============================================================================
-# Tối ưu hóa Process Scheduling: Nâng độ ưu tiên cho Xorg/DWM (nice -5)
-# Đảm bảo độ trễ chuột/phím và phản hồi UI luôn đạt chuẩn Real-Time ngay cả khi CPU 100%
-renice -n -5 -p $$ 2>/dev/null || true
-
 # Bẫy dọn dẹp các tiến trình daemon nền khi thoát phiên làm việc (Tránh tiến trình mồ côi)
 cleanup_session() {
   pkill -P $$ 2>/dev/null || true
-  # FIX: Dọn dẹp sạch toàn bộ daemon nền tránh tiến trình mồ côi (orphan daemons)
-  for proc in dunst picom fcitx5 dwmblocks ka-clipd unclutter udiskie xfce4-power-manager mpd xcape; do
+  # Dọn dẹp sạch toàn bộ daemon giao diện phiên X11 tránh tiến trình mồ côi
+  for proc in dunst picom fcitx5 dwmblocks ka-clipd unclutter udiskie xcape; do
     pkill -u "$USER" -x "$proc" 2>/dev/null || true
   done
   pkill -u "$USER" -f "polkit.*authentication-agent-1" 2>/dev/null || true

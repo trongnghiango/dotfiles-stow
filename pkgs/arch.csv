@@ -3,7 +3,6 @@
 ,base-devel,1,base,"Essential compilation tools (gcc, make, etc.)."
 ,direnv,1,base,Environment switcher loaded in env.zsh (eval direnv hook zsh).
 ,efibootmgr,1,base,Manipulates EFI Boot Manager variables.
-,grub,1,base,GNU GRUB bootloader.
 ,linux-firmware,1,base,Firmware files for Linux kernel.
 ,linux-lts,1,base,Long Term Support Linux kernel.
 ,lvm2,1,base,Logical Volume Manager tools.
@@ -146,7 +145,6 @@ A,opencode-bin,11,dev,Relays code agents via AI gateway.
 ,vulkan-intel,11,intel,Vulkan graphics API to Intel cards.
 ,vulkan-tools,11,intel,Vulkan utilities (vulkaninfo).
 ,xdg-desktop-portal-gtk,11,system,GTK implementation for portals.
-,xfce4-power-manager,11,system,"Power manager for battery, display brightness and sleep on lid close."
 A,yay-bin,11,system,AUR package compilation helper.
 ,zip,11,system,Creates ZIP archives.
 ,zsh,11,zsh,Zsh utility.

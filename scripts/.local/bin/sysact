@@ -27,7 +27,6 @@ mute_audio() {
 
 lock_screen() {
   mpc pause >/dev/null 2>&1 || true
-  pauseallmpv >/dev/null 2>&1 || true
   mute_audio
   pkill -RTMIN+11 -x dwmblocks 2>/dev/null || true
   if command -v slock >/dev/null 2>&1; then
