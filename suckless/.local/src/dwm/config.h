@@ -264,9 +264,9 @@ static char *rofiwindow[] = { "rofi-launcher", "window", NULL }; /* Window switc
 static char *roficalc[] = { "rofi", "-show", "calc", NULL }; /* for calculator */
 static char *rofiemoji[] = { "rofi", "-show", "emoji", NULL }; /* for emoji */
 
-/* Terminals */
+/* Terminals & Browsers */
 static const char *stcmd[]  = { "st", NULL }; /* st terminal */
-static const char *bravecmd[] = { "brave", NULL }; /* web browser */
+static const char *browsercmd[] = { "sh", "-c", "exec ${BROWSER:-brave}", NULL }; /* dynamic web browser */
 
 /* screenshots & tools */
 static const char *screenshot[] = { "shot", "screen", NULL }; // full screen
@@ -304,7 +304,7 @@ static const Key keys[] = {
 	{ Mod1Mask,                     XK_Tab,        spawn,                  {.v = rofiwindow } },
 	{ MODKEY,                       XK_space,      spawn,                  {.v = roficmd } },
 	{ MODKEY,                       XK_d,          spawn,                  {.v = dmenucmd } },
-	{ MODKEY,                       XK_w,          spawn,                  {.v = bravecmd } },
+	{ MODKEY,                       XK_w,          spawn,                  {.v = browsercmd } },
 	{ MODKEY,                       XK_e,          spawn,                  {.v = lf } },
 	{ MODKEY|ShiftMask,             XK_e,          spawn,                  {.v = rofiemoji } },
 	{ MODKEY,                       XK_c,          spawn,                  {.v = roficalc } },
@@ -398,18 +398,18 @@ static const Key keys[] = {
 	{ 0, XF86XK_AudioRewind,                       spawn,                  {.v = (const char*[]){ "mpc", "seek", "-10", NULL } } },
 	{ 0, XF86XK_AudioForward,                      spawn,                  {.v = (const char*[]){ "mpc", "seek", "+10", NULL } } },
 	{ 0, XF86XK_AudioMedia,                        spawn,                  {.v = (const char*[]){ "st", "-e", "ncmpcpp", NULL } } },
-	{ 0, XF86XK_AudioMicMute,                      spawn,                  SHCMD("pactl set-source-mute @DEFAULT_SOURCE@ toggle") },
+	{ 0, XF86XK_AudioMicMute,                      mic_toggle,             {0} },
 	{ 0, XF86XK_Calculator,                        spawn,                  {.v = (const char*[]){ "st", "-e", "bc", "-l", NULL } } },
 	{ 0, XF86XK_Sleep,                             spawn,                  {.v = (const char*[]){ "sudo", "-A", "zzz", NULL } } },
-	{ 0, XF86XK_WWW,                               spawn,                  {.v = bravecmd } },
-	{ 0, XF86XK_ScreenSaver,                       spawn,                  SHCMD("slock & xset dpms force off; mpc pause; pauseallmpv") },
+	{ 0, XF86XK_WWW,                               spawn,                  {.v = browsercmd } },
+	{ 0, XF86XK_ScreenSaver,                       spawn,                  SHCMD("slock & xset dpms force off; mpc pause") },
 	{ 0, XF86XK_TaskPane,                          spawn,                  {.v = (const char*[]){ "st", "-e", "htop", NULL } } },
 	{ 0, XF86XK_Mail,                              spawn,                  {.v = (const char*[]){ "st", "-e", "neomutt", NULL } } },
 	{ 0, XF86XK_MyComputer,                        spawn,                  {.v = (const char*[]){ "st", "-e",  "lfub",  "/", NULL } } },
 	{ 0, XF86XK_Launch1,                           spawn,                  {.v = (const char*[]){ "xset", "dpms", "force", "off", NULL } } },
-	{ 0, XF86XK_TouchpadToggle,                    spawn,                  SHCMD("(synclient | grep 'TouchpadOff.*1' && synclient TouchpadOff=0) || synclient TouchpadOff=1") },
-	{ 0, XF86XK_TouchpadOff,                       spawn,                  {.v = (const char*[]){ "synclient", "TouchpadOff=1", NULL } } },
-	{ 0, XF86XK_TouchpadOn,                        spawn,                  {.v = (const char*[]){ "synclient", "TouchpadOff=0", NULL } } },
+	{ 0, XF86XK_TouchpadToggle,                    spawn,                  {.v = (const char*[]){ "touchpad-toggle", NULL } } },
+	{ 0, XF86XK_TouchpadOff,                       spawn,                  {.v = (const char*[]){ "touchpad-toggle", "off", NULL } } },
+	{ 0, XF86XK_TouchpadOn,                        spawn,                  {.v = (const char*[]){ "touchpad-toggle", "on", NULL } } },
 	{ 0, XF86XK_MonBrightnessUp,                   spawn,                  {.v = (const char*[]){ "brightnessctl", "set", "+5%", NULL } } },
 	{ 0, XF86XK_MonBrightnessDown,                 spawn,                  {.v = (const char*[]){ "brightnessctl", "set", "5%-", NULL } } },
 	TAGKEYS(                        XK_1,                                  0)

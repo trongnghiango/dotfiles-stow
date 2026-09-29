@@ -13,7 +13,7 @@ else
 fi
 
 case "$url" in
-	*mkv|*webm|*mp4|*youtube.com/watch*|*youtube.com/playlist*|*youtube.com/shorts*|*youtu.be*|*hooktube.com*|*bitchute.com*|*videos.lukesmith.xyz*|*odysee.com*)
+	*mkv|*webm|*mp4|*youtube.com/watch*|*youtube.com/playlist*|*youtube.com/shorts*|*youtu.be*|*hooktube.com*|*bitchute.com*|*odysee.com*)
 		setsid -f mpv -quiet "$url" >/dev/null 2>&1 ;;
 	*png|*jpg|*jpe|*jpeg|*gif|*webp)
 		tmp_img="$(mktemp -p "${XDG_RUNTIME_DIR:-/tmp}" link-XXXXXX.png)"
@@ -22,7 +22,7 @@ case "$url" in
 		tmp_pdf="$(mktemp -p "${XDG_RUNTIME_DIR:-/tmp}" link-XXXXXX.pdf)"
 		curl -sL "$url" > "$tmp_pdf" && zathura "$tmp_pdf" >/dev/null 2>&1 & ;;
 	*mp3|*flac|*opus|*mp3?source*)
-		qndl "$url" 'curl -LO'  >/dev/null 2>&1 ;;
+		(cd "${XDG_DOWNLOAD_DIR:-$HOME/Downloads}" && curl -sLO "$url" && notify-send "🎵 Audio" "Đã tải: $(basename "$url")") >/dev/null 2>&1 & ;;
 	*)
 		[ -f "$url" ] && setsid -f "$TERMINAL" -e "$EDITOR" "$url" >/dev/null 2>&1 || setsid -f "$BROWSER" "$url" >/dev/null 2>&1
 esac

@@ -2,7 +2,7 @@
 # ==============================================================================
 # ka-default — Unified Default Applications & Handlers Selector
 # Triết lý: Kết hợp sự tinh tế thẩm mỹ của DHH (Omarchy) và tốc độ thực dụng,
-# đa distro của Chris Titus (X11/DWM, Arch/Debian/Void/NixOS).
+# đa distro của Chris Titus (X11/DWM, Arch/Debian/Void/Fedora).
 #
 # Sử dụng:
 #   ka default                    Mở giao diện Rofi tương tác (Stage 1 & 2)

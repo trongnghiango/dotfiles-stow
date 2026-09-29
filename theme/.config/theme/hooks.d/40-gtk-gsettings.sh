@@ -121,7 +121,8 @@ profile_local="${XDG_CONFIG_HOME:-$HOME/.config}/shell/profile.local"
 if [ -f "$profile_local" ]; then
     grep -v '^export GTK_THEME=' "$profile_local" > "${profile_local}.tmp" 2>/dev/null || true
     echo "export GTK_THEME="$GTK_THEME_ENV"" >> "${profile_local}.tmp"
-    mv "${profile_local}.tmp" "$profile_local"
+    cat "${profile_local}.tmp" > "$profile_local"
+    rm -f "${profile_local}.tmp"
 else
     echo "export GTK_THEME="$GTK_THEME_ENV"" > "$profile_local"
 fi

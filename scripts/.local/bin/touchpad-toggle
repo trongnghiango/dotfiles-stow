@@ -1,0 +1,28 @@
+#!/bin/sh
+# ==============================================================================
+# touchpad-toggle — Chuyển đổi trạng thái Bật/Tắt Touchpad qua xinput
+# Đọc hiểu trong 5s: Nhận diện touchpad qua libinput và bật/tắt an toàn
+# ==============================================================================
+action="${1:-toggle}"
+
+for id in $(xinput list --id-only 2>/dev/null); do
+  props=$(xinput list-props "$id" 2>/dev/null) || continue
+  echo "$props" | grep -q "libinput Tapping Enabled" || continue
+
+  case "$action" in
+    off)
+      xinput disable "$id" 2>/dev/null
+      ;;
+    on)
+      xinput enable "$id" 2>/dev/null
+      ;;
+    toggle|*)
+      state=$(echo "$props" | awk '/Device Enabled/{print $NF}')
+      if [ "$state" = "1" ]; then
+        xinput disable "$id" 2>/dev/null
+      else
+        xinput enable "$id" 2>/dev/null
+      fi
+      ;;
+  esac
+done

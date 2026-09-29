@@ -121,6 +121,7 @@ void
 xrdb(const Arg *arg)
 {
 	loadxrdb();
+	reload_termcolors(drw);
 	int i;
 	for (i = 0; i < LENGTH(colors) + 1; i++) {
 		if (scheme[i])

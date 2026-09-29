@@ -443,22 +443,6 @@ struct HoverBlock {
 } hover_block = {0, 0, 0};
 
 static void
-closewindow(Window win)
-{
-	if (!win)
-		return;
-	if (!sendevent(win, wmatom[WMDelete], NoEventMask, wmatom[WMDelete], CurrentTime, 0, 0, 0)) {
-		XGrabServer(dpy);
-		XSetErrorHandler(xerrordummy);
-		XSetCloseDownMode(dpy, DestroyAll);
-		XKillClient(dpy, win);
-		XSync(dpy, False);
-		XSetErrorHandler(xerror);
-		XUngrabServer(dpy);
-	}
-}
-
-static void
 killdropdown(Window win)
 {
 	if (!win)
@@ -801,6 +785,7 @@ cleanup(void)
 	for (i = 0; i < LENGTH(colors) + 1; i++)
 		drw_scm_free(drw, scheme[i], ColCount);
 	free(scheme);
+	free_termcolors(drw);
 	XDestroyWindow(dpy, wmcheckwin);
 	drw_free(drw);
 	XSync(dpy, False);

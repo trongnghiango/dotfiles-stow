@@ -1,7 +1,0 @@
-#!/usr/bin/env bash
-
-notify-send "Bluetooth" "Resetting bluetooth service..."
-
-sudo systemctl restart bluetooth
-
-notify-send "Bluetooth" "Bluetooth restarted"

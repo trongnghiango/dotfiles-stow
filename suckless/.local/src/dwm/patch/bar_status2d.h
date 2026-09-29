@@ -17,4 +17,6 @@ static int status2dtextlength(char *stext);
 static int parse_status_blocks(const char *rawtext, int bar_start_x, int bh, StatusBlock *blocks, int max_blocks);
 static int find_block_at(int rel_x, const char *rawtext, int bar_start_x, int bh, int *out_ux, int *out_uw);
 static int calblockpos(Monitor *m, int sig, int *out_screen_x, int *out_w);
+static void reload_termcolors(Drw *drw);
+static void free_termcolors(Drw *drw);
 

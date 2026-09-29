@@ -142,14 +142,18 @@ getparentprocess(pid_t p)
 
 #ifdef __linux__
 	FILE *f;
-	char buf[256];
-	snprintf(buf, sizeof(buf) - 1, "/proc/%u/stat", (unsigned)p);
+	char buf[512];
+	snprintf(buf, sizeof(buf), "/proc/%u/stat", (unsigned)p);
 
 	if (!(f = fopen(buf, "r")))
 		return (pid_t)0;
 
-	if (fscanf(f, "%*u %*s %*c %u", (unsigned *)&v) != 1)
-		v = (pid_t)0;
+	if (fgets(buf, sizeof(buf), f)) {
+		/* Field 2 is (comm) which may contain spaces; find the last ')' to parse ppid safely */
+		char *close_paren = strrchr(buf, ')');
+		if (close_paren)
+			sscanf(close_paren + 1, " %*c %u", (unsigned *)&v);
+	}
 	fclose(f);
 #endif /* __linux__ */
 #ifdef __OpenBSD__

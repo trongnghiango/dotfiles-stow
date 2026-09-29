@@ -1,0 +1,15 @@
+#!/bin/sh
+# ==============================================================================
+# rssadd — Thêm URL vào danh sách theo dõi RSS của Newsboat
+# Đọc hiểu trong 5s: Ghi URL vào ~/.config/newsboat/urls và thông báo
+# ==============================================================================
+urls_file="${XDG_CONFIG_HOME:-$HOME/.config}/newsboat/urls"
+mkdir -p "$(dirname "$urls_file")"
+
+for url in "$@"; do
+  [ -z "$url" ] && continue
+  if ! grep -qxF "$url" "$urls_file" 2>/dev/null; then
+    echo "$url" >> "$urls_file"
+    notify-send "📰 Newsboat" "Đã thêm RSS feed: $url" 2>/dev/null || true
+  fi
+done

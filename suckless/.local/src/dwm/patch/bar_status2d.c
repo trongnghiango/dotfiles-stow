@@ -61,6 +61,32 @@ get_hex_color(Drw *drw, const char *hex)
 	return &hex_cache[slot].clr;
 }
 
+static void
+free_termcolors(Drw *drw)
+{
+	if (!termcolors_inited)
+		return;
+	for (int i = 0; i < 16; i++) {
+		XftColorFree(drw->dpy, DefaultVisual(drw->dpy, drw->screen),
+		             DefaultColormap(drw->dpy, drw->screen), &termcolors[i]);
+	}
+	for (int i = 0; i < HEX_CACHE_SIZE; i++) {
+		if (hex_cache[i].used) {
+			XftColorFree(drw->dpy, DefaultVisual(drw->dpy, drw->screen),
+			             DefaultColormap(drw->dpy, drw->screen), &hex_cache[i].clr);
+			hex_cache[i].used = 0;
+		}
+	}
+	termcolors_inited = 0;
+}
+
+static void
+reload_termcolors(Drw *drw)
+{
+	free_termcolors(drw);
+	init_termcolors(drw);
+}
+
 int
 width_status2d(Bar *bar, BarArg *a)
 {

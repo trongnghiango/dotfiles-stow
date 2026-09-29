@@ -1,12 +1,11 @@
 #!/bin/sh
-
-# Some optional functions in LARBS require programs not installed by default. I
-# use this little script to check to see if a command exists and if it doesn't
-# it informs the user that they need that command to continue. This is used in
-# various other scripts for clarity's sake.
-
-for x in "$@"; do
-	if ! which "$x" >/dev/null 2>&1 && ! pacman -Qq "$x" >/dev/null 2>&1; then
- 		notify-send "📦 $x" "must be installed for this function." && exit 1 ;
+# ==============================================================================
+# ifinstalled — Kiểm tra công cụ cần thiết trước khi thực thi
+# Đọc hiểu trong 5s: Dùng command -v chuẩn POSIX, gửi thông báo nếu thiếu
+# ==============================================================================
+for cmd in "$@"; do
+	if ! command -v "$cmd" >/dev/null 2>&1; then
+		notify-send -u critical "📦 Thiếu công cụ" "Cần cài đặt: $cmd" 2>/dev/null || true
+		exit 1
 	fi
 done

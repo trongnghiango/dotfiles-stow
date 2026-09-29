@@ -1,0 +1,13 @@
+#!/bin/sh
+# ==============================================================================
+# transadd — Thêm liên kết Torrent / Magnet vào Transmission Daemon
+# Đọc hiểu trong 5s: Gọi transmission-remote và gửi thông báo trạng thái
+# ==============================================================================
+for url in "$@"; do
+  [ -z "$url" ] && continue
+  if transmission-remote -a "$url" >/dev/null 2>&1; then
+    notify-send "📥 Torrent" "Đã thêm torrent vào Transmission" 2>/dev/null || true
+  else
+    notify-send -u critical "📥 Torrent" "Không thể kết nối Transmission Daemon" 2>/dev/null || true
+  fi
+done

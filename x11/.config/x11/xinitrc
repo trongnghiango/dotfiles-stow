@@ -111,10 +111,10 @@ if command -v gnome-keyring-daemon >/dev/null 2>&1; then
 fi
 
 # ==============================================================================
-# 4. NẠP CẤU HÌNH THEO TỪNG HỆ ĐIỀU HÀNH (ARCH / VOID / NIXOS)
+# 4. NẠP CẤU HÌNH THEO TỪNG HỆ ĐIỀU HÀNH (ARCH / DEBIAN / VOID)
 # ==============================================================================
 if [ "${AUDIO_BACKEND:-pipewire}" = "pipewire" ] && [ -f /etc/os-release ]; then
-  # Trích xuất ID và ID_LIKE hệ điều hành (ví dụ: arch, debian, void, nixos)
+  # Trích xuất ID và ID_LIKE hệ điều hành (ví dụ: arch, debian, void)
   OS=$(. /etc/os-release && echo "$ID")
   OS_LIKE=$(. /etc/os-release && echo "$ID_LIKE")
 

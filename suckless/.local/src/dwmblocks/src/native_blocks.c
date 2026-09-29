@@ -9,6 +9,7 @@
 #include <fcntl.h>
 #include <sys/types.h>
 #include <alloca.h>
+#include <sys/stat.h>
 #include <alsa/asoundlib.h>
 
 /* Direct async spawn without /bin/sh (1 fork, 0 subshells) */
@@ -396,6 +397,19 @@ static void native_forecast(char *output, size_t max_len, uint8_t button) {
     const char *home = getenv("HOME");
     char cache_path[512];
     snprintf(cache_path, sizeof(cache_path), "%s/.cache/weatherreport", home ? home : "/tmp");
+
+    /* Auto-fetch if cache is missing or older than 30 minutes (1800s) */
+    struct stat st;
+    int cache_missing_or_stale = (stat(cache_path, &st) != 0 || (time(NULL) - st.st_mtime > 1800));
+    if (cache_missing_or_stale) {
+        static time_t last_spawn = 0;
+        time_t now = time(NULL);
+        if (now - last_spawn > 60) { /* Debounce background fetch */
+            last_spawn = now;
+            char *args[] = {(char *)"ka-weather", NULL};
+            spawn_cmd(args);
+        }
+    }
 
     FILE *f = fopen(cache_path, "r");
     if (!f) {

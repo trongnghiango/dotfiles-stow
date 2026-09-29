@@ -35,8 +35,11 @@ draw_wintitle(Bar *bar, BarArg *a)
 
 	drw_setscheme(drw, scheme[m == selmon ? SchemeTitleSel : SchemeTitleNorm]);
 
-	if (w <= TEXTW("A") - lrpad + tpad) // reduce text padding if wintitle is too small
-		tpad = (w - TEXTW("A") + lrpad < 0 ? 0 : (w - TEXTW("A") + lrpad) / 2);
+	int min_w = (int)drw_fontset_getwidth(drw, "A", False);
+	if (w <= min_w + tpad) {
+		int diff = w - min_w;
+		tpad = (diff < 0) ? 0 : diff / 2;
+	}
 
 	XSetForeground(drw->dpy, drw->gc, drw->scheme[ColBg].pixel);
 	XFillRectangle(drw->dpy, drw->drawable, drw->gc, x, a->y, w, a->h);
