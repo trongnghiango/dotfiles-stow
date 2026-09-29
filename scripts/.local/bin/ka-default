@@ -447,15 +447,8 @@ apply_handler() {
     xdg-mime default "$app" "$m" 2>/dev/null || true
   done
 
-  # Chuẩn hóa trailing semicolon cho mimeapps.list theo chuẩn Freedesktop XDG
-  local mime_file="${XDG_CONFIG_HOME:-$HOME/.config}/mimeapps.list"
-  if [ -e "$mime_file" ]; then
-    local real_mime
-    real_mime="$(readlink -f "$mime_file" 2>/dev/null || echo "$mime_file")"
-    if [ -w "$real_mime" ]; then
-      sed -i -E '/^[^#\[].*=[^;]*[^;]$/ s/$/;/' "$real_mime"
-    fi
-  fi
+  # XDG Base Directory: xdg-mime tự động ghi nhận cấu hình mimeapps.list của user.
+  # Bảo vệ bất biến GNU Stow: Tuyệt đối không dùng sed -i làm đứt symlink hoặc sửa file trong repo.
 
   # Đồng bộ biến môi trường tương ứng trong profile.local (nếu có quyền ghi)
   if [ -w "$(dirname "$PROFILE_LOCAL")" ] || [ -w "$PROFILE_LOCAL" ]; then
