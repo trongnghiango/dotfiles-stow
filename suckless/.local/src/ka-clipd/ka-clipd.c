@@ -153,7 +153,31 @@ static char* escape_json(const char *src, size_t max_len) {
     return dest;
 }
 
-static void add_clip_entry(const char *type, const char *summary, const char *text,
+static void cleanup_evicted_entry(const char *entry_start, const char *entry_end) {
+    if (!entry_start || !entry_end || entry_end <= entry_start) return;
+    const char *key = "\"file_path\":";
+    const char *p = strstr(entry_start, key);
+    if (!p || p >= entry_end) return;
+    p += strlen(key);
+    while (p < entry_end && (*p == ' ' || *p == '\t')) p++;
+    if (p < entry_end && *p == '"') {
+        p++;
+        const char *quote_end = strchr(p, '"');
+        if (quote_end && quote_end < entry_end) {
+            char fpath[PATH_MAX] = {0};
+            size_t plen = (size_t)(quote_end - p);
+            if (plen < sizeof(fpath)) {
+                memcpy(fpath, p, plen);
+                fpath[plen] = '\0';
+                if (g_entries_dir[0] && strncmp(fpath, g_entries_dir, strlen(g_entries_dir)) == 0) {
+                    unlink(fpath);
+                }
+            }
+        }
+    }
+}
+
+static void add_clip_entry(const char *type, const char *summary,
                            const char *file_path, const char *dimensions, const char *size_str) {
     time_t now = time(NULL);
     struct tm *tm_info = localtime(&now);
@@ -164,20 +188,11 @@ static void add_clip_entry(const char *type, const char *summary, const char *te
     snprintf(id_str, sizeof(id_str), "%ld_%s", (long)now, g_last_hash);
 
     char *esc_summary = escape_json(summary ? summary : "", 96);
-    char *esc_text = text ? escape_json(text, 1024 * 1024) : NULL;
-    char *esc_file = escape_json(file_path ? file_path : "", 256);
+    char *esc_file = escape_json(file_path ? file_path : "", sizeof(id_str) + 256);
 
-    /* Construct new JSON object */
-    size_t new_obj_sz = 1024 + (esc_text ? strlen(esc_text) : 0);
-    char *new_obj = malloc(new_obj_sz);
-    if (!new_obj) {
-        free(esc_summary);
-        free(esc_text);
-        free(esc_file);
-        return;
-    }
-
-    snprintf(new_obj, new_obj_sz,
+    /* Construct lightweight metadata JSON object (< 1KB) */
+    char new_obj[1024];
+    snprintf(new_obj, sizeof(new_obj),
         "  {\n"
         "    \"id\": \"%s\",\n"
         "    \"type\": \"%s\",\n"
@@ -186,20 +201,16 @@ static void add_clip_entry(const char *type, const char *summary, const char *te
         "    \"summary_title\": \"%s\",\n"
         "    \"file_path\": \"%s\",\n"
         "    \"dimensions\": \"%s\",\n"
-        "    \"size_str\": \"%s\"%s%s%s\n"
+        "    \"size_str\": \"%s\"\n"
         "  }",
         id_str, type, date_str, time_str,
         esc_summary ? esc_summary : "",
         esc_file ? esc_file : "",
         dimensions ? dimensions : "",
-        size_str ? size_str : "",
-        esc_text ? ",\n    \"text\": \"" : "",
-        esc_text ? esc_text : "",
-        esc_text ? "\"" : ""
+        size_str ? size_str : ""
     );
 
     free(esc_summary);
-    free(esc_text);
     free(esc_file);
 
     /* Read existing history.json */
@@ -225,14 +236,12 @@ static void add_clip_entry(const char *type, const char *summary, const char *te
     snprintf(tmp_path, sizeof(tmp_path), "%s.tmp-%d", g_history_file, getpid());
     int fd = open(tmp_path, O_WRONLY | O_CREAT | O_TRUNC, 0600);
     if (fd < 0) {
-        free(new_obj);
         free(existing_buf);
         return;
     }
     FILE *f_out = fdopen(fd, "wb");
     if (!f_out) {
         close(fd);
-        free(new_obj);
         free(existing_buf);
         return;
     }
@@ -244,20 +253,24 @@ static void add_clip_entry(const char *type, const char *summary, const char *te
         /* Parse up to MAX_ENTRIES - 1 existing entries */
         const char *p = strchr(existing_buf, '{');
         int count = 1;
-        while (p && count < MAX_ENTRIES) {
+        while (p) {
             const char *end = find_matching_brace(p);
             if (!end) break;
-            fputs(",\n", f_out);
-            fwrite(p, 1, (size_t)(end - p + 1), f_out);
+            if (count < MAX_ENTRIES) {
+                fputs(",\n", f_out);
+                fwrite(p, 1, (size_t)(end - p + 1), f_out);
+                count++;
+            } else {
+                /* Cleanup dropped entries on disk */
+                cleanup_evicted_entry(p, end);
+            }
             p = strchr(end + 1, '{');
-            count++;
         }
         free(existing_buf);
     }
 
     fputs("\n]\n", f_out);
     fclose(f_out);
-    free(new_obj);
 
     rename(tmp_path, g_history_file);
     chmod(g_history_file, 0600);
@@ -277,10 +290,30 @@ static void capture_text(Display *dpy, Window win, Atom prop) {
                 memcpy(clean_text, data, nitems);
                 clean_text[nitems] = '\0';
 
+                /* Security: Never persist private keys or certificates to disk */
+                if (strstr(clean_text, "BEGIN PRIVATE KEY") ||
+                    strstr(clean_text, "BEGIN RSA PRIVATE KEY") ||
+                    strstr(clean_text, "BEGIN OPENSSH PRIVATE KEY")) {
+                    free(clean_text);
+                    XFree(data);
+                    return;
+                }
+
                 char hash[65];
                 compute_hash((const unsigned char *)clean_text, nitems, hash, sizeof(hash));
                 if (strcmp(hash, g_last_hash) != 0) {
                     memcpy(g_last_hash, hash, sizeof(hash));
+
+                    time_t now = time(NULL);
+                    char entry_file[PATH_MAX + 128];
+                    snprintf(entry_file, sizeof(entry_file), "%s/%ld_%s.txt", g_entries_dir, (long)now, hash);
+
+                    int tfd = open(entry_file, O_WRONLY | O_CREAT | O_TRUNC, 0600);
+                    if (tfd >= 0) {
+                        ssize_t written = write(tfd, clean_text, nitems);
+                        (void)written;
+                        close(tfd);
+                    }
 
                     char summary[96] = {0};
                     size_t s_len = 0;
@@ -294,7 +327,7 @@ static void capture_text(Display *dpy, Window win, Atom prop) {
                     char size_str[32];
                     format_size(nitems, size_str, sizeof(size_str));
 
-                    add_clip_entry("text", summary, clean_text, "", "", size_str);
+                    add_clip_entry("text", summary, entry_file, "", size_str);
                 }
                 free(clean_text);
             }
