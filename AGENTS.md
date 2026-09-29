@@ -43,7 +43,7 @@ Mã nguồn `dwmblocks` được biên dịch từ `config.h` (X-Macro `BLOCKS(X
 4. **`ka-volume`** (`native_blocks.c:298`, interval: 60s, signal: 11): In-process C, đọc giá trị phần cứng trực tiếp qua ALSA API (`libasound`, `snd_mixer_selem_get_playback_volume`) (0 fork). Hỗ trợ cả PipeWire (`wpctl`) lẫn ALSA (`amixer`).
 5. **`ka-battery`** (`native_blocks.c:140`, interval: 60s, signal: 30): In-process C, đọc trạng thái từ `/sys/class/power_supply` (0 fork).
 6. **`ka-network`** (`native_blocks.c:206`, interval: 10s, signal: 4): In-process C, đọc `/proc/net/wireless` và `/sys/class/net` (0 fork).
-7. **`ka-cpu`** (`native_blocks.c:76`, interval: 2s, signal: 15): In-process C, đọc vi sai hai lần từ `/proc/stat` (0 fork, 0 sleep).
+7. **`ka-cpu`** (`native_blocks.c:76`, interval: 5s, signal: 15): In-process C, đọc vi sai hai lần từ `/proc/stat` (0 fork, 0 sleep).
 8. **`ka-memory`** (`native_blocks.c:126`, interval: 10s, signal: 10): In-process C, đọc trực tiếp `/proc/meminfo` (0 fork, 0 subshell).
 9. **`sb-notify`** (`native_blocks.c:414`, interval: 0s, signal: 8): **Thuần hướng sự kiện (interval = 0)**. Chỉ cập nhật khi nhận tín hiệu `SIGRTMIN+8` từ Dunst, loại bỏ hoàn toàn việc fork định kỳ khi hệ thống idle.
 

@@ -122,7 +122,7 @@ static void native_cpu(char *output, size_t max_len, uint8_t button) {
 }
 
 // -----------------------------------------------------------------------------
-// 2. MEMORY BLOCK
+// 2. MEMORY BLOCK (In-process /proc/meminfo reader - Zero Fork)
 // -----------------------------------------------------------------------------
 static void native_memory(char *output, size_t max_len, uint8_t button) {
     if (button == 1) {
@@ -132,7 +132,31 @@ static void native_memory(char *output, size_t max_len, uint8_t button) {
         spawn_cmd(args);
     }
 
-    snprintf(output, max_len, "󰘚");
+    FILE *f = fopen("/proc/meminfo", "r");
+    if (!f) {
+        snprintf(output, max_len, "󰘚");
+        return;
+    }
+
+    unsigned long total = 0, avail = 0;
+    char key[32];
+    unsigned long val;
+    while (fscanf(f, "%31s %lu kB\n", key, &val) == 2) {
+        if (!strcmp(key, "MemTotal:")) {
+            total = val;
+        } else if (!strcmp(key, "MemAvailable:")) {
+            avail = val;
+            break;
+        }
+    }
+    fclose(f);
+
+    int pct = total ? (int)(((total - avail) * 100) / total) : 0;
+    if (pct >= 85) {
+        snprintf(output, max_len, "^C1^󰘚^d^");
+    } else {
+        snprintf(output, max_len, "󰘚");
+    }
 }
 
 // -----------------------------------------------------------------------------
