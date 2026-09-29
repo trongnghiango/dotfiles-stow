@@ -8,17 +8,10 @@ BUILD_DIR := build
 SRC_DIR := src
 INC_DIR := include
 
-ifeq ($(LOCAL_BUILD),1)
-OPTFLAGS := -O3 -march=native -pipe -flto
-LDFLTO   := -flto
-else
-OPTFLAGS := -O2 -march=x86-64-v2 -pipe
-LDFLTO   :=
-endif
-
+OPTFLAGS ?= -O2 -march=x86-64-v2 -pipe
 CFLAGS ?= $(OPTFLAGS) -Wall -Wextra -Wpedantic
 CFLAGS += -I$(INC_DIR) $(shell pkg-config --cflags gtk+-3.0)
-LDLIBS += $(LDFLTO) $(shell pkg-config --libs gtk+-3.0) -lm
+LDLIBS += $(shell pkg-config --libs gtk+-3.0) -lX11 -lm
 
 SRCS := $(SRC_DIR)/main.c $(SRC_DIR)/theme.c $(SRC_DIR)/ui.c $(SRC_DIR)/util.c \
         $(SRC_DIR)/modules/volume.c $(SRC_DIR)/modules/battery.c $(SRC_DIR)/modules/clock.c \

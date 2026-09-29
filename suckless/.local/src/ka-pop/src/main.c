@@ -1,3 +1,5 @@
+#include <gdk/gdkx.h>
+#include <X11/Xatom.h>
 /* ==============================================================================
  * ka-pop: Ultra-Fast Native C / GTK3 Popover Cards for Omarchy-X11
  * ============================================================================== */
@@ -45,6 +47,28 @@ int main(int argc, char *argv[]) {
     }
 
     if (win) {
+        gtk_widget_realize(win);
+        GdkWindow *gdk_win = gtk_widget_get_window(win);
+        if (gdk_win) {
+            Display *xdisplay = GDK_WINDOW_XDISPLAY(gdk_win);
+            Window xid = GDK_WINDOW_XID(gdk_win);
+            int sig = 0;
+            if (!strcmp(target, "clock") || !strcmp(target, "time") || !strcmp(target, "calendar")) sig = 1;
+            else if (!strcmp(target, "forecast") || !strcmp(target, "weather") || !strcmp(target, "weath")) sig = 14;
+            else if (!strcmp(target, "volume") || !strcmp(target, "audio") || !strcmp(target, "vol")) sig = 11;
+            else if (!strcmp(target, "battery") || !strcmp(target, "bat") || !strcmp(target, "power")) sig = 30;
+            else if (!strcmp(target, "network") || !strcmp(target, "net") || !strcmp(target, "wifi")) sig = 4;
+            else if (!strcmp(target, "cpu")) sig = 15;
+            else if (!strcmp(target, "memory") || !strcmp(target, "mem") || !strcmp(target, "ram")) sig = 10;
+            else if (!strcmp(target, "notify") || !strcmp(target, "nc")) sig = 8;
+
+            if (sig > 0) {
+                Atom sig_atom = XInternAtom(xdisplay, "_KA_BLOCK_SIGNAL", False);
+                uint32_t val = (uint32_t)sig;
+                XChangeProperty(xdisplay, xid, sig_atom, XA_CARDINAL, 32,
+                                PropModeReplace, (unsigned char *)&val, 1);
+            }
+        }
         gtk_widget_show_all(win);
         gtk_main();
         gtk_widget_destroy(win);

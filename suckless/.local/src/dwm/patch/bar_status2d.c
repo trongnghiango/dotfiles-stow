@@ -240,7 +240,7 @@ drawstatusbar(BarArg *a, char* stext)
 	if (active_block.win) {
 		Client *dc = wintoclient(active_block.win);
 		if (dc) {
-			int dsig = dropdowntosig(dc->name);
+			int dsig = getblocksignal(dc);
 			if (dsig > 0)
 				active_block.sig = dsig;
 		} else {
@@ -254,7 +254,7 @@ drawstatusbar(BarArg *a, char* stext)
 		for (Client *k = selmon ? selmon->clients : NULL; k; k = k->next) {
 			if (k->isdropdown) {
 				active_block.win = k->win;
-				active_block.sig = dropdowntosig(k->name);
+				active_block.sig = getblocksignal(k);
 				break;
 			}
 		}
@@ -395,14 +395,29 @@ parse_status_blocks(const char *rawtext, int bar_start_x, int bh, StatusBlock *b
 int
 find_block_at(int rel_x, const char *rawtext, int bar_start_x, int bh, int *out_ux, int *out_uw)
 {
-	StatusBlock blocks[16];
-	int count = parse_status_blocks(rawtext, bar_start_x, bh, blocks, 16);
+	static StatusBlock cached_blocks[16];
+	static int cached_count = 0;
+	static char cached_text[1024] = {0};
+	static int cached_start_x = -1;
+	static int cached_bh = -1;
 
-	for (int i = 0; i < count; i++) {
-		if (rel_x >= blocks[i].hit_x0 && rel_x < blocks[i].hit_x1) {
-			if (out_ux) *out_ux = blocks[i].u_x;
-			if (out_uw) *out_uw = blocks[i].u_w;
-			return blocks[i].sig;
+	if (!rawtext)
+		return 0;
+
+	/* Zero-cost fast path: hit-test against cached geometry if status text hasn't changed */
+	if (cached_start_x != bar_start_x || cached_bh != bh || strcmp(cached_text, rawtext) != 0) {
+		cached_count = parse_status_blocks(rawtext, bar_start_x, bh, cached_blocks, 16);
+		strncpy(cached_text, rawtext, sizeof(cached_text) - 1);
+		cached_text[sizeof(cached_text) - 1] = '\0';
+		cached_start_x = bar_start_x;
+		cached_bh = bh;
+	}
+
+	for (int i = 0; i < cached_count; i++) {
+		if (rel_x >= cached_blocks[i].hit_x0 && rel_x < cached_blocks[i].hit_x1) {
+			if (out_ux) *out_ux = cached_blocks[i].u_x;
+			if (out_uw) *out_uw = cached_blocks[i].u_w;
+			return cached_blocks[i].sig;
 		}
 	}
 	return 0;

@@ -193,13 +193,12 @@ removesystrayicon(Client *i)
 {
 	Client **ii;
 
-	if (!showsystray || !i)
+	if (!showsystray || !systray || !i)
 		return;
 	for (ii = &systray->icons; *ii && *ii != i; ii = &(*ii)->next);
-	/* FIX CRIT-07: ii là con trỏ cục bộ nên KHÔNG BAO GIỜ NULL.
-	 * Phải kiểm tra *ii để biết có tìm thấy icon trong danh sách không. */
-	if (*ii)
-		*ii = i->next;
+	if (!*ii)
+		return;
+	*ii = i->next;
 	XReparentWindow(dpy, i->win, root, 0, 0);
 	free(i);
 	drawbarwin(systray->bar);

@@ -491,6 +491,31 @@ dropdowntosig(const char *name)
 	return 0;
 }
 
+static int
+getblocksignal(Client *c)
+{
+	if (!c || !c->win)
+		return 0;
+	Atom actual_type;
+	int actual_format;
+	unsigned long nitems, bytes_after;
+	unsigned char *prop = NULL;
+	Atom sig_atom = XInternAtom(dpy, "_KA_BLOCK_SIGNAL", False);
+
+	if (XGetWindowProperty(dpy, c->win, sig_atom, 0, 1, False,
+	                       XA_CARDINAL, &actual_type, &actual_format,
+	                       &nitems, &bytes_after, &prop) == Success && prop) {
+		if (nitems > 0 && actual_format == 32) {
+			uint32_t sig = *(uint32_t *)prop;
+			XFree(prop);
+			if (sig > 0)
+				return (int)sig;
+		}
+		XFree(prop);
+	}
+	return dropdowntosig(c->name);
+}
+
 /* configuration, allows nested code to access above variables */
 #include "config.h"
 
@@ -1125,7 +1150,6 @@ destroynotify(XEvent *e)
 		unmanage(c->swallowing, 1);
 	else if (showsystray && (c = wintosystrayicon(ev->window))) {
 		removesystrayicon(c);
-		drawbarwin(systray->bar);
 	}
 }
 
@@ -1699,7 +1723,7 @@ manage(Window w, XWindowAttributes *wa)
 
 	if (c->isdropdown) {
 		if (!active_block.sig)
-			active_block.sig = dropdowntosig(c->name);
+			active_block.sig = getblocksignal(c);
 		if (active_block.w <= 0 && active_block.sig > 0)
 			calblockpos(c->mon, active_block.sig, &active_block.screen_x, &active_block.w);
 		/* Close & destroy any existing dropdown window immediately */
@@ -2730,7 +2754,6 @@ unmapnotify(XEvent *e)
 		 * _not_ destroy them. We map those windows back */
 		XMapRaised(dpy, c->win);
 		removesystrayicon(c);
-		drawbarwin(systray->bar);
 	}
 }
 
