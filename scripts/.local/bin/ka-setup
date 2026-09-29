@@ -572,23 +572,20 @@ EOF
 # 5. THINKPAD BATTERY THRESHOLD
 # ==============================================================================
 setup_battery() {
-  log_step "Cấu hình ngưỡng sạc pin..."
+  log_step "Cấu hình ngưỡng sạc pin & Udev Hardware Rules..."
 
-  if [ ! -d /sys/class/power_supply/BAT0 ] && [ ! -d /sys/class/power_supply/BAT1 ]; then
-    log_info "Hệ thống là Desktop (hoặc không có pin). Bỏ qua cấu hình ngưỡng sạc."
-    return 0
+  local udev_rule="$DOTFILES_DIR/hardware/99-ka-hardware.rules"
+  if [ -f "$udev_rule" ]; then
+    log_info "Cài đặt udev hardware rules vào /etc/udev/rules.d/..."
+    sudo cp -f "$udev_rule" /etc/udev/rules.d/99-ka-hardware.rules
+    sudo udevadm control --reload-rules 2>/dev/null || true
+    sudo udevadm trigger 2>/dev/null || true
+    log_success "Đã kích hoạt udev rules cho ngưỡng pin (50-60%) và CPU Governor."
   fi
 
-  local bt_cmd=""
-  command -v battery-threshold &>/dev/null && bt_cmd="battery-threshold"
-  [ -z "$bt_cmd" ] && [ -f "$_SCRIPT_DIR/battery-threshold" ] && bt_cmd="$_SCRIPT_DIR/battery-threshold"
-  [ -z "$bt_cmd" ] && [ -f "$DOTFILES_DIR/scripts/.local/bin/ka-battery" ] && bt_cmd="$DOTFILES_DIR/scripts/.local/bin/ka-battery"
-
-  if [ -n "$bt_cmd" ]; then
-    "$bt_cmd"
-  else
-    log_warn "Không tìm thấy battery-threshold. Chạy sau khi stow scripts/."
-    log_dim "Hoặc chạy thủ công: stow-safe scripts && battery-threshold"
+  if [ ! -d /sys/class/power_supply/BAT0 ] && [ ! -d /sys/class/power_supply/BAT1 ]; then
+    log_info "Hệ thống là Desktop (hoặc không có pin). Bỏ qua cấu hình pin."
+    return 0
   fi
 }
 
