@@ -74,6 +74,7 @@ Tài liệu hướng dẫn toàn bộ tổ hợp phím tắt trên hệ thống 
 | :--- | :--- | :--- |
 | **`Super + Ctrl + A`** | **Audio / Volume** | Thanh trượt âm lượng, nút Mute, bộ chọn cổng ra âm thanh PipeWire |
 | **`Super + Ctrl + W`** | **Network / Wi-Fi** | Trạng thái mạng, cường độ sóng, IP, lưu lượng live, đổi nhanh DNS |
+| **`Super + Shift + B`** | **Bluetooth Manager**| Thẻ Bluetooth Native D-Bus: kết nối tức thì tai nghe, chuột, phím, xem pin |
 | **`Super + Ctrl + B`** | **Battery / Power** | Thanh đo pin, công suất sạc/xả (W), thanh trượt độ sáng màn hình |
 | **`Super + Ctrl + C`** | **Clock & Calendar**| Giờ, ngày tháng chi tiết, lịch tương tác tháng (`Gtk.Calendar`), uptime |
 | **`Super + Ctrl + T`** | **CPU & Thermals** | Tải CPU live, cảm biến nhiệt độ phần cứng, tốc độ quạt, Top 4 tiến trình |

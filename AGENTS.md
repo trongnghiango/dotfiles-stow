@@ -35,7 +35,7 @@ Hệ thống được tổ chức thành 24 gói GNU Stow triển khai liên k�
 ## 2. KIỂM TOÁN TÍNH NĂNG STATUSBAR & TIẾN TRÌNH C (DWMBLOCKS)
 
 ### Khối hiển thị thực tế trong `suckless/.local/src/dwmblocks/config.h`
-Mã nguồn `dwmblocks` được biên dịch từ `config.h` (X-Macro `BLOCKS(X)`), gồm **9 blocks** in-process:
+Mã nguồn `dwmblocks` được biên dịch từ `config.h` (X-Macro `BLOCKS(X)`), gồm **10 blocks** in-process:
 
 1. **`ka-clock`** (`native_blocks.c:283`, interval: 60s, signal: 1): In-process C, gọi hàm `time()` và `localtime()` (0 fork).
 2. **`ka-forecast`** (`native_blocks.c:367`, interval: 1800s, signal: 14): In-process C, đọc tệp bộ nhớ đệm `~/.cache/weatherreport` (0 fork, 0 subshell).
@@ -43,9 +43,10 @@ Mã nguồn `dwmblocks` được biên dịch từ `config.h` (X-Macro `BLOCKS(X
 4. **`ka-volume`** (`native_blocks.c:298`, interval: 60s, signal: 11): In-process C, đọc giá trị phần cứng trực tiếp qua ALSA API (`libasound`, `snd_mixer_selem_get_playback_volume`) (0 fork). Hỗ trợ cả PipeWire (`wpctl`) lẫn ALSA (`amixer`).
 5. **`ka-battery`** (`native_blocks.c:140`, interval: 60s, signal: 30): In-process C, đọc trạng thái từ `/sys/class/power_supply` (0 fork).
 6. **`ka-network`** (`native_blocks.c:206`, interval: 10s, signal: 4): In-process C, đọc `/proc/net/wireless` và `/sys/class/net` (0 fork).
-7. **`ka-cpu`** (`native_blocks.c:76`, interval: 5s, signal: 15): In-process C, đọc vi sai hai lần từ `/proc/stat` (0 fork, 0 sleep).
-8. **`ka-memory`** (`native_blocks.c:126`, interval: 10s, signal: 10): In-process C, đọc trực tiếp `/proc/meminfo` (0 fork, 0 subshell).
-9. **`sb-notify`** (`native_blocks.c:414`, interval: 0s, signal: 8): **Thuần hướng sự kiện (interval = 0)**. Chỉ cập nhật khi nhận tín hiệu `SIGRTMIN+8` từ Dunst, loại bỏ hoàn toàn việc fork định kỳ khi hệ thống idle.
+7. **`ka-bluetooth`** (`native_blocks.c:308`, interval: 10s, signal: 7): In-process C, đọc trạng thái kết nối & rfkill trực tiếp từ sysfs `/sys/class/bluetooth/hci0` (0 fork, < 0.02ms).
+8. **`ka-cpu`** (`native_blocks.c:76`, interval: 5s, signal: 15): In-process C, đọc vi sai hai lần từ `/proc/stat` (0 fork, 0 sleep).
+9. **`ka-memory`** (`native_blocks.c:126`, interval: 10s, signal: 10): In-process C, đọc trực tiếp `/proc/meminfo` (0 fork, 0 subshell).
+10. **`sb-notify`** (`native_blocks.c:414`, interval: 0s, signal: 8): **Thuần hướng sự kiện (interval = 0)**. Chỉ cập nhật khi nhận tín hiệu `SIGRTMIN+8` từ Dunst, loại bỏ hoàn toàn việc fork định kỳ khi hệ thống idle.
 
 ### Cơ chế Hình học Khối, Hover Underline & Đồng bộ Dropdown (DWM 6.8)
 1. **Phân tích hình học khối thống nhất (`parse_status_blocks`)**:

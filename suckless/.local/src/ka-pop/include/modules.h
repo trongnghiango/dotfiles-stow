@@ -16,5 +16,6 @@ GtkWidget* build_network_window(void);
 GtkWidget* build_notify_window(void);
 GtkWidget* build_forecast_window(void);
 GtkWidget* build_clip_window(void);
+GtkWidget* build_bluetooth_window(void);
 
 #endif /* KA_POP_MODULES_H */

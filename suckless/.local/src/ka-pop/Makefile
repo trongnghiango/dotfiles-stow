@@ -16,7 +16,8 @@ LDLIBS += $(shell pkg-config --libs gtk+-3.0) -lX11 -lm
 SRCS := $(SRC_DIR)/main.c $(SRC_DIR)/theme.c $(SRC_DIR)/ui.c $(SRC_DIR)/util.c \
         $(SRC_DIR)/modules/volume.c $(SRC_DIR)/modules/battery.c $(SRC_DIR)/modules/clock.c \
         $(SRC_DIR)/modules/cpu.c $(SRC_DIR)/modules/memory.c $(SRC_DIR)/modules/network.c \
-        $(SRC_DIR)/modules/notify.c $(SRC_DIR)/modules/forecast.c $(SRC_DIR)/modules/clip.c
+        $(SRC_DIR)/modules/notify.c $(SRC_DIR)/modules/forecast.c $(SRC_DIR)/modules/clip.c \
+        $(SRC_DIR)/modules/bluetooth.c
 
 OBJS := $(patsubst $(SRC_DIR)/%.c,$(BUILD_DIR)/%.o,$(SRCS))
 

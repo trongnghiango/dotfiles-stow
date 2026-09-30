@@ -14,7 +14,7 @@ int main(int argc, char *argv[]) {
     g_set_application_name("dwm-dropdown");
 
     if (argc > 1 && (strcmp(argv[1], "-h") == 0 || strcmp(argv[1], "--help") == 0)) {
-        printf("Sử dụng: ka-pop [volume|battery|clock|cpu|memory|network|notify|forecast|clip]\n");
+        printf("Sử dụng: ka-pop [volume|battery|clock|cpu|memory|network|notify|forecast|clip|bluetooth]\n");
         return 0;
     }
 
@@ -42,6 +42,8 @@ int main(int argc, char *argv[]) {
         win = build_forecast_window();
     } else if (strcmp(target, "clip") == 0 || strcmp(target, "clipboard") == 0) {
         win = build_clip_window();
+    } else if (strcmp(target, "bluetooth") == 0 || strcmp(target, "bt") == 0 || strcmp(target, "blue") == 0) {
+        win = build_bluetooth_window();
     } else {
         win = build_volume_window();
     }
@@ -61,6 +63,7 @@ int main(int argc, char *argv[]) {
             else if (!strcmp(target, "cpu")) sig = 15;
             else if (!strcmp(target, "memory") || !strcmp(target, "mem") || !strcmp(target, "ram")) sig = 10;
             else if (!strcmp(target, "notify") || !strcmp(target, "nc")) sig = 8;
+            else if (!strcmp(target, "bluetooth") || !strcmp(target, "bt") || !strcmp(target, "blue")) sig = 7;
 
             if (sig > 0) {
                 Atom sig_atom = XInternAtom(xdisplay, "_KA_BLOCK_SIGNAL", False);
