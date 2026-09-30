@@ -90,6 +90,24 @@ apply_hardware_tuning() {
             fi
         done
     fi
+
+    # 3. Bluetooth service (enable/disable theo profile, chỉ khi có adapter)
+    if [ -n "${BLUETOOTH_ENABLED:-}" ] && command -v systemctl >/dev/null 2>&1; then
+        if [ "${BLUETOOTH_ENABLED}" = "1" ]; then
+            # Chỉ enable nếu hardware adapter thực sự tồn tại
+            if [ -d "/sys/class/bluetooth" ] && ls /sys/class/bluetooth/hci* >/dev/null 2>&1; then
+                systemctl enable bluetooth.service >/dev/null 2>&1 || true
+                systemctl start  bluetooth.service >/dev/null 2>&1 || true
+                echo -e "  ${GREEN}Bluetooth:${RESET} enabled + started (hci0 detected)"
+            else
+                echo -e "  ${DIM}Bluetooth: BLUETOOTH_ENABLED=1 nhưng không tìm thấy adapter — bỏ qua${RESET}"
+            fi
+        else
+            systemctl disable bluetooth.service >/dev/null 2>&1 || true
+            systemctl stop    bluetooth.service >/dev/null 2>&1 || true
+            echo -e "  ${DIM}Bluetooth: disabled (BLUETOOTH_ENABLED=0)${RESET}"
+        fi
+    fi
 }
 
 cmd_check() {

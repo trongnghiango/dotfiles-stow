@@ -587,6 +587,37 @@ setup_battery() {
     log_info "Hệ thống là Desktop (hoặc không có pin). Bỏ qua cấu hình pin."
     return 0
   fi
+
+  # Polkit rule: cho phép user trong nhóm wheel start/stop bluetooth không cần mật khẩu
+  # Cần thiết để ka-bluetooth toggle và ka-pop bluetooth hoạt động từ GUI context (không có TTY)
+  local polkit_rule_dir="/etc/polkit-1/rules.d"
+  local polkit_rule="$polkit_rule_dir/10-ka-bluetooth.rules"
+  if [ -d "$polkit_rule_dir" ] || sudo mkdir -p "$polkit_rule_dir" 2>/dev/null; then
+    if [ ! -f "$polkit_rule" ]; then
+      log_info "Cài đặt polkit rule cho bluetooth (không cần sudo để toggle)..."
+      sudo tee "$polkit_rule" > /dev/null << 'EOF'
+// ka-bluetooth polkit rule
+// Cho phép user trong nhóm wheel/sudo start+stop bluetooth.service không cần mật khẩu
+// Cần thiết khi ka-bluetooth toggle / ka-pop bluetooth chạy từ GUI không có TTY
+polkit.addRule(function(action, subject) {
+    if ((action.id == "org.freedesktop.systemd1.manage-units" ||
+         action.id == "org.freedesktop.systemd1.manage-unit-files") &&
+        (action.lookup("unit") == "bluetooth.service" ||
+         action.lookup("unit") == "bluetooth.target") &&
+        subject.local && subject.active &&
+        (subject.isInGroup("wheel") || subject.isInGroup("sudo"))) {
+        return polkit.Result.YES;
+    }
+});
+EOF
+      sudo chmod 0644 "$polkit_rule"
+      log_success "Đã cài polkit rule: $polkit_rule"
+    else
+      log_success "Polkit rule bluetooth đã tồn tại: $polkit_rule"
+    fi
+  else
+    log_warn "Không tạo được $polkit_rule_dir — bỏ qua polkit rule. Toggle BT từ GUI sẽ cần sudo."
+  fi
 }
 
 # ==============================================================================
