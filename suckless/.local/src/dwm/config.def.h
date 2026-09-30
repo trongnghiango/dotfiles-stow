@@ -277,6 +277,7 @@ static const char *maimpickcmd[] = { "maimpick", NULL };      // maimpick menu
 /* Popover cards (ka-pop C Native) */
 static const char *popvol[]     = { "ka-pop", "volume", NULL };
 static const char *popnet[]     = { "ka-pop", "network", NULL };
+static const char *popblue[]    = { "ka-pop", "bluetooth", NULL };
 static const char *popbat[]     = { "ka-pop", "battery", NULL };
 static const char *popclock[]   = { "ka-pop", "clock", NULL };
 static const char *popcpu[]     = { "ka-pop", "cpu", NULL };
@@ -374,6 +375,7 @@ static const Key keys[] = {
 	/* Omarchy-style direct popover cards and OCR shortcuts (Zero shell fork) */
 	{ MODKEY|ControlMask,           XK_a,          spawn,                  {.v = popvol } },
 	{ MODKEY|ControlMask,           XK_w,          spawn,                  {.v = popnet } },
+	{ MODKEY|ShiftMask,             XK_b,          spawn,                  {.v = popblue } },
 	{ MODKEY|ControlMask,           XK_b,          spawn,                  {.v = popbat } },
 	{ MODKEY|ControlMask,           XK_c,          spawn,                  {.v = popclock } },
 	{ MODKEY|ControlMask,           XK_t,          spawn,                  {.v = popcpu } },

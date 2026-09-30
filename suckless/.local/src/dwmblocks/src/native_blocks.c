@@ -303,6 +303,57 @@ static void native_network(char *output, size_t max_len, uint8_t button) {
 }
 
 // -----------------------------------------------------------------------------
+// 4.5. BLUETOOTH BLOCK (In-Process Native C via Sysfs & Fast D-Bus - Zero Fork)
+// -----------------------------------------------------------------------------
+static void native_bluetooth(char *output, size_t max_len, uint8_t button) {
+    if (button == 1) {
+        spawn_pop("bluetooth");
+    } else if (button == 3) {
+        char *args[] = {(char *)"ka-bluetooth", (char *)"toggle", NULL};
+        spawn_cmd(args);
+    }
+
+    /* Check if Bluetooth adapter exists in sysfs */
+    if (access("/sys/class/bluetooth/hci0", F_OK) != 0) {
+        output[0] = '\0';
+        return;
+    }
+
+    /* Check rfkill state and active connections directly via sysfs (0 forks) */
+    int powered = 1;
+    DIR *d = opendir("/sys/class/bluetooth/hci0");
+    int has_connection = 0;
+    if (d) {
+        struct dirent *ent;
+        while ((ent = readdir(d)) != NULL) {
+            if (strncmp(ent->d_name, "rfkill", 6) == 0) {
+                char rf_path[512];
+                snprintf(rf_path, sizeof(rf_path), "/sys/class/bluetooth/hci0/%s/state", ent->d_name);
+                FILE *f = fopen(rf_path, "r");
+                if (f) {
+                    char st = '1';
+                    if (fscanf(f, " %c", &st) == 1) {
+                        powered = (st == '1');
+                    }
+                    fclose(f);
+                }
+            } else if (strncmp(ent->d_name, "hci0:", 5) == 0) {
+                has_connection = 1;
+            }
+        }
+        closedir(d);
+    }
+
+    if (!powered) {
+        snprintf(output, max_len, "󰂲");
+    } else if (has_connection) {
+        snprintf(output, max_len, "^C2^󰂱^d^");
+    } else {
+        snprintf(output, max_len, "󰂯");
+    }
+}
+
+// -----------------------------------------------------------------------------
 // 5. CLOCK BLOCK
 // -----------------------------------------------------------------------------
 static void native_clock(char *output, size_t max_len, uint8_t button) {
@@ -554,6 +605,9 @@ native_block_fn get_native_block_fn(const char *command) {
     }
     if (strcmp(command, "ka-network") == 0 || strcmp(command, "native:network") == 0) {
         return native_network;
+    }
+    if (strcmp(command, "ka-bluetooth") == 0 || strcmp(command, "native:bluetooth") == 0) {
+        return native_bluetooth;
     }
     if (strcmp(command, "ka-clock") == 0 || strcmp(command, "native:clock") == 0) {
         return native_clock;

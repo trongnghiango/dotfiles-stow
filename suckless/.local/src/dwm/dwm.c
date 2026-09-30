@@ -480,6 +480,8 @@ dropdowntosig(const char *name)
 		return 15;
 	if (strstr(name, "network") || strstr(name, "net") || strstr(name, "traffic") || strstr(name, "internet") || strstr(name, "wifi"))
 		return 4;
+	if (strstr(name, "bluetooth") || strstr(name, "bt") || strstr(name, "blue"))
+		return 7;
 	if (strstr(name, "battery") || strstr(name, "power") || strstr(name, "bat"))
 		return 30;
 	if (strstr(name, "volume") || strstr(name, "audio") || strstr(name, "sound"))

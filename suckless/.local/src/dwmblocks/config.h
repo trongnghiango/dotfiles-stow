@@ -31,6 +31,7 @@
     X("", "ka-volume",   60,   11)    \
     X("", "ka-battery",  60,   30)    \
     X("", "ka-network",  10,   4)     \
+    X("", "ka-bluetooth",10,   7)     \
     X("", "ka-cpu",      5,    15)    \
     X("", "ka-memory",   10,   10)    \
     X("", "sb-notify",   0,    8)
