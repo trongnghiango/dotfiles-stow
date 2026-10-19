@@ -1,73 +1,102 @@
 #!/usr/bin/env bash
 # =============================================================================
-# Omarchy DSH (DeepSeek Harness) Manager
+# Omarchy DSH (DeepSeek Harness) Self-Bootstrapping Manager
 # =============================================================================
-# Triết lý: Quản lý minh bạch, hỗ trợ cả Local Git Repo lẫn NPM Pinned DLX.
-# Cấu hình: ~/.config/dsh/ (version, mode)
-# =============================================================================
+set -e
 
 CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/dsh"
 VERSION_FILE="$CONFIG_DIR/version"
 MODE_FILE="$CONFIG_DIR/mode"
-LOCAL_REPO="$HOME/Repos/github.com/trongnghiango/deepseek-harness"
 
-DEFAULT_VERSION="0.1.2-rc.1"
+# Cấu hình repository mặc định (có thể override bằng biến môi trường)
+REPO_URL="${DSH_REPO_URL:-https://github.com/deepseek-ai/deepseek-harness.git}"
+LOCAL_REPO="${DSH_LOCAL_REPO:-$HOME/Repos/github.com/trongnghiango/deepseek-harness}"
+
+DEFAULT_VERSION="0.1.7-rc.1"
 DEFAULT_MODE="local"
 
 mkdir -p "$CONFIG_DIR"
-
-if [[ ! -f "$VERSION_FILE" ]]; then
-    echo "$DEFAULT_VERSION" > "$VERSION_FILE"
-fi
-
-if [[ ! -f "$MODE_FILE" ]]; then
-    if [[ -d "$LOCAL_REPO" ]]; then
-        echo "local" > "$MODE_FILE"
-    else
-        echo "dlx" > "$MODE_FILE"
-    fi
-fi
+[[ ! -f "$VERSION_FILE" ]] && echo "$DEFAULT_VERSION" > "$VERSION_FILE"
+[[ ! -f "$MODE_FILE" ]] && echo "$DEFAULT_MODE" > "$MODE_FILE"
 
 CURRENT_VERSION=$(cat "$VERSION_FILE" | tr -d '[:space:]')
 CURRENT_MODE=$(cat "$MODE_FILE" | tr -d '[:space:]')
 
-show_help() {
-    echo "Omarchy DSH (DeepSeek Harness) Manager"
-    echo ""
-    echo "Usage:"
-    echo "  dsh [cmd] [args]           - Chạy DSH theo mode hiện tại ($CURRENT_MODE)"
-    echo "  dsh mode [local|dlx]       - Xem hoặc chuyển đổi engine (local repo hoặc npm dlx)"
-    echo "  dsh status                 - Xem tổng thể trạng thái mode, version, git repo"
-    echo ""
-    echo "Local Repo ($LOCAL_REPO):"
-    echo "  dsh local [args]           - Ép buộc chạy trực tiếp từ local repo"
-    echo "  dsh checkout <tag|branch>  - Chuyển đổi branch/tag trong local repo"
-    echo "  dsh tags                   - Liệt kê các tags phiên bản trong local repo"
-    echo "  dsh build                  - Cài đặt dependency và build local repo"
-    echo ""
-    echo "DLX Mode (NPM Package):"
-    echo "  dsh dlx [args]             - Ép buộc chạy qua pnpm dlx"
-    echo "  dsh update [version]       - Cập nhật version ghim (mặc định lấy latest)"
-    echo "  dsh use <version>          - Chuyển đổi nhanh sang version npm cụ thể"
-    echo "  dsh list / versions        - Hiển thị danh sách version có trên npm"
+# --- HÀM TỰ ĐỘNG BOOTSTRAP REPO NẾU CHƯA CÓ ---
+ensure_repo() {
+    if [[ ! -d "$LOCAL_REPO/.git" ]]; then
+        echo "[*] Local repo chưa tồn tại tại: $LOCAL_REPO"
+        echo "[*] Đang tự động tạo thư mục và clone từ $REPO_URL..."
+        mkdir -p "$(dirname "$LOCAL_REPO")"
+        git clone "$REPO_URL" "$LOCAL_REPO"
+        echo "[+] Clone thành công!"
+    fi
+}
+
+# --- HÀM BUILD NỘI BỘ (KHÔNG CẦN NGƯỜI DÙNG CD VÀO) ---
+build_repo() {
+    ensure_repo
+    echo "[*] Đang cài đặt dependencies và build project tại $LOCAL_REPO..."
+    (
+        cd "$LOCAL_REPO"
+        pnpm install
+        pnpm run build
+    )
+    echo "[+] Build hoàn tất thành công!"
+}
+
+# --- HÀM CHUYỂN VERSION & TỰ PULL / CHECKOUT ---
+checkout_version() {
+    local target="$1"
+    ensure_repo
+
+    echo "[*] Đang tự động fetch tags và cập nhật mới nhất từ GitHub..."
+    git -C "$LOCAL_REPO" fetch --all --tags --prune
+
+    local candidate="dsh-v$target"
+    local resolved=""
+
+    if git -C "$LOCAL_REPO" rev-parse --verify --quiet "$target" >/dev/null; then
+        resolved="$target"
+    elif git -C "$LOCAL_REPO" rev-parse --verify --quiet "$candidate" >/dev/null; then
+        resolved="$candidate"
+    fi
+
+    if [[ -z "$resolved" ]]; then
+        echo "[-] Lỗi: Không tìm thấy tag hoặc branch '$target' trên remote."
+        echo "    Gõ 'dsh versions' để xem các bản phát hành có sẵn."
+        exit 1
+    fi
+
+    echo "[*] Đang checkout sang: $resolved..."
+    git -C "$LOCAL_REPO" checkout "$resolved"
+    
+    clean_ver=$(echo "$resolved" | sed -E 's/^dsh-v?//')
+    echo "$clean_ver" > "$VERSION_FILE"
+    echo "[+] Đã chuyển cấu hình sang version: $clean_ver"
 }
 
 run_local() {
-    local cmd="${1:-web}"
-    shift || true
-    if [[ ! -d "$LOCAL_REPO" ]]; then
-        echo "[-] Lỗi: Không tìm thấy local repo tại $LOCAL_REPO"
-        exit 1
+    ensure_repo
+    # Nếu chưa build lần nào (chưa có node_modules hoặc dist), tự động build luôn
+    if [[ ! -d "$LOCAL_REPO/node_modules" ]]; then
+        echo "[*] Phát hiện repo chưa cài thư viện, đang tự động build..."
+        build_repo
     fi
-    echo "[Omarchy DSH] Running '$cmd' via Local Repo: $LOCAL_REPO..."
-    cd "$LOCAL_REPO"
-    exec pnpm dsh "$cmd" "$@"
+
+    if [[ $# -eq 0 ]]; then
+        echo "[Omarchy DSH] Khởi chạy 'web' từ: $LOCAL_REPO..."
+        exec pnpm --dir "$LOCAL_REPO" run dsh -- web
+    else
+        echo "[Omarchy DSH] Khởi chạy '$*' từ: $LOCAL_REPO..."
+        exec pnpm --dir "$LOCAL_REPO" run dsh -- "$@"
+    fi
 }
 
 run_dlx() {
     local cmd="${1:-web}"
     shift || true
-    echo "[Omarchy DSH] Running '$cmd' via pnpm dlx (@deepseek-ai/dsh@$CURRENT_VERSION)..."
+    echo "[Omarchy DSH] Chạy qua pnpm dlx (@deepseek-ai/dsh@$CURRENT_VERSION)..."
     exec pnpm dlx \
         --allow-build @deepseek-ai/dsh-subprocess-local \
         --allow-build @google/genai \
@@ -78,112 +107,87 @@ run_dlx() {
 }
 
 case "$1" in
+    version|-v|--version)
+        echo "DSH Version: $CURRENT_VERSION (Mode: $CURRENT_MODE)"
+        if [[ "$CURRENT_MODE" == "local" && -d "$LOCAL_REPO" ]]; then
+            tag=$(git -C "$LOCAL_REPO" describe --tags --exact-match 2>/dev/null || echo "none")
+            commit=$(git -C "$LOCAL_REPO" rev-parse --short HEAD 2>/dev/null)
+            echo "Local Git: tag=$tag, commit=$commit"
+        fi
+        ;;
+
     mode)
-        SET_MODE="$2"
-        if [[ -z "$SET_MODE" ]]; then
-            echo "DSH Current Engine Mode: $CURRENT_MODE"
-            echo "Available modes: local, dlx"
-            echo "  dsh mode local - Chạy trực tiếp từ local repo ($LOCAL_REPO)"
-            echo "  dsh mode dlx   - Chạy qua pnpm dlx với version ghim ($CURRENT_VERSION)"
-        elif [[ "$SET_MODE" == "local" || "$SET_MODE" == "dlx" ]]; then
-            echo "$SET_MODE" > "$MODE_FILE"
-            echo "[+] Đã chuyển engine mode sang: $SET_MODE"
+        if [[ -z "$2" ]]; then
+            echo "Current Mode: $CURRENT_MODE (Options: local | dlx)"
+        elif [[ "$2" == "local" || "$2" == "dlx" ]]; then
+            echo "$2" > "$MODE_FILE"
+            echo "[+] Đã chuyển engine sang: $2"
         else
-            echo "[-] Lỗi: Mode không hợp lệ. Chọn 'local' hoặc 'dlx'."
+            echo "[-] Mode không hợp lệ. Chọn 'local' hoặc 'dlx'."
             exit 1
-        fi
-        ;;
-
-    local)
-        shift || true
-        run_local "$@"
-        ;;
-
-    dlx)
-        shift || true
-        run_dlx "$@"
-        ;;
-
-    checkout)
-        TARGET="$2"
-        if [[ -z "$TARGET" ]]; then
-            echo "[-] Lỗi: Cần chỉ định tag hoặc branch (vd: dsh checkout dsh-v0.1.5-rc.1)"
-            exit 1
-        fi
-        if [[ ! -d "$LOCAL_REPO" ]]; then
-            echo "[-] Lỗi: Không tìm thấy local repo tại $LOCAL_REPO"
-            exit 1
-        fi
-        echo "[*] Đang chuyển đổi sang $TARGET trong $LOCAL_REPO..."
-        git -C "$LOCAL_REPO" checkout "$TARGET"
-        echo "[+] Đã chuyển sang: $(git -C "$LOCAL_REPO" branch --show-current 2>/dev/null || echo "$TARGET")"
-        echo "[*] Lưu ý: Hãy chạy 'dsh build' nếu phiên bản mới yêu cầu re-build."
-        ;;
-
-    tags)
-        if [[ -d "$LOCAL_REPO" ]]; then
-            echo "[*] Các tags phiên bản trong local repo:"
-            git -C "$LOCAL_REPO" tag -l --sort=-v:refname | head -n 15
-        else
-            echo "[-] Local repo chưa được clone tại $LOCAL_REPO"
         fi
         ;;
 
     build)
-        if [[ ! -d "$LOCAL_REPO" ]]; then
-            echo "[-] Lỗi: Không tìm thấy local repo tại $LOCAL_REPO"
+        build_repo
+        ;;
+
+    checkout)
+        if [[ -z "$2" ]]; then
+            echo "[-] Vui lòng chỉ định tag hoặc branch."
             exit 1
         fi
-        echo "[*] Đang build local repo tại $LOCAL_REPO..."
-        cd "$LOCAL_REPO"
-        pnpm install && pnpm run build
+        checkout_version "$2"
+        ;;
+
+    fetch)
+        ensure_repo
+        echo "[*] Đang fetch cập nhật và tags từ remote trong $LOCAL_REPO..."
+        git -C "$LOCAL_REPO" fetch --all --tags --prune
+        echo "[+] Đã fetch xong."
+        ;;
+
+    pull)
+        ensure_repo
+        echo "[*] Đang pull cập nhật từ remote trong $LOCAL_REPO..."
+        git -C "$LOCAL_REPO" pull --tags
+        ;;
+
+    tags)
+        ensure_repo
+        echo "[*] Các tags phiên bản trong local repo:"
+        git -C "$LOCAL_REPO" tag -l --sort=-v:refname | head -n 15
+        ;;
+
+    use)
+        if [[ -z "$2" ]]; then
+            echo "[-] Vui lòng chỉ định version. Ví dụ: dsh use 0.1.7-rc.1"
+            exit 1
+        fi
+        TARGET_VER="$2"
+        if [[ "$CURRENT_MODE" == "local" ]]; then
+            # Tự fetch, tự checkout, và tự build luôn
+            checkout_version "$TARGET_VER"
+            build_repo
+        else
+            echo "$TARGET_VER" > "$VERSION_FILE"
+            echo "[+] Đã ghim version $TARGET_VER cho DLX mode."
+        fi
         ;;
 
     update)
-        NEW_VERSION="$2"
-        if [[ -z "$NEW_VERSION" ]]; then
-            echo "[*] Đang kiểm tra version mới nhất bằng pnpm..."
-            NEW_VERSION=$(pnpm view @deepseek-ai/dsh version 2>/dev/null)
-            if [[ -z "$NEW_VERSION" ]]; then
-                echo "[-] Không thể lấy version qua pnpm. Đang thử dùng curl..."
-                NEW_VERSION=$(curl -s https://registry.npmjs.org/@deepseek-ai/dsh/latest | grep -oP '"version":"\K[^"]+')
-                if [[ -z "$NEW_VERSION" ]]; then
-                    echo "[-] Lỗi: Không thể lấy thông tin version mới nhất."
-                    exit 1
-                fi
-            fi
-        fi
-        
-        echo "$NEW_VERSION" > "$VERSION_FILE"
-        echo "[+] Đã cập nhật (ghim) DSH lên version: $NEW_VERSION"
-        ;;
-    
-    use)
-        USE_VERSION="$2"
-        if [[ -z "$USE_VERSION" ]]; then
-            echo "[-] Lỗi: Bạn phải chỉ định version cụ thể."
-            echo "    Ví dụ: dsh use 0.1.0"
+        echo "[*] Đang kiểm tra version mới nhất từ npm..."
+        LATEST_VER=$(curl -s https://registry.npmjs.org/@deepseek-ai/dsh/latest | grep -oP '"version":"\K[^"]+')
+        if [[ -z "$LATEST_VER" ]]; then
+            echo "[-] Không lấy được version mới nhất."
             exit 1
         fi
-        echo "$USE_VERSION" > "$VERSION_FILE"
-        echo "[+] Đã chuyển (switch) DSH sang version: $USE_VERSION"
+        echo "[*] Version mới nhất là: $LATEST_VER"
+        "$0" use "$LATEST_VER"
         ;;
 
-    status)
-        echo "DSH Engine Mode:               $CURRENT_MODE"
-        echo "DSH Pinned Version (npm dlx):  $CURRENT_VERSION"
-        if [[ -d "$LOCAL_REPO" ]]; then
-            local_branch=$(git -C "$LOCAL_REPO" branch --show-current 2>/dev/null)
-            local_tag=$(git -C "$LOCAL_REPO" describe --tags --exact-match 2>/dev/null || echo "none")
-            echo "DSH Local Repo ($LOCAL_REPO):"
-            echo "  Branch: ${local_branch:-detached}"
-            echo "  Tag:    $local_tag"
-            echo "  Commit: $(git -C "$LOCAL_REPO" rev-parse --short HEAD 2>/dev/null)"
-        fi
-        ;;
-
-    list|versions)
-        echo "[*] Fetching available versions from registry..."
+    versions|list)
+        echo "[*] Các version có sẵn trên Registry:"
         curl -s https://registry.npmjs.org/@deepseek-ai/dsh | jq -r '.versions | keys[]' | tail -n 15 | while read -r ver; do
             if [[ "$ver" == "$CURRENT_VERSION" ]]; then
                 echo "  -> $ver (current)"
@@ -193,13 +197,34 @@ case "$1" in
         done
         ;;
 
+    status)
+        echo "Mode:            $CURRENT_MODE"
+        echo "Active Version:  $CURRENT_VERSION"
+        echo "Repo Path:       $LOCAL_REPO"
+        if [[ -d "$LOCAL_REPO/.git" ]]; then
+            echo "Git Status:      Đã clone (Tag: $(git -C "$LOCAL_REPO" describe --tags --exact-match 2>/dev/null || echo 'none'))"
+        else
+            echo "Git Status:      Chưa clone (sẽ tự động clone khi chạy)"
+        fi
+        ;;
+
     help|--help|-h)
-        show_help
+        echo "Omarchy DSH Self-Bootstrapping Manager"
+        echo "  dsh                      - Tự động chạy Web GUI (chưa có code sẽ tự clone & build)"
+        echo "  dsh use <version>        - Tự fetch, checkout version mới và tự build hoàn chỉnh"
+        echo "  dsh update               - Tự lấy bản mới nhất trên registry và cập nhật"
+        echo "  dsh build                - Tự build lại local repo"
+        echo "  dsh checkout <tag>       - Chuyển đổi branch/tag"
+        echo "  dsh fetch                - Cập nhật tags mới nhất từ remote"
+        echo "  dsh pull                 - Kéo commit mới nhất từ remote"
+        echo "  dsh tags                 - Liệt kê các tags phiên bản"
+        echo "  dsh mode [local|dlx]     - Đổi chế độ giữa Local Source và NPM DLX"
+        echo "  dsh versions             - Danh sách version trên registry"
+        echo "  dsh status               - Xem tổng quan trạng thái"
         ;;
 
     *)
-        # Mặc định: Chạy theo mode được lưu trong ~/.config/dsh/mode
-        if [[ "$CURRENT_MODE" == "local" && -d "$LOCAL_REPO" ]]; then
+        if [[ "$CURRENT_MODE" == "local" ]]; then
             run_local "$@"
         else
             run_dlx "$@"

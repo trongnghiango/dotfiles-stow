@@ -1,0 +1,14 @@
+[Desktop Entry]
+Name=Blender (NVIDIA)
+GenericName=3D Modeler & Renderer (NVIDIA GPU)
+Comment=Bộ công cụ 3D Blender chạy trên card rời NVIDIA RTX 2070 Super
+Exec=env WAYLAND_DISPLAY="" prime-run blender %f
+Icon=blender
+Terminal=false
+Type=Application
+Categories=Graphics;3DGraphics;
+MimeType=application/x-blender;
+PrefersNonDefaultGPU=true
+X-KDE-RunOnDiscreteGpu=true
+StartupNotify=true
+StartupWMClass=blender

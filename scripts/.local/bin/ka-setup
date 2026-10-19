@@ -38,6 +38,7 @@ show_help() {
   echo -e "  ${GREEN}ime${NC}       Cài đặt fcitx5-bamboo cho bộ gõ Tiếng Việt."
   echo -e "  ${GREEN}battery${NC}   Cấu hình ngưỡng sạc pin ThinkPad (50-60%)."
   echo -e "  ${GREEN}gpu-fix${NC}   Sửa lỗi boot kernel của đồ họa lai (i915/nvidia)."
+  echo -e "  ${GREEN}optimize${NC}  Tối ưu hóa điều phối CPU/RAM, ananicy-cpp và chống nghẽn I/O."
   echo ""
 }
 
@@ -397,11 +398,13 @@ setup_stow() {
     lf
     hypr      # bindings.lua (DWM hybrid), looknfeel.lua (fullscreen retention)
     brave     # ~/.config/brave-flags.conf (GPU acceleration, Wayland native, zero-copy)
+    antigravity # ~/.config/antigravity-ide-flags.conf (GPU Wayland profile for Antigravity IDE)
     fcitx5
     opencode
     pipewire  # ~/.config/pipewire/pipewire.conf.d/99-input-denoising.conf (RNNoise AI denoiser)
     media     # mpv (auto cover art & MPRIS), ncmpcpp, mpd
     omarchy   # ~/.config/omarchy/extensions/ (Menu extensions, isolated from core)
+    systemd   # ~/.config/systemd/user/ (Desktop real-time priority & anti-OOM-killer)
     scripts   # phải stow sau shell để PATH có stow-safe
   )
 
@@ -444,6 +447,95 @@ setup_stow() {
 }
 
 # ------------------------------------------------------------------------------
+# 8. Tối ưu hóa điều phối CPU, RAM & Chống nghẽn I/O (Workstation Performance)
+# ------------------------------------------------------------------------------
+setup_optimize() {
+  log_step "Cấu hình tối ưu hóa điều phối tiến trình và chống nghẽn I/O & RAM..."
+
+  # 8.1. Cài đặt và kích hoạt ananicy-cpp (Auto-nice daemon)
+  if pacman -Qi ananicy-cpp &>/dev/null; then
+    log_success "ananicy-cpp đã được cài đặt."
+  else
+    log_info "Đang cài đặt ananicy-cpp qua pacman..."
+    if sudo pacman -S --needed --noconfirm ananicy-cpp; then
+      log_success "Đã cài đặt ananicy-cpp thành công."
+    else
+      log_warn "Không thể cài đặt ananicy-cpp qua pacman."
+    fi
+  fi
+
+  if systemctl is-enabled ananicy-cpp.service &>/dev/null && systemctl is-active ananicy-cpp.service &>/dev/null; then
+    log_success "ananicy-cpp.service đã được kích hoạt và đang chạy."
+  else
+    log_info "Kích hoạt dịch vụ ananicy-cpp.service..."
+    if sudo systemctl enable --now ananicy-cpp.service 2>/dev/null; then
+      log_success "ananicy-cpp.service đã được khởi chạy thành công."
+    else
+      log_warn "Chưa thể khởi động ananicy-cpp.service."
+    fi
+  fi
+
+  # 8.2. Cấu hình ZRAM sang lzo-rle siêu nhanh (loại bỏ độ trễ nén zstd khi tải nặng)
+  local zram_conf="/etc/systemd/zram-generator.conf.d/99-fast-zram.conf"
+  if [ -f "$zram_conf" ]; then
+    log_success "Cấu hình ZRAM lzo-rle đã tồn tại: $zram_conf."
+  else
+    log_info "Tạo cấu hình ZRAM lzo-rle tại $zram_conf..."
+    sudo mkdir -p /etc/systemd/zram-generator.conf.d
+    sudo tee "$zram_conf" >/dev/null << 'EOF'
+[zram0]
+zram-size = ram
+compression-algorithm = lzo-rle
+swap-priority = 100
+EOF
+    log_success "Đã tạo cấu hình ZRAM lzo-rle."
+  fi
+
+  # 8.3. Cấu hình I/O đĩa mượt mà (ngăn chặn đơ chuột / nghẽn I/O khi xuất video hoặc compile)
+  local sysctl_conf="/etc/sysctl.d/99-smooth-io.conf"
+  if [ -f "$sysctl_conf" ]; then
+    log_success "Cấu hình I/O sysctl đã tồn tại: $sysctl_conf."
+  else
+    log_info "Tạo cấu hình Smooth I/O tại $sysctl_conf..."
+    sudo mkdir -p /etc/sysctl.d
+    sudo tee "$sysctl_conf" >/dev/null << 'EOF'
+# Giảm thiểu đóng băng hệ thống khi xuất video / build code dung lượng lớn
+# Xả đĩa ngầm từ sớm (5% RAM) thay vì chặn luồng đồng bộ ở ngưỡng cứng 256MB
+vm.dirty_background_ratio = 5
+vm.dirty_ratio = 10
+# Xả dữ liệu bẩn đều đặn mỗi 5 giây thay vì dồn 15 giây
+vm.dirty_writeback_centisecs = 500
+EOF
+    sudo sysctl -p "$sysctl_conf" >/dev/null 2>&1 || true
+    log_success "Đã áp dụng thông số hạt nhân Smooth I/O."
+  fi
+
+  # 8.4. Giới hạn luồng song song của DKMS để tránh cú sốc RAM 18GB khi update kernel
+  local dkms_conf="/etc/dkms/framework.conf.d/parallel.conf"
+  if [ -f "$dkms_conf" ]; then
+    log_success "Cấu hình giới hạn luồng DKMS đã tồn tại: $dkms_conf."
+  else
+    log_info "Tạo cấu hình DKMS parallel jobs tại $dkms_conf..."
+    sudo mkdir -p /etc/dkms/framework.conf.d
+    echo "parallel_jobs=6" | sudo tee "$dkms_conf" >/dev/null
+    log_success "Đã giới hạn DKMS tối đa 6 luồng đồng thời."
+  fi
+
+  # 8.5. Deploy package systemd (User slice priority & OOM anti-kill)
+  if command -v stow-safe &>/dev/null; then
+    log_info "Deploy cấu hình Systemd User Slices qua stow-safe..."
+    stow-safe systemd 2>/dev/null || log_info "Chạy 'stow-safe systemd' trong terminal người dùng để tạo symlink."
+  fi
+
+  # 8.6. Reload systemd user daemon
+  if command -v systemctl &>/dev/null; then
+    systemctl --user daemon-reload 2>/dev/null || true
+  fi
+
+  log_success "Hoàn tất tối ưu hóa hiệu năng máy trạm!"
+}
+
+# ------------------------------------------------------------------------------
 # MAIN
 # ------------------------------------------------------------------------------
 if [ $# -eq 0 ]; then
@@ -478,6 +570,9 @@ case "$CMD" in
   gpu-fix)
     setup_gpu_fix
     ;;
+  optimize|perf)
+    setup_optimize
+    ;;
   all)
     setup_pkgs
     echo ""
@@ -494,6 +589,8 @@ case "$CMD" in
     setup_battery
     echo ""
     setup_gpu_fix
+    echo ""
+    setup_optimize
     ;;
   *)
     show_help

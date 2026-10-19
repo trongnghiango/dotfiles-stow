@@ -108,3 +108,9 @@ o.bind("SUPER + SHIFT + PERIOD", "Move workspace right", hl.dsp.workspace.move({
 -- Scratchpad (Ẩn/Hiện cửa sổ nổi nhanh)
 o.bind("SUPER + GRAVE", "Toggle scratchpad", hl.dsp.workspace.toggle_special("scratchpad"))
 o.bind("SUPER + SHIFT + GRAVE", "Send to scratchpad", hl.dsp.window.move({ workspace = "special:scratchpad", follow = false }))
+
+-- ------------------------------------------------------------------------------
+-- 7. HARDWARE & DEVICE TOGGLES
+-- ------------------------------------------------------------------------------
+-- Bật / Tắt Touchpad (Hiển thị OSD thông báo)
+o.bind_toggle("SUPER + SHIFT + T", "Toggle touchpad", "touchpad")

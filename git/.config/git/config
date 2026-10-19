@@ -83,3 +83,5 @@
 	syntax-theme = Dracula
 [includeIf "gitdir:/home/ka/Repos/github.com/trongnghiango/"]
 	path = /home/ka/Repos/github.com/trongnghiango/.gitconfig_custom
+[includeIf "gitdir:/home/ka/Repos/gitlab.com/phongbd/"]
+	path = /home/ka/Repos/gitlab.com/phongbd/.gitconfig_custom

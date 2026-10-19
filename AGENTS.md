@@ -24,9 +24,11 @@ Each top-level directory is a Stow package containing `$HOME`-relative paths:
 | `lf/` | `~/.config/lf/`: lf file manager (vi binds, modern Wayland previewer: Chafa, Bat, Eza, PDF/EPUB cover) |
 | `hypr/` | `~/.config/hypr/`: `bindings.lua` (DWM Hybrid keybindings), `looknfeel.lua` (fullscreen retention) |
 | `brave/` | `~/.config/brave-flags.conf`: GPU acceleration, Wayland native, zero-copy, HTTP/3 |
+| `antigravity/` | `~/.config/antigravity-ide-flags.conf`: GPU Wayland native profile, zero-copy, low-power GPU |
 | `media/` | `~/.config/{mpv,ncmpcpp,mpd}`: PipeWire audio, GPU Wayland mpv (auto cover art & MPRIS topbar), TUI player |
 | `opencode/` | `~/.config/opencode/`: 9Router gateway config, 3 combo tiers (KhaBoDo, KhaSimple, KhaThinking) |
 | `pipewire/` | `~/.config/pipewire/`: PipeWire RNNoise AI real-time noise cancellation filter-chain |
+| `systemd/` | `~/.config/systemd/user/`: `session.slice.d/` (UI priority 1000) & `app.slice.d/` (OOM anti-kill) |
 | `yay/` | `~/.config/yay/`: yay AUR helper config |
 
 ## Key Commands & Workflow
@@ -37,7 +39,7 @@ Each top-level directory is a Stow package containing `$HOME`-relative paths:
 - **Git Manager:** `gm` — multi-account git manager under `~/Repos/`, uses git `includeIf`
 - **Battery:** `battery-threshold` — sets ThinkPad charge thresholds (50-60%) via systemd oneshot service
 - **Cron Jobs:** `cron/crontog` toggles cron jobs; `cron/checkup` (pacman), `cron/newsup` (RSS)
-- **Setup Helper:** `ka-setup` — post-install helper (`pkgs`, `pam`, `docker`, `ime`, `battery`, `gpu-fix`, `shell`, `stow`, `all`)
+- **Setup Helper:** `ka-setup` — post-install helper (`pkgs`, `pam`, `docker`, `ime`, `battery`, `gpu-fix`, `optimize`, `shell`, `stow`, `all`)
 
 ## Environment & Wayland Standards
 
