@@ -67,13 +67,16 @@ Mã nguồn `dwmblocks` được biên dịch từ `config.h` (X-Macro `BLOCKS(X
 
 Mọi AI Agent khi làm việc trong repository này **BẮT BUỘC TUÂN THỦ**:
 
-1. **Học thuyết Một Con Đường (One Path Doctrine)**: Mỗi chức năng chỉ duy trì một công cụ duy nhất. Không duy trì các bản sao song song bằng Bash/Python khi đã có bản C native.
+1. **Học thuyết Một Con Đường & Vườn Ươm Tốt Nghiệp (One Path & Incubate-to-Graduate)**:
+   - Mỗi chức năng chỉ duy trì một công cụ duy nhất. Không duy trì các bản sao song song bằng Bash/Python khi đã có bản C native.
+   - Ý tưởng mới PHẢI bắt đầu ở tầng cao (script, drop-in hook). Chỉ khi chứng minh được giá trị thực tế mới viết lại bằng C thuần và tích hợp vào Core. Tuyệt đối CẤM tự ý nhồi mã C chưa kiểm chứng vào lõi (`dwm`, `dwmblocks`).
 2. **Bất biến của GNU Stow**: Tuyệt đối **CẤM dùng `sed -i`** hoặc ghi đè lên bất kỳ tệp tin nào là liên kết mềm trỏ vào các gói Stow. Mọi cấu hình động phải được sinh ra ngoài cây Stow (`$XDG_RUNTIME_DIR` hoặc drop-in directories như `dunstrc.d/`) và `source`/`include` tĩnh.
 3. **Cấm tuyệt đối lệnh `eval`**: Không sử dụng `eval` trên dữ liệu đọc từ file cấu hình hoặc bookmark của người dùng. Luôn dùng vòng lặp `while IFS= read -r line` an toàn.
 4. **Không dùng `/tmp` cho tệp trạng thái hoặc socket**: Mọi file PID, socket IPC, log daemon và file trạng thái bắt buộc phải nằm trong `$XDG_RUNTIME_DIR/<app>/` (phân quyền riêng tư `0700` theo UID).
 5. **Tự soi chiếu qua `state.json`**: Trạng thái hệ thống được đồng bộ hóa tại `$XDG_RUNTIME_DIR/ka/state.json`. Đọc trực tiếp file này thay vì dùng `grep`/`pidof` mò mẫm.
 6. **Mọi script thay đổi cấu hình phải có `--check`**: Cho phép agent chạy giả lập dry-run để kiểm tra trước khi ghi đè thật.
 7. **Chạy kiểm tra `agent-guard`**: Trước khi kết thúc phiên, chạy `./scripts/.local/bin/agent-guard` để xác nhận không vi phạm bất kỳ nguyên tắc an toàn nào.
+8. **Cấm `dlopen` hoặc nạp động vào tiến trình lõi**: Tuyệt đối không nhúng thư viện động ngoài vào vòng lặp sự kiện chính của WM. Mọi mở rộng runtime phải chạy ở tiến trình riêng biệt (Process Isolation) hoặc giao tiếp qua kênh bất đồng bộ.
 
 ---
 
@@ -92,6 +95,49 @@ Cấu hình phần cứng được quản lý qua `ka-profile` và nạp tự đ
 
 ### Kích thước nhị phân & Dung lượng RAM thực tế đo đạc
 - **`ka-clipd`**: Kích thước nhị phân 22 KB, RAM thực tế **~1.1 MB RSS**, 0.0% CPU idle (lắng nghe sự kiện XFixes, bảo vệ mật khẩu qua `x-kde-passwordManagerHint`, quyền tệp 0600).
-- **`dwmblocks`**: Kích thước nhị phân 27 KB, RAM thực tế **~2.2 MB RSS** (9 khối in-process, không quét `/proc` khi bấm phím).
+- **`dwmblocks`**: Kích thước nhị phân 27 KB, RAM thực tế **~2.2 MB RSS** (10 khối in-process, không quét `/proc` khi bấm phím).
 - **`ka-pop`**: Kích thước nhị phân 41 KB, chạy theo nhu cầu on-demand (**0 MB RAM khi idle**, ~35 MB khi mở thẻ GTK3).
 - **`dwm 6.8`**: RAM thực tế **~15 MB RSS** (tích hợp `drw_scm_free` chống rò rỉ XftColor, đã dọn mã autostart chết).
+
+---
+
+## 5. VÒNG ĐỜI TÍNH NĂNG: VƯỜN ƯƠM PLUGIN → TỐT NGHIỆP VÀO LÕI C (INCUBATE & GRADUATE)
+
+Hệ thống áp dụng mô hình 2 tầng phân tách nghiêm ngặt giữa **Thử nghiệm (Tầng cao)** và **Vận hành vĩnh cửu (Tầng lõi)**:
+
+```
+[ Ý TƯỞNG MỚI / EXPERIMENTAL ]
+             │
+             ▼
+┌────────────────────────────────────────────────────────┐
+│ TẦNG 1: VƯỜN ƯƠM PLUGIN (High-level Incubator)         │
+│ - Ngôn ngữ: POSIX Shell / Bash / Python / Hooks        │
+│ - Vị trí: scripts/.local/bin/, hooks.d/, sxhkdrc       │
+│ - Cô lập: Chạy theo tiến trình con, hook khi có event  │
+│ - Đánh giá: Thử nghiệm thực tế hàng ngày               │
+└──────────────────────────┬─────────────────────────────┘
+                           │
+             ┌─────────────┴─────────────┐
+             ▼                           ▼
+    [ Không hiệu quả ]           [ Thực sự hữu ích & dùng thường xuyên ]
+             │                           │
+    [ XÓA BỎ NGAY ]                      ▼
+                           ┌────────────────────────────────────────┐
+                           │ TẦNG 2: TỐT NGHIỆP VÀO CORE (Graduation)│
+                           │ - Ngôn ngữ: C thuần (C99, POSIX, libc) │
+                           │ - Vị trí: suckless/.local/src/         │
+                           │ - Tiêu chuẩn: 0 leak, zero-dependency, │
+                           │   không fork định kỳ, RAM idle < 2MB   │
+                           │ - Dọn dẹp: XÓA bản prototype ở Tầng 1  │
+                           └────────────────────────────────────────┘
+```
+
+### Các ví dụ thực tế đã "tốt nghiệp" thành công:
+1. **Quản lý Clipboard (`ka-clipd`)**: Từ script Bash + `xclip`/`greenclip` → `ka-clipd.c` (22 KB, 1.1 MB RAM, sự kiện XFixes, bảo vệ mật khẩu).
+2. **Thanh trạng thái (`dwmblocks`)**: Từ các script định kỳ (`sb-cpu`, `sb-mem`, `sb-vol`) fork liên tục → 10 blocks C in-process (`native_blocks.c`, 2.2 MB RAM, đọc trực tiếp `/proc` và `/sys`).
+3. **Quản lý Bluetooth (`ka-pop` & `ka-bluetooth`)**: Từ các script `btmgr`/`btpair` phân mảnh → module C native trong `ka-pop` kết hợp CLI quản lý sạch.
+
+### Tiêu chuẩn "Tốt nghiệp" vào Core:
+- **Zero-Dependency**: Không kéo theo thư viện bên thứ ba không cần thiết (không dùng thư viện JSON ngoài, ưu tiên text line protocol, atomic `state.json` hoặc sysfs/procfs).
+- **Non-blocking Hot Path**: Đường nóng (vòng lặp sự kiện X11 của WM) không bao giờ bị chặn bởi bất kỳ plugin hay tác vụ I/O nào.
+- **Bảo toàn One Path Doctrine**: Khi code C đã được biên dịch và tích hợp thành công, phải xoá bỏ triệt để các script shell prototype cũ để tránh phình to kho mã nguồn.
