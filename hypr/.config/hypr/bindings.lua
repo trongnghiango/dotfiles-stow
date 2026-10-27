@@ -114,3 +114,20 @@ o.bind("SUPER + SHIFT + GRAVE", "Send to scratchpad", hl.dsp.window.move({ works
 -- ------------------------------------------------------------------------------
 -- Bật / Tắt Touchpad (Hiển thị OSD thông báo)
 o.bind_toggle("SUPER + SHIFT + T", "Toggle touchpad", "touchpad")
+
+-- ------------------------------------------------------------------------------
+-- 8. REMOTE DESKTOP / VM KEYBOARD PASSTHROUGH (Bàn phím xuyên thấu)
+-- ------------------------------------------------------------------------------
+-- Trong chế độ passthrough, toàn bộ phím tắt của Hyprland trên máy trạm bị tạm dừng,
+-- phím bấm (kể cả SUPER, Super+Return, Super+Q, Alt+Tab...) truyền thẳng 100% vào Remote.
+hl.define_submap("passthrough", function()
+  hl.bind("SUPER + F11", function()
+    hl.dispatch(hl.dsp.submap("reset"))
+    hl.exec_cmd("notify-send -a 'Hyprland' -u low -i input-keyboard '🖥️ Phím tắt máy trạm: ĐÃ BẬT' 'Đã thoát chế độ Remote Passthrough.'")
+  end, { description = "Exit passthrough mode" })
+end)
+
+o.bind("SUPER + F11", "Toggle keyboard passthrough (RustDesk / VM)", function()
+  hl.dispatch(hl.dsp.submap("passthrough"))
+  hl.exec_cmd("notify-send -a 'Hyprland' -u low -i input-keyboard '⌨️ Chế độ Remote Passthrough: ĐÃ BẬT' 'Toàn bộ phím tắt máy trạm đã tắt. Bấm SUPER + F11 để thoát.'")
+end)

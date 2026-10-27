@@ -60,5 +60,9 @@ export LESS_TERMCAP_ue="$(printf '%b' '\e[0m')"
 export LESSOPEN="| bat --style=plain --color=always %s 2>/dev/null"
 
 
+# --- Wayland & Desktop Workarounds ---
+# Fixes WebKitGTK / Tauri (e.g. STAX Desktop) crashing with SIGSEGV on hybrid GPU Wayland
+export WEBKIT_DISABLE_DMABUF_RENDERER="1"
+
 # --- Local overrides (API keys, machine-specific — không vào git) ---
 [ -f "$XDG_CONFIG_HOME/shell/profile.local" ] && . "$XDG_CONFIG_HOME/shell/profile.local"

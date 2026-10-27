@@ -39,7 +39,9 @@ Each top-level directory is a Stow package containing `$HOME`-relative paths:
 - **Git Manager:** `gm` — multi-account git manager under `~/Repos/`, uses git `includeIf`
 - **Battery:** `battery-threshold` — sets ThinkPad charge thresholds (50-60%) via systemd oneshot service
 - **Cron Jobs:** `cron/crontog` toggles cron jobs; `cron/checkup` (pacman), `cron/newsup` (RSS)
-- **Setup Helper:** `ka-setup` — post-install helper (`pkgs`, `pam`, `docker`, `ime`, `battery`, `gpu-fix`, `optimize`, `shell`, `stow`, `all`)
+- **Setup Helper:** `ka-setup` — post-install helper:
+  - Chung (Mọi máy): `all` (cài đặt toàn bộ môi trường chung), `pkgs`, `shell`, `ime`, `pam`, `docker`, `stow`, `optimize`, `remote`
+  - Riêng phần cứng (Chạy độc lập theo máy): `t15g` (ThinkPad T15g Gen 1), `battery` (ngưỡng sạc pin), `gpu-fix` (đồ họa lai)
 
 ## Environment & Wayland Standards
 

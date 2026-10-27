@@ -29,16 +29,18 @@ show_help() {
   echo "  ka-setup <command>"
   echo ""
   echo -e "${BOLD}COMMANDS:${NC}"
-  echo -e "  ${GREEN}all${NC}       Chạy toàn bộ các bước cấu hình (bao gồm cài dependencies)."
+  echo -e "  ${GREEN}all${NC}       Chạy toàn bộ cấu hình chung (không bao gồm tối ưu phần cứng riêng)."
   echo -e "  ${GREEN}pkgs${NC}      Kiểm tra và cài đặt toàn bộ gói phụ thuộc (stow, fuse2, git-delta, lf, etc.)."
   echo -e "  ${GREEN}shell${NC}     Đặt Zsh làm login shell mặc định (chsh)."
   echo -e "  ${GREEN}stow${NC}      Deploy dotfiles an toàn qua stow-safe."
   echo -e "  ${GREEN}pam${NC}       Cấu hình tự động mở khóa gnome-keyring tại TTY."
   echo -e "  ${GREEN}docker${NC}    Cấu hình quyền Docker (non-root) & socket activation."
   echo -e "  ${GREEN}ime${NC}       Cài đặt fcitx5-bamboo cho bộ gõ Tiếng Việt."
+  echo -e "  ${GREEN}optimize${NC}  Tối ưu hóa chung hệ điều hành (CPU auto-nice, ZRAM lzo-rle, Smooth I/O, RTKit)."
+  echo -e "  ${GREEN}remote${NC}    Cài đặt & cấu hình bộ công cụ Remote đồ họa (Tailscale + Moonlight)."
+  echo -e "  ${GREEN}t15g${NC}      Tối ưu hóa riêng phần cứng ThinkPad T15g Gen 1 (Pin, Đồ họa lai, Blacklist ucsi_ccg)."
   echo -e "  ${GREEN}battery${NC}   Cấu hình ngưỡng sạc pin ThinkPad (50-60%)."
   echo -e "  ${GREEN}gpu-fix${NC}   Sửa lỗi boot kernel của đồ họa lai (i915/nvidia)."
-  echo -e "  ${GREEN}optimize${NC}  Tối ưu hóa điều phối CPU/RAM, ananicy-cpp và chống nghẽn I/O."
   echo ""
 }
 
@@ -521,18 +523,145 @@ EOF
     log_success "Đã giới hạn DKMS tối đa 6 luồng đồng thời."
   fi
 
-  # 8.5. Deploy package systemd (User slice priority & OOM anti-kill)
+  # 8.5. Kích hoạt rtkit-daemon (Real-Time priority an toàn cho PipeWire / Audio)
+  if systemctl is-enabled rtkit-daemon.service &>/dev/null && systemctl is-active rtkit-daemon.service &>/dev/null; then
+    log_success "rtkit-daemon.service đã hoạt động."
+  else
+    log_info "Kích hoạt rtkit-daemon.service cho PipeWire low-latency..."
+    sudo systemctl enable --now rtkit-daemon.service 2>/dev/null || true
+    log_success "Đã kích hoạt rtkit-daemon.service."
+  fi
+
+  # 8.6. Deploy package systemd (User slice priority & OOM anti-kill)
   if command -v stow-safe &>/dev/null; then
     log_info "Deploy cấu hình Systemd User Slices qua stow-safe..."
     stow-safe systemd 2>/dev/null || log_info "Chạy 'stow-safe systemd' trong terminal người dùng để tạo symlink."
   fi
 
-  # 8.6. Reload systemd user daemon
+  # 8.7. Reload systemd user daemon
   if command -v systemctl &>/dev/null; then
     systemctl --user daemon-reload 2>/dev/null || true
   fi
 
-  log_success "Hoàn tất tối ưu hóa hiệu năng máy trạm!"
+  log_success "Hoàn tất tối ưu hóa chung hệ thống!"
+}
+
+# ------------------------------------------------------------------------------
+# 9. Tối ưu hóa riêng phần cứng ThinkPad T15g Gen 1 (Hardware-specific Tuning)
+# ------------------------------------------------------------------------------
+setup_t15g() {
+  log_step "Cấu hình tối ưu hóa phần cứng ThinkPad T15g Gen 1..."
+
+  # 9.1. Nhận diện phần cứng (Hardware Verification)
+  local product_name=""
+  [ -f /sys/devices/virtual/dmi/id/product_name ] && product_name=$(cat /sys/devices/virtual/dmi/id/product_name 2>/dev/null)
+  local product_version=""
+  [ -f /sys/devices/virtual/dmi/id/product_version ] && product_version=$(cat /sys/devices/virtual/dmi/id/product_version 2>/dev/null)
+
+  log_info "Thiết bị nhận diện: $product_name ($product_version)"
+
+  # 9.2. Blacklist ucsi_ccg (NVIDIA TU104 VirtualLink I2C Timeout Fix)
+  # Fix lỗi 'nvidia-gpu i2c timeout error' và 'ucsi_ccg i2c_transfer failed -110' khi GPU ngủ/thức
+  local ucsi_conf="/etc/modprobe.d/blacklist-ucsi-ccg.conf"
+  if [ -f "$ucsi_conf" ]; then
+    log_success "Cấu hình blacklist ucsi_ccg đã tồn tại: $ucsi_conf."
+  else
+    log_info "Tạo cấu hình blacklist ucsi_ccg tại $ucsi_conf..."
+    sudo mkdir -p /etc/modprobe.d
+    echo "blacklist ucsi_ccg" | sudo tee "$ucsi_conf" >/dev/null
+    log_success "Đã blacklist ucsi_ccg (loại bỏ độ trễ và lỗi I2C timeout của card NVIDIA)."
+  fi
+
+  # 9.3. Ngưỡng sạc pin ThinkPad (50-60%)
+  setup_battery
+
+  # 9.4. Đồ họa lai & NVIDIA Wayland Modeset
+  setup_gpu_fix
+
+  log_success "Hoàn tất tối ưu hóa phần cứng ThinkPad T15g Gen 1!"
+}
+
+# ------------------------------------------------------------------------------
+# 10. Cấu hình bộ công cụ Remote đồ họa cao cấp (Tailscale + Moonlight)
+# ------------------------------------------------------------------------------
+setup_remote() {
+  log_step "Kiểm tra và cấu hình bộ công cụ Remote đồ họa (Tailscale + Moonlight)..."
+
+  # 10.1. Kiểm tra và cài đặt Tailscale & Moonlight
+  local remote_pkgs=()
+  for pkg in tailscale moonlight-qt cifs-utils gvfs-smb; do
+    if ! pacman -Qi "$pkg" &>/dev/null; then
+      remote_pkgs+=("$pkg")
+    fi
+  done
+
+  if [ ${#remote_pkgs[@]} -gt 0 ]; then
+    log_info "Đang cài đặt các gói remote còn thiếu: ${remote_pkgs[*]}..."
+    sudo pacman -S --needed --noconfirm "${remote_pkgs[@]}"
+    log_success "Đã cài đặt hoàn tất các gói remote."
+  else
+    log_success "Toàn bộ gói remote (tailscale, moonlight-qt, cifs-utils, gvfs-smb) đã sẵn sàng."
+  fi
+
+  # 10.2. Kích hoạt dịch vụ Tailscale daemon
+  if systemctl is-enabled tailscaled.service &>/dev/null && systemctl is-active tailscaled.service &>/dev/null; then
+    log_success "tailscaled.service đang hoạt động."
+  else
+    log_info "Kích hoạt dịch vụ tailscaled.service..."
+    sudo systemctl enable --now tailscaled.service
+    log_success "Đã khởi chạy tailscaled.service."
+  fi
+
+  # 10.3. Tối ưu cấu hình Moonlight cho đồ họa và độ trễ thấp
+  local ml_dir="$HOME/.config/Moonlight Game Streaming Project"
+  local ml_conf="$ml_dir/Moonlight.conf"
+  mkdir -p "$ml_dir"
+
+  if [ ! -f "$ml_conf" ]; then
+    log_info "Tạo cấu hình Moonlight tối ưu ban đầu tại $ml_conf..."
+    cat > "$ml_conf" << 'EOF'
+[General]
+bitrate=50000
+fps=60
+height=1080
+width=1920
+windowmode=1
+vsync=true
+framepacing=true
+yuv444=true
+hdr=false
+mouseacceleration=false
+capturesyskeys=1
+gamepadmouse=false
+keepawake=true
+muteonfocusloss=false
+packetsize=1392
+detectnetblocking=false
+connwarnings=true
+mdns=true
+EOF
+    log_success "Đã tạo cấu hình Moonlight tối ưu (50Mbps, 60FPS, YUV444, Fullscreen)."
+  else
+    log_success "Cấu hình Moonlight đã tồn tại: $ml_conf."
+  fi
+
+  # 10.4. Kiểm tra trạng thái Tailscale
+  echo ""
+  if tailscale status &>/dev/null; then
+    local ts_ip
+    ts_ip=$(tailscale ip -4 2>/dev/null || echo "Chưa có IP")
+    log_success "Tailscale đã đăng nhập. IP thiết bị này: $ts_ip"
+  else
+    log_warn "Tailscale chưa đăng nhập. Vui lòng chạy lệnh sau để kết nối vào mạng cá nhân:"
+    echo -e "  ${BOLD}sudo tailscale up --operator=$USER${NC}"
+  fi
+
+  echo ""
+  log_info "Các tiện ích sao chép file đi kèm:"
+  echo -e "  • Bắn file nhanh qua Taildrop:  ${CYAN}tailscale file cp <file> <tên-máy-host>:${NC}"
+  echo -e "  • Nhận file gửi đến thư mục:   ${CYAN}tailscale file get ~/Downloads${NC}"
+  echo -e "  • Duyệt thư mục chia sẻ SMB:    ${CYAN}smb://<tên-máy-host>/<thư-mục>${NC}"
+  log_success "Hoàn tất cấu hình bộ công cụ Remote!"
 }
 
 # ------------------------------------------------------------------------------
@@ -573,6 +702,12 @@ case "$CMD" in
   optimize|perf)
     setup_optimize
     ;;
+  remote)
+    setup_remote
+    ;;
+  t15g|hardware)
+    setup_t15g
+    ;;
   all)
     setup_pkgs
     echo ""
@@ -585,10 +720,6 @@ case "$CMD" in
     setup_pam
     echo ""
     setup_docker
-    echo ""
-    setup_battery
-    echo ""
-    setup_gpu_fix
     echo ""
     setup_optimize
     ;;
