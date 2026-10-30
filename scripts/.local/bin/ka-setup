@@ -572,10 +572,45 @@ setup_t15g() {
     log_success "Đã blacklist ucsi_ccg (loại bỏ độ trễ và lỗi I2C timeout của card NVIDIA)."
   fi
 
-  # 9.3. Ngưỡng sạc pin ThinkPad (50-60%)
+  # 9.3. NVIDIA Turing RTD3 (Runtime D3cold Power Management)
+  # Cho phép card RTX 2070 Super Max-Q tự động ngủ sâu (0W, tắt quạt) khi không dùng và thức dậy tức thì khi chạy prime-run
+  local nvidia_pm_modprobe="/etc/modprobe.d/nvidia-pm.conf"
+  if [ -f "$nvidia_pm_modprobe" ]; then
+    log_success "Cấu hình NVIDIA Dynamic Power Management đã tồn tại: $nvidia_pm_modprobe."
+  else
+    log_info "Tạo cấu hình NVIDIA RTD3 Power Management tại $nvidia_pm_modprobe..."
+    sudo mkdir -p /etc/modprobe.d
+    echo 'options nvidia "NVreg_DynamicPowerManagement=0x02"' | sudo tee "$nvidia_pm_modprobe" >/dev/null
+    log_success "Đã cấu hình NVreg_DynamicPowerManagement=0x02."
+  fi
+
+  local nvidia_pm_udev="/etc/udev/rules.d/80-nvidia-pm.rules"
+  if [ -f "$nvidia_pm_udev" ]; then
+    log_success "Cấu hình udev NVIDIA Runtime PM đã tồn tại: $nvidia_pm_udev."
+  else
+    log_info "Tạo udev rule tự động bật auto power control cho NVIDIA Turing tại $nvidia_pm_udev..."
+    sudo mkdir -p /etc/udev/rules.d
+    sudo tee "$nvidia_pm_udev" >/dev/null << 'EOF'
+# Enable runtime PM for NVIDIA VGA/3D controller devices on Driver >= 435 (Turing+)
+ACTION=="add", SUBSYSTEM=="pci", ATTR{vendor}=="0x10de", ATTR{class}=="0x03[0-9]*", ATTR{power/control}="auto", ATTR{remove}="0"
+EOF
+    sudo udevadm control --reload-rules && sudo udevadm trigger --subsystem-match=pci || true
+    log_success "Đã kích hoạt udev rule NVIDIA Runtime PM."
+  fi
+
+  # 9.4. Tắt thermald (Xung đột với ThinkPad ACPI DYTC & power-profiles-daemon)
+  if systemctl is-enabled thermald.service &>/dev/null; then
+    log_info "Vô hiệu hóa thermald.service (ThinkPad dùng native ACPI DYTC)..."
+    sudo systemctl disable --now thermald.service 2>/dev/null || true
+    log_success "Đã vô hiệu hóa thermald.service để tránh xung đột nhiệt."
+  else
+    log_success "thermald.service đã được tắt hoặc không tồn tại (Bỏ qua)."
+  fi
+
+  # 9.5. Ngưỡng sạc pin ThinkPad (50-60%)
   setup_battery
 
-  # 9.4. Đồ họa lai & NVIDIA Wayland Modeset
+  # 9.6. Đồ họa lai & NVIDIA Wayland Modeset
   setup_gpu_fix
 
   log_success "Hoàn tất tối ưu hóa phần cứng ThinkPad T15g Gen 1!"
