@@ -40,8 +40,9 @@ Each top-level directory is a Stow package containing `$HOME`-relative paths:
 - **Battery:** `battery-threshold` — sets ThinkPad charge thresholds (50-60%) via systemd oneshot service
 - **Cron Jobs:** `cron/crontog` toggles cron jobs; `cron/checkup` (pacman), `cron/newsup` (RSS)
 - **Setup Helper:** `ka-setup` — post-install helper:
-  - Chung (Mọi máy): `all` (cài đặt toàn bộ môi trường chung), `pkgs`, `shell`, `ime`, `pam`, `docker`, `stow`, `optimize`, `remote`
-  - Riêng phần cứng (Chạy độc lập theo máy): `t15g` (ThinkPad T15g Gen 1), `battery` (ngưỡng sạc pin), `gpu-fix` (đồ họa lai)
+  - Cài đặt toàn diện: `all` (cài đặt toàn bộ môi trường chung + tự động nhận diện phần cứng riêng theo máy)
+  - Chung (Mọi máy): `default` (chỉ cài môi trường chung), `unbloat` (dọn sạch app rác omarchy), `pkgs`, `shell`, `ime`, `pam`, `docker`, `stow`, `optimize`, `remote`
+  - Riêng phần cứng: `t15g` (hoặc `hardware`) — Trọn gói tối ưu hóa cho ThinkPad T15g Gen 1 (Đồ họa lai NVIDIA RTD3 D3cold, Ngưỡng sạc pin 50-60%, Blacklist ucsi_ccg, Tắt thermald)
 
 ## Environment & Wayland Standards
 

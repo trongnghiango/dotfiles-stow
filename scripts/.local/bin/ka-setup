@@ -5,6 +5,14 @@
 # Description: Post-install autoconfig helper for Arch Linux + Omarchy (Wayland)
 # ==============================================================================
 
+# Ngăn chặn việc chạy nhầm script bằng quyền root hoặc sudo trực tiếp
+if [[ ${EUID:-$(id -u)} -eq 0 ]]; then
+  echo -e "\033[0;31m[ERROR] Tuyệt đối không chạy ka-setup bằng quyền root hoặc 'sudo ka-setup'!\033[0m" >&2
+  echo -e "Hãy chạy bằng tài khoản thường: \033[1mka-setup <command>\033[0m" >&2
+  echo -e "(Script sẽ tự động yêu cầu quyền sudo khi cần chỉnh sửa cấu hình hệ thống /etc).\033[0m" >&2
+  exit 1
+fi
+
 # COLORS
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -29,8 +37,10 @@ show_help() {
   echo "  ka-setup <command>"
   echo ""
   echo -e "${BOLD}COMMANDS:${NC}"
-  echo -e "  ${GREEN}all${NC}       Chạy toàn bộ cấu hình chung (không bao gồm tối ưu phần cứng riêng)."
-  echo -e "  ${GREEN}pkgs${NC}      Kiểm tra và cài đặt toàn bộ gói phụ thuộc (stow, fuse2, git-delta, lf, etc.)."
+  echo -e "  ${GREEN}all${NC}       Cài đặt toàn diện: Cấu hình chung + Tự động nhận diện phần cứng (Auto Hardware Profile)."
+  echo -e "  ${GREEN}default${NC}   Chỉ chạy cấu hình chung nhất mà mọi máy đều chạy được (không can thiệp phần cứng riêng)."
+  echo -e "  ${GREEN}unbloat${NC}   Dọn dẹp sạch sẽ các ứng dụng rác/thừa của Omarchy (LibreOffice, Kdenlive, v.v.)."
+  echo -e "  ${GREEN}pkgs${NC}      Kiểm tra và cài đặt toàn bộ gói phụ thuộc (stow, fuse2, git-delta, lf, mesa-utils, etc.)."
   echo -e "  ${GREEN}shell${NC}     Đặt Zsh làm login shell mặc định (chsh)."
   echo -e "  ${GREEN}stow${NC}      Deploy dotfiles an toàn qua stow-safe."
   echo -e "  ${GREEN}pam${NC}       Cấu hình tự động mở khóa gnome-keyring tại TTY."
@@ -38,9 +48,7 @@ show_help() {
   echo -e "  ${GREEN}ime${NC}       Cài đặt fcitx5-bamboo cho bộ gõ Tiếng Việt."
   echo -e "  ${GREEN}optimize${NC}  Tối ưu hóa chung hệ điều hành (CPU auto-nice, ZRAM lzo-rle, Smooth I/O, RTKit)."
   echo -e "  ${GREEN}remote${NC}    Cài đặt & cấu hình bộ công cụ Remote đồ họa (Tailscale + Moonlight)."
-  echo -e "  ${GREEN}t15g${NC}      Tối ưu hóa riêng phần cứng ThinkPad T15g Gen 1 (Pin, Đồ họa lai, Blacklist ucsi_ccg)."
-  echo -e "  ${GREEN}battery${NC}   Cấu hình ngưỡng sạc pin ThinkPad (50-60%)."
-  echo -e "  ${GREEN}gpu-fix${NC}   Sửa lỗi boot kernel của đồ họa lai (i915/nvidia)."
+  echo -e "  ${GREEN}t15g${NC}      Trọn gói tối ưu hóa phần cứng ThinkPad T15g Gen 1 (Đồ họa lai RTD3 D3cold, Pin 50-60%, ucsi_ccg, thermald)."
   echo ""
 }
 
@@ -79,6 +87,8 @@ setup_pkgs() {
     ffmpegthumbnailer # Video previewer trong lf
     p7zip             # Giải nén 7z preview
     unzip             # Giải nén zip preview
+    jq                # JSON parser cho CLI scripts
+    mesa-utils        # glxinfo, kiểm tra render offload GPU
     noise-suppression-for-voice # Bộ lọc khử ồn AI RNNoise LADSPA cho PipeWire
   )
 
@@ -258,10 +268,15 @@ setup_ime() {
 # ------------------------------------------------------------------------------
 setup_battery() {
   log_step "Kiểm tra và cấu hình ngưỡng sạc pin ThinkPad..."
+  local script_dir
+  script_dir="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
+
   if command -v battery-threshold &>/dev/null; then
     battery-threshold
+  elif [[ -f "$script_dir/battery-threshold" ]]; then
+    "$script_dir/battery-threshold"
   else
-    log_warn "Chưa tìm thấy lệnh battery-threshold trong PATH."
+    log_warn "Chưa tìm thấy lệnh battery-threshold trong PATH hoặc thư mục scripts."
   fi
 }
 
@@ -382,7 +397,7 @@ setup_stow() {
   # Auto-resolve stow-safe if not yet in PATH (e.g. on fresh clone)
   if ! command -v stow-safe &>/dev/null; then
     local script_dir
-    script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    script_dir="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
     if [ -f "$script_dir/stow-safe" ]; then
       export PATH="$script_dir:$PATH"
     else
@@ -408,6 +423,7 @@ setup_stow() {
     media     # mpv (auto cover art & MPRIS), ncmpcpp, mpd
     omarchy   # ~/.config/omarchy/extensions/ (Menu extensions, isolated from core)
     systemd   # ~/.config/systemd/user/ (Desktop real-time priority & anti-OOM-killer)
+    yay       # ~/.config/yay/ (yay AUR helper config)
     scripts   # phải stow sau shell để PATH có stow-safe
   )
 
@@ -518,10 +534,13 @@ EOF
   if [ -f "$dkms_conf" ]; then
     log_success "Cấu hình giới hạn luồng DKMS đã tồn tại: $dkms_conf."
   else
-    log_info "Tạo cấu hình DKMS parallel jobs tại $dkms_conf..."
+    local n_cores
+    n_cores=$(nproc 2>/dev/null || echo 4)
+    local jobs=$(( n_cores > 8 ? 8 : (n_cores > 2 ? n_cores : 2) ))
+    log_info "Tạo cấu hình DKMS parallel jobs ($jobs luồng) tại $dkms_conf..."
     sudo mkdir -p /etc/dkms/framework.conf.d
-    echo "parallel_jobs=6" | sudo tee "$dkms_conf" >/dev/null
-    log_success "Đã giới hạn DKMS tối đa 6 luồng đồng thời."
+    echo "parallel_jobs=$jobs" | sudo tee "$dkms_conf" >/dev/null
+    log_success "Đã giới hạn DKMS tối đa $jobs luồng đồng thời."
   fi
 
   # 8.5. Kích hoạt rtkit-daemon (Real-Time priority an toàn cho PipeWire / Audio)
@@ -575,14 +594,15 @@ setup_t15g() {
 
   # 9.3. NVIDIA Turing RTD3 (Runtime D3cold Power Management)
   # Cho phép card RTX 2070 Super Max-Q tự động ngủ sâu (0W, tắt quạt) khi không dùng và thức dậy tức thì khi chạy prime-run
+  # VideoMemoryThreshold=1024MB cho phép GPU vẫn ngủ ngay cả khi có app nền (Zalo, IDE) ngậm vài trăm MB VRAM
   local nvidia_pm_modprobe="/etc/modprobe.d/nvidia-pm.conf"
-  if [ -f "$nvidia_pm_modprobe" ] && grep -qx 'options nvidia NVreg_DynamicPowerManagement=0x02' "$nvidia_pm_modprobe"; then
+  if [ -f "$nvidia_pm_modprobe" ] && grep -q 'NVreg_DynamicPowerManagementVideoMemoryThreshold=1024' "$nvidia_pm_modprobe"; then
     log_success "Cấu hình NVIDIA Dynamic Power Management đã tồn tại: $nvidia_pm_modprobe."
   else
     log_info "Tạo cấu hình NVIDIA RTD3 Power Management tại $nvidia_pm_modprobe..."
     sudo mkdir -p /etc/modprobe.d
-    echo 'options nvidia NVreg_DynamicPowerManagement=0x02' | sudo tee "$nvidia_pm_modprobe" >/dev/null
-    log_success "Đã cấu hình NVreg_DynamicPowerManagement=0x02 (bỏ dấu ngoặc kép thừa)."
+    echo 'options nvidia NVreg_DynamicPowerManagement=0x02 NVreg_DynamicPowerManagementVideoMemoryThreshold=1024' | sudo tee "$nvidia_pm_modprobe" >/dev/null
+    log_success "Đã cấu hình NVreg_DynamicPowerManagement=0x02 & VideoMemoryThreshold=1024MB."
   fi
 
   local nvidia_pm_udev="/etc/udev/rules.d/80-nvidia-pm.rules"
@@ -701,6 +721,115 @@ EOF
 }
 
 # ------------------------------------------------------------------------------
+# 11. Dọn dẹp Bloatware mặc định của Omarchy (LibreOffice, Kdenlive, Blender...)
+# ------------------------------------------------------------------------------
+setup_unbloat() {
+  log_step "Bắt đầu dọn dẹp các ứng dụng mặc định không cần thiết của Omarchy..."
+
+  if command -v omarchy-remove-preinstalls &>/dev/null; then
+    log_info "Thực thi công cụ gỡ bỏ preinstalls chính chủ của Omarchy..."
+    omarchy-remove-preinstalls || true
+  else
+    local bloat_pkgs=(
+      libreoffice-fresh
+      blender
+      kdenlive
+      obs-studio
+      pinta
+      xournalpp
+      moonlight-qt
+      aether
+      cliamp
+    )
+    local to_remove=()
+    for pkg in "${bloat_pkgs[@]}"; do
+      if pacman -Qi "$pkg" &>/dev/null; then
+        to_remove+=("$pkg")
+      fi
+    done
+    if [ ${#to_remove[@]} -gt 0 ]; then
+      log_info "Gỡ bỏ các gói bloatware: ${to_remove[*]}..."
+      sudo pacman -Rns --noconfirm "${to_remove[@]}" 2>/dev/null || true
+    fi
+  fi
+
+  # Dọn dẹp các gói mồ côi phát sinh
+  local orphans
+  orphans=$(pacman -Qdtq 2>/dev/null || true)
+  if [[ -n "$orphans" ]]; then
+    log_info "Dọn sạch các gói mồ côi (orphans)..."
+    sudo pacman -Rns --noconfirm $orphans 2>/dev/null || true
+  fi
+
+  log_success "Hoàn tất dọn dẹp bloatware! Hệ thống đã giải phóng hàng GB dung lượng."
+}
+
+# ------------------------------------------------------------------------------
+# 12. Tự động nhận diện phần cứng (Hardware Profile Detection)
+# ------------------------------------------------------------------------------
+detect_hardware_profile() {
+  local product_name="" product_version=""
+  [ -f /sys/devices/virtual/dmi/id/product_name ] && product_name=$(cat /sys/devices/virtual/dmi/id/product_name 2>/dev/null)
+  [ -f /sys/devices/virtual/dmi/id/product_version ] && product_version=$(cat /sys/devices/virtual/dmi/id/product_version 2>/dev/null)
+
+  if [[ "$product_name" =~ (20USS0VR00|ThinkPad T15g) || "$product_version" =~ (ThinkPad T15g) ]]; then
+    echo "t15g"
+  else
+    echo "generic"
+  fi
+}
+
+# ------------------------------------------------------------------------------
+# Cấu hình Mặc định / Chung (Mọi máy tính đều chạy được)
+# ------------------------------------------------------------------------------
+setup_default() {
+  log_step "Thực thi cấu hình tiêu chuẩn chung (Default Profile cho mọi máy)..."
+  setup_pkgs
+  echo ""
+  setup_shell
+  echo ""
+  setup_ime
+  echo ""
+  setup_stow
+  echo ""
+  setup_pam
+  echo ""
+  setup_docker
+  echo ""
+  setup_optimize
+  echo ""
+  log_success "Hoàn tất toàn bộ cấu hình chung (Default Setup)!"
+}
+
+# ------------------------------------------------------------------------------
+# Cấu hình Toàn diện (Chung + Tự động nhận diện phần cứng)
+# ------------------------------------------------------------------------------
+setup_all() {
+  log_step "Bắt đầu cài đặt toàn diện: Cấu hình chung + Tự động nhận diện phần cứng..."
+  setup_default
+  echo ""
+
+  local hw_profile
+  hw_profile=$(detect_hardware_profile)
+
+  case "$hw_profile" in
+    t15g)
+      echo ""
+      log_info "🎯 Phát hiện thiết bị phần cứng: ThinkPad T15g Gen 1."
+      log_info "Tự động áp dụng profile phần cứng riêng: 't15g'..."
+      setup_t15g
+      ;;
+    generic|*)
+      echo ""
+      log_info "Thiết bị phần cứng tiêu chuẩn. Không cần áp dụng profile đặc thù."
+      ;;
+  esac
+
+  echo ""
+  log_success "🎉 CHÚC MỪNG: Toàn bộ quá trình cài đặt và tối ưu hóa hệ thống đã hoàn tất!"
+}
+
+# ------------------------------------------------------------------------------
 # MAIN
 # ------------------------------------------------------------------------------
 if [ $# -eq 0 ]; then
@@ -729,35 +858,23 @@ case "$CMD" in
   docker)
     setup_docker
     ;;
-  battery)
-    setup_battery
-    ;;
-  gpu-fix)
-    setup_gpu_fix
-    ;;
   optimize|perf)
     setup_optimize
     ;;
   remote)
     setup_remote
     ;;
-  t15g|hardware)
+  unbloat|clean-bloat)
+    setup_unbloat
+    ;;
+  t15g|hardware|battery|gpu-fix)
     setup_t15g
     ;;
+  default|common)
+    setup_default
+    ;;
   all)
-    setup_pkgs
-    echo ""
-    setup_shell
-    echo ""
-    setup_ime
-    echo ""
-    setup_stow
-    echo ""
-    setup_pam
-    echo ""
-    setup_docker
-    echo ""
-    setup_optimize
+    setup_all
     ;;
   *)
     show_help
