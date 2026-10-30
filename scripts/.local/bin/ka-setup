@@ -281,10 +281,11 @@ setup_gpu_fix() {
   # i915.enable_dpcd_backlight=0 fix lỗi lspcon port D probe
   # ucsi_ccg.disable=1 fix lỗi nvidia i2c timeout khi nvidia GPU ngủ
   # nvidia_drm.modeset=1 và nvidia_drm.fbdev=1 fix màn hình nháy/loạn khung hình khi login Wayland sau khi update NVIDIA
+  # nvidia.NVreg_DynamicPowerManagement=0x02 cho phép card Turing (TU104) tự động vào D3cold khi nhàn rỗi
   local params_to_add=()
   local current_cmdline=$(cat "$cmdline_file")
 
-  for param in "i915.enable_dpcd_backlight=0" "ucsi_ccg.disable=1" "nvidia_drm.modeset=1" "nvidia_drm.fbdev=1"; do
+  for param in "i915.enable_dpcd_backlight=0" "ucsi_ccg.disable=1" "nvidia_drm.modeset=1" "nvidia_drm.fbdev=1" "nvidia.NVreg_DynamicPowerManagement=0x02"; do
     if ! echo "$current_cmdline" | grep -q "$param"; then
       params_to_add+=("$param")
     fi
@@ -575,13 +576,13 @@ setup_t15g() {
   # 9.3. NVIDIA Turing RTD3 (Runtime D3cold Power Management)
   # Cho phép card RTX 2070 Super Max-Q tự động ngủ sâu (0W, tắt quạt) khi không dùng và thức dậy tức thì khi chạy prime-run
   local nvidia_pm_modprobe="/etc/modprobe.d/nvidia-pm.conf"
-  if [ -f "$nvidia_pm_modprobe" ]; then
+  if [ -f "$nvidia_pm_modprobe" ] && grep -qx 'options nvidia NVreg_DynamicPowerManagement=0x02' "$nvidia_pm_modprobe"; then
     log_success "Cấu hình NVIDIA Dynamic Power Management đã tồn tại: $nvidia_pm_modprobe."
   else
     log_info "Tạo cấu hình NVIDIA RTD3 Power Management tại $nvidia_pm_modprobe..."
     sudo mkdir -p /etc/modprobe.d
-    echo 'options nvidia "NVreg_DynamicPowerManagement=0x02"' | sudo tee "$nvidia_pm_modprobe" >/dev/null
-    log_success "Đã cấu hình NVreg_DynamicPowerManagement=0x02."
+    echo 'options nvidia NVreg_DynamicPowerManagement=0x02' | sudo tee "$nvidia_pm_modprobe" >/dev/null
+    log_success "Đã cấu hình NVreg_DynamicPowerManagement=0x02 (bỏ dấu ngoặc kép thừa)."
   fi
 
   local nvidia_pm_udev="/etc/udev/rules.d/80-nvidia-pm.rules"
