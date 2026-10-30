@@ -300,7 +300,7 @@ setup_gpu_fix() {
   local params_to_add=()
   local current_cmdline=$(cat "$cmdline_file")
 
-  for param in "i915.enable_dpcd_backlight=0" "ucsi_ccg.disable=1" "nvidia_drm.modeset=1" "nvidia_drm.fbdev=1" "nvidia.NVreg_DynamicPowerManagement=0x02"; do
+  for param in "i915.enable_dpcd_backlight=0" "ucsi_ccg.disable=1" "nvidia_drm.modeset=1" "nvidia_drm.fbdev=1" "nvidia.NVreg_DynamicPowerManagement=0x02" "nvidia.NVreg_DynamicPowerManagementVideoMemoryThreshold=512"; do
     if ! echo "$current_cmdline" | grep -q "$param"; then
       params_to_add+=("$param")
     fi
@@ -424,6 +424,8 @@ setup_stow() {
     omarchy   # ~/.config/omarchy/extensions/ (Menu extensions, isolated from core)
     systemd   # ~/.config/systemd/user/ (Desktop real-time priority & anti-OOM-killer)
     yay       # ~/.config/yay/ (yay AUR helper config)
+    config-files # ~/.config/mimeapps.list, user-dirs.dirs (Default app handlers & XDG dirs)
+    app_desktop # ~/.local/share/applications/ (Desktop entry handlers & GPU overrides)
     scripts   # phải stow sau shell để PATH có stow-safe
   )
 
@@ -594,15 +596,15 @@ setup_t15g() {
 
   # 9.3. NVIDIA Turing RTD3 (Runtime D3cold Power Management)
   # Cho phép card RTX 2070 Super Max-Q tự động ngủ sâu (0W, tắt quạt) khi không dùng và thức dậy tức thì khi chạy prime-run
-  # VideoMemoryThreshold=1024MB cho phép GPU vẫn ngủ ngay cả khi có app nền (Zalo, IDE) ngậm vài trăm MB VRAM
+  # VideoMemoryThreshold=512MB cho phép GPU vẫn ngủ ngay cả khi có app nền (Zalo, IDE) ngậm vài trăm MB VRAM
   local nvidia_pm_modprobe="/etc/modprobe.d/nvidia-pm.conf"
-  if [ -f "$nvidia_pm_modprobe" ] && grep -q 'NVreg_DynamicPowerManagementVideoMemoryThreshold=1024' "$nvidia_pm_modprobe"; then
+  if [ -f "$nvidia_pm_modprobe" ] && grep -q 'NVreg_DynamicPowerManagementVideoMemoryThreshold=512' "$nvidia_pm_modprobe"; then
     log_success "Cấu hình NVIDIA Dynamic Power Management đã tồn tại: $nvidia_pm_modprobe."
   else
     log_info "Tạo cấu hình NVIDIA RTD3 Power Management tại $nvidia_pm_modprobe..."
     sudo mkdir -p /etc/modprobe.d
-    echo 'options nvidia NVreg_DynamicPowerManagement=0x02 NVreg_DynamicPowerManagementVideoMemoryThreshold=1024' | sudo tee "$nvidia_pm_modprobe" >/dev/null
-    log_success "Đã cấu hình NVreg_DynamicPowerManagement=0x02 & VideoMemoryThreshold=1024MB."
+    echo 'options nvidia NVreg_DynamicPowerManagement=0x02 NVreg_DynamicPowerManagementVideoMemoryThreshold=512' | sudo tee "$nvidia_pm_modprobe" >/dev/null
+    log_success "Đã cấu hình NVreg_DynamicPowerManagement=0x02 & VideoMemoryThreshold=512MB."
   fi
 
   local nvidia_pm_udev="/etc/udev/rules.d/80-nvidia-pm.rules"

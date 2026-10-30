@@ -30,6 +30,8 @@ Each top-level directory is a Stow package containing `$HOME`-relative paths:
 | `pipewire/` | `~/.config/pipewire/`: PipeWire RNNoise AI real-time noise cancellation filter-chain |
 | `systemd/` | `~/.config/systemd/user/`: `session.slice.d/` (UI priority 1000) & `app.slice.d/` (OOM anti-kill) |
 | `yay/` | `~/.config/yay/`: yay AUR helper config |
+| `config-files/` | `~/.config/`: `mimeapps.list` (Default apps), `user-dirs.dirs` |
+| `app_desktop/` | `~/.local/share/applications/`: Desktop entry handlers, URL schemes, GPU offload launchers |
 
 ## Key Commands & Workflow
 

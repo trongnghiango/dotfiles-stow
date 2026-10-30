@@ -18,6 +18,13 @@ BOLD='\033[1m'
 NC='\033[0m'
 
 GPU_PCI="0000:01:00.0"
+if [[ ! -d "/sys/bus/pci/devices/$GPU_PCI" ]]; then
+    # Tự động dò tìm PCI bus ID của NVIDIA nếu không nằm ở 0000:01:00.0
+    detected_pci=$(lspci -D 2>/dev/null | grep -E "VGA|3D" | grep -i "NVIDIA" | awk '{print $1}' | head -n 1 || true)
+    if [[ -n "$detected_pci" && -d "/sys/bus/pci/devices/$detected_pci" ]]; then
+        GPU_PCI="$detected_pci"
+    fi
+fi
 PCI_PATH="/sys/bus/pci/devices/$GPU_PCI"
 
 log_header() {
