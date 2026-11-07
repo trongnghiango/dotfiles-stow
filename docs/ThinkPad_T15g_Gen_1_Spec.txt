@@ -1,0 +1,701 @@
+PSREF
+Product Specifications
+Reference
+
+ThinkPad T15g Gen 1
+
+OVERVIEW
+
+1.
+
+SD card reader
+
+7. Headphone / microphone combo jack (3.5mm)
+
+2. USB 3.2 Gen 1
+
+8. Ethernet (RJ-45)
+
+3. Kensington Security Slot
+
+9. USB-C 3.2 Gen 1
+
+4. HDMI 2.0
+
+10. 2x USB-C 3.2 Gen 2 / Thunderbolt 3
+
+5. USB 3.2 Gen 1
+
+11. Power connector
+
+6. Nano-SIM card slot *
+
+Notes:
+• Ports with * are only available on selected models
+
+ThinkPad T15g Gen 1 - June 15 2022
+
+1 of 8
+
+PSREF
+Product Specifications
+Reference
+
+ThinkPad T15g Gen 1
+
+PERFORMANCE
+Processor
+Processor Family
+10th Generation Intel® Core™ i5 / i7 / i9 or Intel Xeon® Processor
+Processor**
+Processor Name Cores Threads Base Frequency Max Frequency Cache Memory Support Processor Graphics
+Core i5-10400H
+
+4
+
+8
+
+2.6GHz
+
+4.6GHz
+
+8MB
+
+DDR4-2933
+
+Intel UHD Graphics
+
+Core i7-10750H
+
+6
+
+12
+
+2.6GHz
+
+5.0GHz
+
+12MB
+
+DDR4-2933
+
+Intel UHD Graphics
+
+Core i7-10850H
+
+6
+
+12
+
+2.7GHz
+
+5.1GHz
+
+12MB
+
+DDR4-2933
+
+Intel UHD Graphics
+
+Core i7-10875H
+
+8
+
+16
+
+2.3GHz
+
+5.1GHz
+
+16MB
+
+DDR4-3200
+
+Intel UHD Graphics
+
+Core i9-10885H
+
+8
+
+16
+
+2.4GHz
+
+5.3GHz
+
+16MB
+
+DDR4-2933
+
+Intel UHD Graphics
+
+Core i9-10980HK 8
+
+16
+
+2.4GHz
+
+5.3GHz
+
+16MB
+
+DDR4-3200
+
+Intel UHD Graphics
+
+Xeon W-10855M 6
+
+12
+
+2.8GHz
+
+5.1GHz
+
+12MB
+
+DDR4-2933
+
+Intel UHD Graphics
+
+Xeon W-10885M 8
+
+16
+
+2.4GHz
+
+5.3GHz
+
+16MB
+
+DDR4-2933
+
+Intel UHD Graphics
+
+Operating System
+Operating System**
+•
+•
+•
+•
+•
+•
+•
+
+Windows® 10 Pro 64
+Windows 10 Pro 64 for Workstations
+Windows 10 Home 64
+Fedora Linux
+Ubuntu Linux LTS
+Red Hat Enterprise Linux (certified only)
+No operating system
+
+Graphics
+Graphics**
+Graphics
+
+Type
+
+Memory
+
+Key Features
+
+NVIDIA® GeForce RTX™ 2070 SUPER with Max-Q Design Discrete 8GB GDDR6 VR ready, DirectX® 12
+NVIDIA GeForce RTX 2080 SUPER with Max-Q Design
+
+Discrete 8GB GDDR6 VR ready, DirectX 12
+
+Monitor Support
+Monitor Support
+Supports up to 5 independent displays (native display and 4 external monitors via HDMI®, USB-C® and Thunderbolt™)
+• HDMI supports up to 4K@60Hz
+• USB-C supports up to 4K@60Hz
+• Thunderbolt supports up to 4K@60Hz / 5K@60Hz
+
+Chipset
+Chipset
+Intel WM490 chipset
+
+Memory
+Max Memory[1]
+Up to 128GB DDR4-2933
+Memory Slots
+Four DDR4 SO-DIMM slots, dual-channel capable
+Memory Type**[2]
+• DDR4-2933 ECC
+• DDR4-2933 non-ECC
+Memory Protection
+ThinkPad T15g Gen 1 - June 15 2022
+
+2 of 8
+
+PSREF
+Product Specifications
+Reference
+
+ThinkPad T15g Gen 1
+ECC on models with ECC DIMMs and Xeon processor
+Notes:
+
+1. The max memory is based on the test results with current Lenovo® memory offerings. The system may support more memory as the
+technology develops.
+2. Non-ECC memory is actually DDR4-3200 but may run at DDR4-2933 due to processor limitation
+
+Storage
+Storage Support[1]
+Up to two drives, 2x M.2 SSD
+• M.2 2280 SSD up to 2TB
+Storage Type
+Disk Type
+
+Interface
+
+RPM Security
+
+M.2 2280 SSD PCIe® NVMe®, PCIe 3.0 x4 -
+
+Opal2
+
+[2]
+
+RAID
+
+RAID 0/1 support
+Notes:
+1. The storage capacity supported is based on the test results with current Lenovo storage offerings. The system may support larger
+storage as the technology develops.
+2. Opal capability is not available in RAID mode.
+
+Removable Storage
+Optical
+None
+Card Reader
+SD card reader
+
+Multi-Media
+Audio Chip
+High Definition (HD) Audio, Realtek® ALC3286 codec
+Speakers
+Stereo speakers, Dolby® Atmos®
+Microphone
+• Dual array microphone, far-field
+• No microphone
+Camera**
+• HD 720p, with ThinkShutter, fixed focus
+• IR & HD 720p hybrid, with ThinkShutter, fixed focus
+• No camera
+
+Battery
+Battery
+Integrated Li-Polymer 94Wh battery, supports Rapid Charge (charge up to 80% in 1hr) with 230W AC adapter
+Max Battery Life[1]
+MobileMark® 2014: 16.4 hr
+MobileMark 2018: 10.3 hr
+JEITA 2.0: 17.4 hr
+Notes:
+1. All battery life claims are approximate maximum and based on results using the MobileMark 2014, MobileMark 2018, JEITA 2.0,
+continuous 1080p video playback (with 150nits brightness and default volume level) or Google Power Load Test (PLT) battery-life
+benchmark tests. Actual battery life will vary and depends on many factors such as product configuration and usage, software use,
+wireless functionality, power management settings, and screen brightness. The maximum capacity of the battery will decrease with
+time and use.
+
+Power Adapter
+ThinkPad T15g Gen 1 - June 15 2022
+
+3 of 8
+
+PSREF
+Product Specifications
+Reference
+
+ThinkPad T15g Gen 1
+Power Adapter**[1]
+• 170W slim tip (2-pin) AC adapter, 100-240V, 50-60Hz
+• 170W slim tip (3-pin) AC adapter, 100-240V, 50-60Hz
+• 230W slim tip (3-pin) AC adapter, 100-240V, 50-60Hz
+Notes:
+1. AC adapter offerings depend on the country.
+
+DESIGN
+Display
+Display**[1][2]
+Aspect
+Ratio
+
+Contrast
+Ratio
+
+Anti-glare
+
+16:9
+
+700:1
+
+72% NTSC
+
+160°
+
+-
+
+500 nits
+
+Anti-glare
+
+16:9
+
+1200:1
+
+72% NTSC
+
+160°
+
+Dolby
+Vision™,
+HDR
+
+600 nits
+
+Anti-glare
+
+16:9
+
+1400:1
+
+100%
+Adobe®
+RGB
+
+178°
+
+Dolby
+Vision, HDR
+
+SDR
+400nits,
+OLED HDR
+500nits
+(peak)
+
+Antireflection
+Antismudge
+
+16:9
+
+100000:1
+
+100% DCIP3
+
+170°
+
+Dolby
+Vision, HDR
+
+Size
+
+Resolution
+
+Touch
+
+Type
+
+Brightness
+
+15.6"
+
+FHD
+(1920x1080)
+
+None
+
+IPS
+
+300 nits
+
+15.6"
+
+FHD
+(1920x1080)
+
+None
+
+IPS
+
+15.6"
+
+UHD
+(3840x2160)
+
+None
+
+IPS
+
+Multitouch
+
+UHD
+15.6"
+(3840x2160)
+
+Surface
+
+Color
+Gamut
+
+Viewing
+Angle
+
+Key
+Features
+
+Color Calibration
+No color calibration
+Touchscreen
+• On-cell touch, supports 10-point touch
+• Non-touch
+Notes:
+1. California Electronic Waste Recycling Fee
+In California, per state law, Lenovo charges an electronic waste recycling fee on this covered device at the time of sale of the product.
+For more information, go to https://www.calrecycle.ca.gov/Electronics/Consumer
+2. For non-OLED display, HDR is only supported under hybrid mode.
+
+Input Device
+Pen
+• Lenovo Pen Pro (for UHD OLED models)
+• No support (non-touch display doesn't support pen input)
+Keyboard
+6-row, spill-resistant, multimedia Fn keys with Unified Communications controls, numeric keypad
+Keyboard Backlight
+LED backlight
+UltraNav™
+3-button TrackPoint® pointing device and Mylar® surface multi-touch touchpad
+
+Mechanical[1]
+Dimensions (WxDxH)
+Models
+Touch models
+
+Dimensions
+375.4 x 252.3 x 25.25-32.2 mm (14.24 x 9.67 x 0.99-1.27 inches)
+
+ThinkPad T15g Gen 1 - June 15 2022
+
+4 of 8
+
+PSREF
+
+ThinkPad T15g Gen 1
+
+Product Specifications
+Reference
+
+Non-touch models 375.4 x 252.3 x 24.5-31.45 mm (14.24 x 9.67 x 0.96-1.24 inches)
+Weight
+Models
+
+Weight
+
+FHD models 2.74 kg (6.05 lbs)
+Case Color
+Black
+Case Material
+PPS695 + GF 50% (top), PPS + GF (bottom)
+Notes:
+1. The system dimensions and weight vary depending on configurations.
+
+CONNECTIVITY
+Network
+Onboard Ethernet**
+• Gigabit Ethernet, Intel Ethernet Connection I219-LM (vPro models), supports Wake-on-LAN
+• Gigabit Ethernet, Intel Ethernet Connection I219-V (non-vPro models), supports Wake-on-LAN
+WLAN + Bluetooth®[1]
+• Intel Wi-Fi® 6 AX201, 802.11ax 2x2 Wi-Fi + Bluetooth 5.1, M.2 Card
+• No WLAN and Bluetooth
+WWAN**
+• Wireless WAN upgradable to 4G (with antenna ready)
+• Fibocom L860-GL-16, 4G LTE CAT16, MIMO 4x4, M.2 card, with embedded eSIM functionality
+• No support
+NFC
+No support
+Notes:
+1. Bluetooth 5.2 is hardware ready but may run at a lower version due to OS limitation
+
+Ports[1]
+Standard Ports
+•
+•
+•
+•
+•
+•
+•
+
+2x USB 3.2 Gen 1 (one Always On)
+1x USB-C 3.2 Gen 1 (support data transfer, Power Delivery and DisplayPort™ 1.4)
+2x Thunderbolt 3 (support data transfer, Power Delivery, and DisplayPort 1.4)
+1x HDMI 2.0
+1x SD card reader
+1x Ethernet (RJ-45)
+1x Headphone / microphone combo jack (3.5mm)
+
+Optional Ports***
+• 1x Smart card reader
+• 1x Nano-SIM card slot (WWAN support models)
+Notes:
+1. The transfer speed of following ports will vary and, depending on many factors, such as the processing speed of the host device, file
+attributes and other factors related to system configuration and your operating environment, will be slower than theoretical speed.
+USB 2.0: 480 Mbit/s;
+USB 3.2 Gen 1 (SuperSpeed USB 5Gbps, formerly USB 3.0 / USB 3.1 Gen 1): 5 Gbit/s;
+USB 3.2 Gen 2 (SuperSpeed USB 10Gbps, formerly USB 3.1 Gen 2): 10 Gbit/s;
+USB 3.2 Gen 2x2 (SuperSpeed USB 20Gbps): 20 Gbit/s;
+Thunderbolt 3/4: 40 Gbit/s
+
+Monitor Cable
+Monitor Cable***
+
+ThinkPad T15g Gen 1 - June 15 2022
+
+5 of 8
+
+PSREF
+
+ThinkPad T15g Gen 1
+•
+•
+•
+•
+
+Product Specifications
+Reference
+
+Lenovo HDMI to VGA Monitor Adapter
+Lenovo USB-C to DisplayPort Adapter
+Lenovo USB-C to VGA Adapter
+No monitor cable
+
+SECURITY & PRIVACY
+Security
+Security Chip**
+• Discrete TPM 2.0, TCG certified
+• Firmware TPM 2.0 integrated in chipset
+• Disabled (in some regions)
+Physical Locks
+Kensington® Security Slot, 3 x 7 mm
+Smart Card Reader
+• Smart card reader
+• No smart card reader
+Fingerprint Reader
+Touch style fingerprint reader on palm rest, match-on-chip
+BIOS Security
+•
+•
+•
+•
+
+Power-on password
+Supervisor password
+Hard disk password
+Self-healing BIOS
+
+Other Security
+• (Optional) ThinkShutter camera cover
+• (Optional) IR camera for Windows Hello
+
+MANAGEABILITY
+System Management
+System Management[1]
+• Intel vPro
+• Non-vPro
+Notes:
+1. Intel vPro offers a superset of DASH’s defined capabilities.
+
+SERVICE
+Warranty
+Base Warranty**[1]
+•
+•
+•
+•
+•
+•
+
+1-year depot service
+1-year depot with 2-year system board service (Korea only)
+1-year limited onsite service
+3-year (1-yr battery) depot service
+3-year (1-yr battery) limited onsite service
+No base warranty
+
+Notes:
+1. More information of warranty policy, please access https://pcsupport.lenovo.com/warranty
+
+ENVIRONMENTAL
+Operating Environment
+ThinkPad T15g Gen 1 - June 15 2022
+
+6 of 8
+
+PSREF
+
+ThinkPad T15g Gen 1
+
+Product Specifications
+Reference
+
+Temperature[1]
+• Operating: 5°C (41°F) to 35°C (95°F)
+• Storage and transportation in original shipping package: -20°C (-4°F ) to 60°C (140°F)
+• Storage without package: 5°C (41°F) to 43°C (109°F)
+Humidity
+• Operating: 8% to 95% at wet-bulb temperature 23°C (73°F)
+• Storage and transportation: 5% to 95% at wet-bulb temperature 27°C (81°F)
+Altitude
+Maximum altitude (without pressurization): 3048 m (10,000 ft)
+Notes:
+1. When you charge the battery, its temperature must be no lower than 10°C (50°F).
+
+ACCESSORIES
+Bundled Accessories
+Bundled Accessories
+None
+
+CERTIFICATIONS
+Green Certifications
+Green Certifications
+• EPEAT™ Gold
+• ENERGY STAR® 8.0
+• RoHS compliant
+
+Other Certifications
+Mil-Spec Test
+MIL-STD-810G military test passed
+
+ISV Certifications
+ISV Certifications
+Please visit www.thinkworkstations.com/isv-certifications/
+
+• Feature with ** means that only one offering listed under the feature is configured on selected models.
+• Feature with *** means that one or more offerings listed under the feature could be configured on selected
+models.
+• Lenovo reserves the right to change specifications or other product information without notice. Lenovo is not
+responsible for photographic or typographical errors. LENOVO PROVIDES THIS PUBLICATION “AS IS,”
+WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING THE IMPLIED WARRANTIES
+OF MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE. Some jurisdictions do not allow
+disclaimer of express or implied warranties in certain transactions, therefore this disclaimer may not apply to
+you.
+• The specifications on this page may not be available in all regions, and may be changed or updated without
+notice.
+
+ThinkPad T15g Gen 1 - June 15 2022
+
+7 of 8
+
+PSREF
+
+ThinkPad T15g Gen 1
+
+ThinkPad T15g Gen 1 - June 15 2022
+
+Product Specifications
+Reference
+
+8 of 8
+
+
