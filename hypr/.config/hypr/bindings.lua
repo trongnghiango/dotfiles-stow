@@ -5,24 +5,47 @@
 -- ==============================================================================
 
 -- ------------------------------------------------------------------------------
--- 1. UNBIND ALL OVERRIDDEN OMARCHY DEFAULTS
+-- 1. UNBIND ALL OVERRIDDEN OMARCHY DEFAULTS (Xóa sạch phím mặc định bị trùng)
 -- ------------------------------------------------------------------------------
+-- App Launchers & Menus
 hl.unbind("SUPER + RETURN")
 hl.unbind("SUPER + W")
-hl.unbind("SUPER + K")
-hl.unbind("SUPER + J")
-hl.unbind("SUPER + L")
 hl.unbind("SUPER + SPACE")
 hl.unbind("SUPER + SHIFT + SPACE")
-hl.unbind("SUPER + T")
-hl.unbind("SUPER + A")
-hl.unbind("SUPER + SHIFT + A")
 hl.unbind("SUPER + D")
 hl.unbind("SUPER + E")
 hl.unbind("SUPER + SHIFT + E")
+hl.unbind("SUPER + Q")
+hl.unbind("SUPER + B")
+
+-- Window & Tiling Controls
+hl.unbind("SUPER + T")
+hl.unbind("SUPER + A")
+hl.unbind("SUPER + SHIFT + A")
 hl.unbind("SUPER + M")
 hl.unbind("SUPER + Z")
 hl.unbind("SUPER + F")
+hl.unbind("SUPER + ALT + L")
+
+-- Stack Navigation & Moving
+hl.unbind("SUPER + J")
+hl.unbind("SUPER + K")
+hl.unbind("SUPER + L")
+hl.unbind("SUPER + H")
+
+-- Monitor, Notifications & Help
+hl.unbind("SUPER + COMMA")
+hl.unbind("SUPER + SHIFT + COMMA")
+hl.unbind("SUPER + SLASH")
+
+-- Scratchpad vs Quake Console
+hl.unbind("SUPER + GRAVE")
+hl.unbind("SUPER + SHIFT + GRAVE")
+
+-- Hardware, Tools & AI Agent
+hl.unbind("SUPER + SHIFT + T")
+hl.unbind("SUPER + SHIFT + D")
+hl.unbind("SUPER + SHIFT + CTRL + A")
 
 -- ------------------------------------------------------------------------------
 -- 2. WINDOW MANAGEMENT & SIZING (Chuẩn DWM)
@@ -97,7 +120,13 @@ o.bind("SUPER + F1", "Omarchy Keybindings Help", "omarchy-menu-keybindings")
 o.bind("SUPER + SLASH", "Omarchy Keybindings Help", "omarchy-menu-keybindings")
 
 -- ------------------------------------------------------------------------------
--- 6. MULTI-MONITORS & SCRATCHPAD
+-- 6. AI AGENTS & DASHBOARDS (DeepSeek Harness)
+-- ------------------------------------------------------------------------------
+o.bind("SUPER + SHIFT + CTRL + A", "DeepSeek Harness Agent", "dsh-agent --float")
+o.bind("SUPER + SHIFT + D", "DeepSeek Harness Web Dashboard", "dsh-agent --web")
+
+-- ------------------------------------------------------------------------------
+-- 7. MULTI-MONITORS & SCRATCHPAD
 -- ------------------------------------------------------------------------------
 -- Chuyển màn hình (DWM comma / period)
 o.bind("SUPER + COMMA", "Focus left monitor", hl.dsp.focus({ monitor = "-1" }))
@@ -110,13 +139,13 @@ o.bind("SUPER + GRAVE", "Toggle scratchpad", hl.dsp.workspace.toggle_special("sc
 o.bind("SUPER + SHIFT + GRAVE", "Send to scratchpad", hl.dsp.window.move({ workspace = "special:scratchpad", follow = false }))
 
 -- ------------------------------------------------------------------------------
--- 7. HARDWARE & DEVICE TOGGLES
+-- 8. HARDWARE & DEVICE TOGGLES
 -- ------------------------------------------------------------------------------
 -- Bật / Tắt Touchpad (Hiển thị OSD thông báo)
 o.bind_toggle("SUPER + SHIFT + T", "Toggle touchpad", "touchpad")
 
 -- ------------------------------------------------------------------------------
--- 8. REMOTE DESKTOP / VM KEYBOARD PASSTHROUGH (Bàn phím xuyên thấu)
+-- 9. REMOTE DESKTOP / VM KEYBOARD PASSTHROUGH (Bàn phím xuyên thấu)
 -- ------------------------------------------------------------------------------
 -- Trong chế độ passthrough, toàn bộ phím tắt của Hyprland trên máy trạm bị tạm dừng,
 -- phím bấm (kể cả SUPER, Super+Return, Super+Q, Alt+Tab...) truyền thẳng 100% vào Remote.
