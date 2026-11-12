@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# snapper-setup — Configure snapper for root and home subvolumes
+# Run once after system install: sudo snapper-setup
+
+set -euo pipefail
+
+SNAPPER_CONF_DIR="/etc/snapper/configs"
+
+# Root config
+if [[ ! -f "$SNAPPER_CONF_DIR/root" ]]; then
+  echo "Creating snapper config for root..."
+  snapper -c root create-config /
+else
+  echo "Root config exists, skipping creation"
+fi
+
+# Home config (if separate subvolume)
+if [[ -d "/home" ]] && findmnt -n -o FSTYPE /home | grep -q btrfs; then
+  if [[ ! -f "$SNAPPER_CONF_DIR/home" ]]; then
+    echo "Creating snapper config for home..."
+    snapper -c home create-config /home
+  else
+    echo "Home config exists, skipping creation"
+  fi
+fi
+
+# Apply sensible defaults to both configs
+for CONFIG in root home; do
+  if [[ -f "$SNAPPER_CONF_DIR/$CONFIG" ]]; then
+    echo "Configuring $CONFIG cleanup policy..."
+    snapper -c "$CONFIG" set-config \
+      TIMELINE_CREATE="yes" \
+      TIMELINE_LIMIT_HOURLY="10" \
+      TIMELINE_LIMIT_DAILY="10" \
+      TIMELINE_LIMIT_WEEKLY="4" \
+      TIMELINE_LIMIT_MONTHLY="3" \
+      TIMELINE_LIMIT_YEARLY="2" \
+      NUMBER_LIMIT="50" \
+      NUMBER_LIMIT_IMPORTANT="10" \
+      NUMBER_MIN_AGE="1800" \
+      EMPTY_PRE_POST_CLEANUP="yes" \
+      EMPTY_PRE_POST_MIN_AGE="1800"
+  fi
+done
+
+# Enable and start snapper timeline timer
+systemctl enable --now snapper-timeline.timer
+systemctl enable --now snapper-cleanup.timer
+
+echo "Snapper setup complete. Run 'snapper list' to verify."

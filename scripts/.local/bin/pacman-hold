@@ -1,0 +1,331 @@
+#!/usr/bin/env bash
+# pacman-hold — Package hold/ignore manager for pacman
+# Manage IgnorePkg and IgnoreGroup in /etc/pacman.conf safely
+#
+# Usage:
+#   pacman-hold add <pkg> [pkg...]     # Add package(s) to IgnorePkg
+#   pacman-hold remove <pkg> [pkg...]  # Remove package(s) from IgnorePkg
+#   pacman-hold list                    # List all held packages
+#   pacman-hold clear                   # Clear all holds
+#   pacman-hold group add <group>       # Add group to IgnoreGroup
+#   pacman-hold group remove <group>    # Remove group from IgnoreGroup
+#   pacman-hold group list              # List held groups
+#   pacman-hold sync                    # Show held packages with available updates
+
+set -euo pipefail
+
+PACMAN_CONF="/etc/pacman.conf"
+BACKUP_DIR="/var/backups/pacman-hold"
+mkdir -p "$BACKUP_DIR"
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+log_info()  { echo -e "${BLUE}[INFO]${NC}  $*"; }
+log_ok()    { echo -e "${GREEN}[OK]${NC}    $*"; }
+log_warn()  { echo -e "${YELLOW}[WARN]${NC}  $*"; }
+log_error() { echo -e "${RED}[ERROR]${NC} $*" >&2; }
+
+require_root() {
+  [[ $EUID -eq 0 ]] || { log_error "Must run as root (use sudo)"; exit 1; }
+}
+
+backup_conf() {
+  local ts=$(date +%Y%m%d-%H%M%S)
+  cp "$PACMAN_CONF" "$BACKUP_DIR/pacman.conf.$ts"
+}
+
+get_ignore_pkg_line() {
+  grep -n "^IgnorePkg" "$PACMAN_CONF" | head -1 | cut -d: -f1
+}
+
+get_ignore_group_line() {
+  grep -n "^IgnoreGroup" "$PACMAN_CONF" | head -1 | cut -d: -f1
+}
+
+get_current_ignored_pkgs() {
+  grep "^IgnorePkg" "$PACMAN_CONF" | sed 's/^IgnorePkg\s*=\s*//' | tr ' ' '\n' | grep -v '^$' | sort -u
+}
+
+get_current_ignored_groups() {
+  grep "^IgnoreGroup" "$PACMAN_CONF" | sed 's/^IgnoreGroup\s*=\s*//' | tr ' ' '\n' | grep -v '^$' | sort -u
+}
+
+update_ignore_line() {
+  local type="$1"  # Pkg or Group
+  shift
+  local new_list=("$@")
+
+  backup_conf
+
+  local line_num
+  line_num=$(grep -n "^Ignore${type}" "$PACMAN_CONF" | head -1 | cut -d: -f1)
+
+  local new_line="Ignore${type} = ${new_list[*]}"
+
+  if [[ -n "$line_num" ]]; then
+    # Replace existing line
+    sed -i "${line_num}s/.*/${new_line}/" "$PACMAN_CONF"
+  else
+    # Add after [options] section
+    local options_line
+    options_line=$(grep -n "^\[options\]" "$PACMAN_CONF" | head -1 | cut -d: -f1)
+    if [[ -n "$options_line" ]]; then
+      sed -i "${options_line}a ${new_line}" "$PACMAN_CONF"
+    else
+      echo "$new_line" >> "$PACMAN_CONF"
+    fi
+  fi
+
+  log_ok "Ignore${type} updated: ${new_list[*]}"
+}
+
+cmd_add() {
+  require_root
+  local pkgs=("$@")
+  [[ ${#pkgs[@]} -eq 0 ]] && { log_error "Usage: pacman-hold add <pkg> [pkg...]"; exit 1; }
+
+  mapfile -t current < <(get_current_ignored_pkgs)
+  local -A seen
+  for p in "${current[@]}"; do seen["$p"]=1; done
+
+  local added=()
+  for p in "${pkgs[@]}"; do
+    if [[ -z "${seen[$p]:-}" ]]; then
+      seen["$p"]=1
+      added+=("$p")
+    else
+      log_warn "Already held: $p"
+    fi
+  done
+
+  local all_pkgs=()
+  for p in "${!seen[@]}"; do all_pkgs+=("$p"); done
+  IFS=$'\n' sorted=($(sort <<<"${all_pkgs[*]}"))
+  unset IFS
+
+  update_ignore_line "Pkg" "${sorted[@]}"
+  [[ ${#added[@]} -gt 0 ]] && log_ok "Added: ${added[*]}"
+}
+
+cmd_remove() {
+  require_root
+  local pkgs=("$@")
+  [[ ${#pkgs[@]} -eq 0 ]] && { log_error "Usage: pacman-hold remove <pkg> [pkg...]"; exit 1; }
+
+  mapfile -t current < <(get_current_ignored_pkgs)
+  local -A seen
+  for p in "${current[@]}"; do seen["$p"]=1; done
+
+  local removed=()
+  for p in "${pkgs[@]}"; do
+    if [[ -n "${seen[$p]:-}" ]]; then
+      unset seen["$p"]
+      removed+=("$p")
+    else
+      log_warn "Not held: $p"
+    fi
+  done
+
+  local all_pkgs=()
+  for p in "${!seen[@]}"; do all_pkgs+=("$p"); done
+  IFS=$'\n' sorted=($(sort <<<"${all_pkgs[*]}"))
+  unset IFS
+
+  update_ignore_line "Pkg" "${sorted[@]}"
+  [[ ${#removed[@]} -gt 0 ]] && log_ok "Removed: ${removed[*]}"
+}
+
+cmd_list() {
+  log_info "Held packages (IgnorePkg):"
+  mapfile -t pkgs < <(get_current_ignored_pkgs)
+  if [[ ${#pkgs[@]} -eq 0 ]]; then
+    echo "  (none)"
+  else
+    for p in "${pkgs[@]}"; do
+      # Check if update available
+      if checkupdates 2>/dev/null | grep -q "^$p "; then
+        VER=$(checkupdates 2>/dev/null | grep "^$p " | awk '{print $2}')
+        echo "  $p  ${YELLOW}(update available: $VER)${NC}"
+      else
+        echo "  $p"
+      fi
+    done
+  fi
+
+  echo ""
+  log_info "Held groups (IgnoreGroup):"
+  mapfile -t groups < <(get_current_ignored_groups)
+  if [[ ${#groups[@]} -eq 0 ]]; then
+    echo "  (none)"
+  else
+    for g in "${groups[@]}"; do
+      echo "  $g"
+    done
+  fi
+}
+
+cmd_clear() {
+  require_root
+  backup_conf
+  sed -i '/^IgnorePkg/d' "$PACMAN_CONF"
+  sed -i '/^IgnoreGroup/d' "$PACMAN_CONF"
+  log_ok "All holds cleared"
+}
+
+cmd_group_add() {
+  require_root
+  local groups=("$@")
+  [[ ${#groups[@]} -eq 0 ]] && { log_error "Usage: pacman-hold group add <group> [group...]"; exit 1; }
+
+  mapfile -t current < <(get_current_ignored_groups)
+  local -A seen
+  for g in "${current[@]}"; do seen["$g"]=1; done
+
+  local added=()
+  for g in "${groups[@]}"; do
+    if [[ -z "${seen[$g]:-}" ]]; then
+      seen["$g"]=1
+      added+=("$g")
+    else
+      log_warn "Already held: $g"
+    fi
+  done
+
+  local all_groups=()
+  for g in "${!seen[@]}"; do all_groups+=("$g"); done
+  IFS=$'\n' sorted=($(sort <<<"${all_groups[*]}"))
+  unset IFS
+
+  update_ignore_line "Group" "${sorted[@]}"
+  [[ ${#added[@]} -gt 0 ]] && log_ok "Added groups: ${added[*]}"
+}
+
+cmd_group_remove() {
+  require_root
+  local groups=("$@")
+  [[ ${#groups[@]} -eq 0 ]] && { log_error "Usage: pacman-hold group remove <group> [group...]"; exit 1; }
+
+  mapfile -t current < <(get_current_ignored_groups)
+  local -A seen
+  for g in "${current[@]}"; do seen["$g"]=1; done
+
+  local removed=()
+  for g in "${groups[@]}"; do
+    if [[ -n "${seen[$g]:-}" ]]; then
+      unset seen["$g"]
+      removed+=("$g")
+    else
+      log_warn "Not held: $g"
+    fi
+  done
+
+  local all_groups=()
+  for g in "${!seen[@]}"; do all_groups+=("$g"); done
+  IFS=$'\n' sorted=($(sort <<<"${all_groups[*]}"))
+  unset IFS
+
+  update_ignore_line "Group" "${sorted[@]}"
+  [[ ${#removed[@]} -gt 0 ]] && log_ok "Removed groups: ${removed[*]}"
+}
+
+cmd_group_list() {
+  log_info "Held groups (IgnoreGroup):"
+  mapfile -t groups < <(get_current_ignored_groups)
+  if [[ ${#groups[@]} -eq 0 ]]; then
+    echo "  (none)"
+  else
+    for g in "${groups[@]}"; do echo "  $g"; done
+  fi
+}
+
+cmd_sync() {
+  log_step "Held packages with available updates:"
+  mapfile -t held < <(get_current_ignored_pkgs)
+  if [[ ${#held[@]} -eq 0 ]]; then
+    log_ok "No packages held"
+    return
+  fi
+
+  local has_updates=0
+  for p in "${held[@]}"; do
+    if UPD=$(checkupdates 2>/dev/null | grep "^$p "); then
+      echo "  $UPD"
+      has_updates=1
+    fi
+  done
+
+  if [[ $has_updates -eq 0 ]]; then
+    log_ok "No updates available for held packages"
+  fi
+
+  log_info ""
+  log_info "To update a held package temporarily:"
+  log_info "  safe-pacman -S --ignore=<pkg> <pkg>"
+  log_info "Or remove hold first: pacman-hold remove <pkg>"
+}
+
+show_help() {
+  cat <<EOF
+pacman-hold — Package hold/ignore manager
+
+USAGE:
+  pacman-hold <command> [args...]
+
+COMMANDS:
+  add <pkg> [pkg...]       Add package(s) to IgnorePkg
+  remove <pkg> [pkg...]    Remove package(s) from IgnorePkg
+  list                     List all held packages (shows available updates)
+  clear                    Clear all holds
+  sync                     Show held packages with available updates
+
+  group add <group>...     Add group(s) to IgnoreGroup
+  group remove <group>...  Remove group(s) from IgnoreGroup
+  group list               List held groups
+
+EXAMPLES:
+  pacman-hold add linux linux-lts          # Hold kernel packages
+  pacman-hold add nvidia nvidia-utils      # Hold NVIDIA drivers
+  pacman-hold list                         # See what's held + updates
+  pacman-hold remove linux                 # Unhold kernel
+  pacman-hold group add gnome              # Hold entire GNOME group
+  pacman-hold sync                         # Check held packages for updates
+
+NOTES:
+  • Requires root (modifies /etc/pacman.conf)
+  • Backups saved to /var/backups/pacman-hold/
+  • Held packages skipped during 'safe-pacman -Syu'
+  • Use 'safe-pacman -S --ignore=pkg pkg' to override temporarily
+EOF
+}
+
+main() {
+  if [[ $# -eq 0 ]]; then
+    show_help
+    exit 0
+  fi
+
+  case "$1" in
+    add)          shift; cmd_add "$@" ;;
+    remove)       shift; cmd_remove "$@" ;;
+    list)         cmd_list ;;
+    clear)        cmd_clear ;;
+    sync)         cmd_sync ;;
+    group)
+      case "${2:-}" in
+        add)        shift 2; cmd_group_add "$@" ;;
+        remove)     shift 2; cmd_group_remove "$@" ;;
+        list)       cmd_group_list ;;
+        *)          log_error "Unknown group command: ${2:-}"; show_help; exit 1 ;;
+      esac
+      ;;
+    -h|--help|help) show_help ;;
+    *)              log_error "Unknown command: $1"; show_help; exit 1 ;;
+  esac
+}
+
+main "$@"

@@ -1,0 +1,378 @@
+#!/usr/bin/env bash
+# ka-health — System health dashboard
+# Comprehensive system status check for Arch Linux + KaOS-CS
+#
+# Usage:
+#   ka-health              # Full dashboard
+#   ka-health --json       # Machine-readable output
+#   ka-health --quick      # Quick summary only
+
+set -euo pipefail
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+BOLD='\033[1m'
+DIM='\033[2m'
+NC='\033[0m'
+
+JSON_OUTPUT=0
+QUICK_MODE=0
+
+for arg in "$@"; do
+  case "$arg" in
+    --json) JSON_OUTPUT=1 ;;
+    --quick) QUICK_MODE=1 ;;
+    -h|--help)
+      echo "Usage: ka-health [--json] [--quick]"
+      exit 0
+      ;;
+  esac
+done
+
+# Helper functions
+status_ok()    { [[ $JSON_OUTPUT -eq 1 ]] && echo "  \"$1\": \"ok\"" || echo -e "  ${GREEN}✓${NC} $1"; }
+status_warn()  { [[ $JSON_OUTPUT -eq 1 ]] && echo "  \"$1\": \"warn\"" || echo -e "  ${YELLOW}⚠${NC} $1"; }
+status_error() { [[ $JSON_OUTPUT -eq 1 ]] && echo "  \"$1\": \"error\"" || echo -e "  ${RED}✗${NC} $1"; }
+status_info()  { [[ $JSON_OUTPUT -eq 1 ]] && echo "  \"$1\": \"info\"" || echo -e "  ${BLUE}ℹ${NC} $1"; }
+
+section_header() {
+  [[ $JSON_OUTPUT -eq 0 ]] && echo -e "\n${CYAN}${BOLD}▸ $1${NC}"
+}
+
+collect_json() {
+  local key="$1" value="$2" status="$3"
+  # For JSON mode, we'll build output differently
+  :
+}
+
+# ==================== CHECKS ====================
+
+check_updates() {
+  section_header "Package Updates"
+  
+  local official=0 aur=0 flatpak=0
+  
+  if command -v checkupdates >/dev/null; then
+    official=$(checkupdates 2>/dev/null | wc -l)
+  fi
+  
+  if command -v yay >/dev/null; then
+    aur=$(yay -Qu 2>/dev/null | wc -l)
+  elif command -v paru >/dev/null; then
+    aur=$(paru -Qu 2>/dev/null | wc -l)
+  fi
+  
+  if command -v flatpak >/dev/null; then
+    flatpak=$(flatpak update --noninteractive 2>/dev/null | grep -c "update available" || echo 0)
+  fi
+  
+  if [[ $official -eq 0 && $aur -eq 0 && $flatpak -eq 0 ]]; then
+    status_ok "System up to date"
+  else
+    [[ $official -gt 0 ]] && status_warn "Official: $official updates"
+    [[ $aur -gt 0 ]] && status_warn "AUR: $aur updates"
+    [[ $flatpak -gt 0 ]] && status_warn "Flatpak: $flatpak updates"
+  fi
+}
+
+check_disk_space() {
+  section_header "Disk Space"
+  
+  df -h / | awk 'NR==2 {
+    used=$3; total=$2; pct=$5; gsub(/%/,"",pct);
+    if (pct+0 > 90) print "ERROR|Root: " used " / " total " (" pct "%)";
+    else if (pct+0 > 75) print "WARN|Root: " used " / " total " (" pct "%)";
+    else print "OK|Root: " used " / " total " (" pct "%)"
+  }' | while IFS='|' read -r level msg; do
+    case "$level" in
+      OK) status_ok "$msg" ;;
+      WARN) status_warn "$msg" ;;
+      ERROR) status_error "$msg" ;;
+    esac
+  done
+  
+  # Check /home if separate
+  if findmnt -n /home >/dev/null 2>&1; then
+    df -h /home | awk 'NR==2 {
+      used=$3; total=$2; pct=$5; gsub(/%/,"",pct);
+      if (pct+0 > 90) print "ERROR|Home: " used " / " total " (" pct "%)";
+      else if (pct+0 > 75) print "WARN|Home: " used " / " total " (" pct "%)";
+      else print "OK|Home: " used " / " total " (" pct "%)"
+    }' | while IFS='|' read -r level msg; do
+      case "$level" in
+        OK) status_ok "$msg" ;;
+        WARN) status_warn "$msg" ;;
+        ERROR) status_error "$msg" ;;
+      esac
+    done
+  fi
+}
+
+check_snapper() {
+  section_header "Snapper Snapshots"
+  
+  if ! command -v snapper >/dev/null; then
+    status_warn "snapper not installed"
+    return
+  fi
+  
+  if snapper -c root list >/dev/null 2>&1; then
+    local count=$(snapper -c root list 2>/dev/null | grep -c "pre\|post\|single" || echo 0)
+    status_ok "Root config: $count snapshots"
+    
+    # Show latest
+    local latest=$(snapper -c root list 2>/dev/null | tail -1 | awk '{print $1, $3, $4, $5, $6}')
+    [[ -n "$latest" ]] && status_info "Latest: $latest"
+  else
+    status_warn "No root snapper config"
+  fi
+  
+  if snapper -c home list >/dev/null 2>&1; then
+    local count=$(snapper -c home list 2>/dev/null | grep -c "pre\|post\|single" || echo 0)
+    status_ok "Home config: $count snapshots"
+  fi
+}
+
+check_services() {
+  section_header "System Services"
+  
+  # Critical services
+  local critical=("systemd-journald" "systemd-logind" "NetworkManager" "dbus" "polkit")
+  for svc in "${critical[@]}"; do
+    if systemctl is-active --quiet "$svc"; then
+      status_ok "$svc: active"
+    else
+      status_error "$svc: $(systemctl is-active "$svc" 2>/dev/null || echo 'not found')"
+    fi
+  done
+  
+  # Failed units
+  local failed=$(systemctl --failed --no-legend 2>/dev/null | wc -l)
+  if [[ $failed -eq 0 ]]; then
+    status_ok "No failed units"
+  else
+    status_error "$failed failed unit(s)"
+    systemctl --failed --no-legend 2>/dev/null | awk '{print "  " $1}' | while read -r line; do
+      echo -e "  ${RED}✗${NC} $line"
+    done
+  fi
+  
+  # Services needing restart (needrestart)
+  if command -v needrestart >/dev/null; then
+    local need_restart=$(needrestart -b 2>/dev/null | grep -c "NEEDRESTART" || echo 0)
+    if [[ $need_restart -gt 0 ]]; then
+      status_warn "$need_restart service(s) need restart (run: needrestart)"
+    else
+      status_ok "No services need restart"
+    fi
+  fi
+}
+
+check_pacman() {
+  section_header "Pacman Health"
+  
+  # Database lock
+  if [[ -f /var/lib/pacman/db.lck ]]; then
+    status_error "Pacman database locked (remove /var/lib/pacman/db.lck if stale)"
+  else
+    status_ok "Database not locked"
+  fi
+  
+  # Keyring
+  if pacman-key --verify /etc/pacman.d/gnupg/pubring.gpg >/dev/null 2>&1; then
+    status_ok "Keyring valid"
+  else
+    status_warn "Keyring may need refresh (pacman-key --refresh-keys)"
+  fi
+  
+  # .pacnew/.pacsave files
+  local pacnews=$(find /etc -name "*.pacnew" 2>/dev/null | wc -l)
+  local pacsaves=$(find /etc -name "*.pacsave" 2>/dev/null | wc -l)
+  if [[ $pacnews -eq 0 && $pacsaves -eq 0 ]]; then
+    status_ok "No config merge needed"
+  else
+    [[ $pacnews -gt 0 ]] && status_warn "$pacnews .pacnew file(s) need merging"
+    [[ $pacsaves -gt 0 ]] && status_info "$pacsaves .pacsave file(s) present"
+  fi
+  
+  # Orphan packages
+  local orphans=$(pacman -Qtdq 2>/dev/null | wc -l)
+  if [[ $orphans -eq 0 ]]; then
+    status_ok "No orphan packages"
+  else
+    status_warn "$orphans orphan package(s) (pacman -Rns \$(pacman -Qtdq))"
+  fi
+}
+
+check_hardware() {
+  section_header "Hardware (ThinkPad)"
+  
+  # Battery
+  if [[ -d /sys/class/power_supply/BAT0 ]] || [[ -d /sys/class/power_supply/BAT1 ]]; then
+    local bat_path=""
+    [[ -d /sys/class/power_supply/BAT0 ]] && bat_path="/sys/class/power_supply/BAT0"
+    [[ -d /sys/class/power_supply/BAT1 ]] && bat_path="/sys/class/power_supply/BAT1"
+    
+    local capacity=$(cat "$bat_path/capacity" 2>/dev/null || echo "?")
+    local status=$(cat "$bat_path/status" 2>/dev/null || echo "?")
+    status_ok "Battery: $capacity% ($status)"
+    
+    # Thresholds
+    if [[ -f /sys/class/power_supply/BAT0/charge_control_end_threshold ]]; then
+      local threshold=$(cat /sys/class/power_supply/BAT0/charge_control_end_threshold 2>/dev/null)
+      status_info "Charge threshold: $threshold%"
+    fi
+  fi
+  
+  # Thermals
+  if [[ -d /sys/class/thermal ]]; then
+    local max_temp=0
+    for zone in /sys/class/thermal/thermal_zone*/temp; do
+      [[ -f "$zone" ]] || continue
+      local temp=$(cat "$zone" 2>/dev/null || echo 0)
+      temp=$((temp / 1000))
+      [[ $temp -gt $max_temp ]] && max_temp=$temp
+    done
+    if [[ $max_temp -gt 85 ]]; then
+      status_error "Max CPU temp: ${max_temp}°C"
+    elif [[ $max_temp -gt 70 ]]; then
+      status_warn "Max CPU temp: ${max_temp}°C"
+    else
+      status_ok "Max CPU temp: ${max_temp}°C"
+    fi
+  fi
+  
+  # Bluetooth
+  if systemctl is-active --quiet bluetooth; then
+    status_ok "Bluetooth: active"
+  else
+    status_info "Bluetooth: inactive"
+  fi
+  
+  # WiFi
+  if command -v nmcli >/dev/null; then
+    local wifi_state=$(nmcli radio wifi 2>/dev/null)
+    [[ "$wifi_state" == "enabled" ]] && status_ok "WiFi: enabled" || status_warn "WiFi: disabled"
+  fi
+}
+
+check_boot() {
+  section_header "Boot & Kernel"
+  
+  # Current kernel
+  local kernel=$(uname -r)
+  status_ok "Running kernel: $kernel"
+  
+  # Installed kernels
+  local kernels=$(pacman -Q linux linux-lts linux-hardened linux-zen 2>/dev/null | awk '{print $1}' | tr '\n' ' ')
+  status_info "Installed: $kernels"
+  
+  # Bootloader
+  if [[ -f /boot/grub/grub.cfg ]]; then
+    if grub-script-check /boot/grub/grub.cfg >/dev/null 2>&1; then
+      status_ok "GRUB config valid"
+    else
+      status_error "GRUB config invalid"
+    fi
+  fi
+  
+  # Initramfs
+  if ls /boot/initramfs-*.img >/dev/null 2>&1; then
+    status_ok "Initramfs present"
+  else
+    status_warn "No initramfs found"
+  fi
+  
+  # Microcode
+  if ls /boot/*-ucode.img >/dev/null 2>&1 || grep -q "initrd.*ucode" /boot/grub/grub.cfg 2>/dev/null; then
+    status_ok "Microcode loaded"
+  else
+    status_warn "Microcode may be missing"
+  fi
+}
+
+check_security() {
+  section_header "Security"
+  
+  # Root login
+  if grep -q "^PermitRootLogin yes" /etc/ssh/sshd_config 2>/dev/null; then
+    status_warn "SSH root login permitted"
+  else
+    status_ok "SSH root login disabled"
+  fi
+  
+  # Firewall
+  if systemctl is-active --quiet ufw; then
+    status_ok "UFW active"
+  elif systemctl is-active --quiet firewalld; then
+    status_ok "firewalld active"
+  elif systemctl is-active --quiet nftables; then
+    status_ok "nftables active"
+  else
+    status_warn "No firewall active"
+  fi
+  
+  # Audit
+  if systemctl is-active --quiet auditd; then
+    status_ok "auditd active"
+  else
+    status_info "auditd not running"
+  fi
+}
+
+check_dotfiles() {
+  section_header "Dotfiles (Stow)"
+  
+  local DOTFILES_DIR="${DOTFILES_DIR:-$HOME/Repos/github.com/trongnghiango/dotfiles-stow}"
+  
+  if [[ -d "$DOTFILES_DIR" ]]; then
+    status_ok "Dotfiles repo: $DOTFILES_DIR"
+    
+    # Git status
+    if git -C "$DOTFILES_DIR" status --porcelain 2>/dev/null | grep -q .; then
+      status_warn "Dotfiles repo has uncommitted changes"
+    else
+      status_ok "Dotfiles repo clean"
+    fi
+    
+    # Current branch
+    local branch=$(git -C "$DOTFILES_DIR" branch --show-current 2>/dev/null)
+    status_info "Branch: $branch"
+  else
+    status_warn "Dotfiles repo not found at $DOTFILES_DIR"
+  fi
+}
+
+# ==================== MAIN ====================
+
+main() {
+  [[ $JSON_OUTPUT -eq 0 ]] && echo -e "${BOLD}╔══════════════════════════════════════════╗${NC}"
+  [[ $JSON_OUTPUT -eq 0 ]] && echo -e "${BOLD}║     KaOS-CS System Health Dashboard     ║${NC}"
+  [[ $JSON_OUTPUT -eq 0 ]] && echo -e "${BOLD}╚══════════════════════════════════════════╝${NC}"
+  [[ $JSON_OUTPUT -eq 0 ]] && echo -e "${DIM}$(date) | $(hostname) | $(uname -r)${NC}"
+  
+  if [[ $QUICK_MODE -eq 1 ]]; then
+    check_updates
+    check_disk_space
+    check_services
+    check_snapper
+  else
+    check_updates
+    check_disk_space
+    check_snapper
+    check_services
+    check_pacman
+    check_hardware
+    check_boot
+    check_security
+    check_dotfiles
+  fi
+  
+  [[ $JSON_OUTPUT -eq 0 ]] && echo -e "\n${DIM}Run 'ka-health --help' for options${NC}"
+}
+
+main

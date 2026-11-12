@@ -1,0 +1,13 @@
+[Trigger]
+Operation = Install
+Operation = Upgrade
+Operation = Remove
+Type = Package
+Target = *
+
+[Action]
+Description = Creating post-update Btrfs snapshot via snapper...
+When = PostTransaction
+Exec = /usr/local/bin/snapper-pacman-wrapper post
+Depends = snapper
+Depends = btrfs-progs

@@ -1,34 +1,187 @@
 #!/usr/bin/env bash
-# Safe pacman wrapper: PID 1 scope + sudo keepalive
+# safe-pacman — Bulletproof pacman wrapper
+# Features:
+#   - PID 1 scope (systemd-run --scope) to survive systemd re-exec
+#   - Sudo keepalive (prevents password prompt mid-transaction)
+#   - Full session logging (script command)
+#   - Pre-flight checks: disk space, keyring, mirrors, held packages
+#   - Post-update verification: bootloader, services, key binaries
+#   - Auto snapper pre/post hooks (via pacman hooks)
+#
+# Usage: safe-pacman [pacman args...]
+#   safe-pacman -Syu           # Full system upgrade
+#   safe-pacman -S package     # Install package
+#   safe-pacman -R package     # Remove package
+
 set -euo pipefail
 
-LOG_FILE="${XDG_STATE_HOME:-$HOME/.local/state}/pacman-$(date +%Y%m%d-%H%M%S).log"
-mkdir -p "$(dirname "$LOG_FILE")"
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+log_info()    { echo -e "${BLUE}[INFO]${NC}    $*"; }
+log_ok()      { echo -e "${GREEN}[OK]${NC}      $*"; }
+log_warn()    { echo -e "${YELLOW}[WARN]${NC}    $*"; }
+log_error()   { echo -e "${RED}[ERROR]${NC}   $*" >&2; }
+
+# Setup logging
+LOG_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/pacman"
+mkdir -p "$LOG_DIR"
+LOG_FILE="$LOG_DIR/pacman-$(date +%Y%m%d-%H%M%S).log"
 
 if [[ -z "${SAFE_PACMAN_LOGGED:-}" ]]; then
   exec env SAFE_PACMAN_LOGGED=1 script -qefc "$(printf '%q ' "$0" "$@")" "$LOG_FILE"
 fi
 
-sudo_keepalive_pid=""
+# Sudo keepalive
+SUDO_KEEPALIVE_PID=""
 cleanup() {
   local ec=$?
-  [[ -n "$sudo_keepalive_pid" ]] && kill "$sudo_keepalive_pid" 2>/dev/null && wait "$sudo_keepalive_pid" 2>/dev/null
+  [[ -n "$SUDO_KEEPALIVE_PID" ]] && kill "$SUDO_KEEPALIVE_PID" 2>/dev/null && wait "$SUDO_KEEPALIVE_PID" 2>/dev/null
   exit $ec
 }
 trap cleanup EXIT INT TERM
 
-sudo true || exit 1
+# Pre-flight checks
+pre_flight_checks() {
+  log_info "Running pre-flight checks..."
 
-(
-  local ppid=$$
-  while kill -0 "$ppid" 2>/dev/null; do
-    sleep 50
-    sudo -n true 2>/dev/null || exit 0
+  # 1. Check root disk space (need >2GB free)
+  ROOT_FREE=$(df -BG / | awk 'NR==2 {print $4}' | sed 's/G//')
+  if [[ "$ROOT_FREE" -lt 2 ]]; then
+    log_error "Insufficient disk space on /: ${ROOT_FREE}GB free (need >2GB)"
+    return 1
+  fi
+  log_ok "Disk space: ${ROOT_FREE}GB free"
+
+  # 2. Check pacman keyring
+  if ! pacman-key --verify /etc/pacman.d/gnupg/pubring.gpg 2>/dev/null; then
+    log_warn "Pacman keyring may need refresh (run: pacman-key --refresh-keys)"
+  else
+    log_ok "Keyring valid"
+  fi
+
+  # 3. Check for held/ignored packages
+  if grep -q "^IgnorePkg\|^IgnoreGroup" /etc/pacman.conf; then
+    log_warn "Packages/groups ignored in pacman.conf:"
+    grep "^IgnorePkg\|^IgnoreGroup" /etc/pacman.conf | sed 's/^/  /'
+  fi
+
+  # 4. Check mirror reachability
+  if ! curl -sfI --max-time 5 "$(grep -m1 '^Server' /etc/pacman.d/mirrorlist | cut -d= -f2 | sed 's/\$repo.*//')" >/dev/null; then
+    log_warn "Primary mirror may be unreachable; consider running 'reflector' first"
+  else
+    log_ok "Mirror reachable"
+  fi
+
+  # 5. Check for running services that need restart (kernel, glibc, systemd)
+  if command -v needrestart >/dev/null 2>&1; then
+    needrestart -b 2>/dev/null | grep -E "(kernel|systemd|glibc)" | head -5 | while read -r line; do
+      log_warn "Service needs restart: $line"
+    done
+  fi
+
+  return 0
+}
+
+# Post-update verification
+post_update_verify() {
+  log_info "Running post-update verification..."
+
+  local failed=0
+
+  # 1. Check bootloader (grub) config is valid
+  if [[ -f /boot/grub/grub.cfg ]]; then
+    if grub-script-check /boot/grub/grub.cfg 2>/dev/null; then
+      log_ok "GRUB config valid"
+    else
+      log_error "GRUB config invalid! Run: grub-mkconfig -o /boot/grub/grub.cfg"
+      failed=1
+    fi
+  fi
+
+  # 2. Check critical binaries exist and run
+  for bin in bash systemd pacman grub-mkconfig; do
+    if command -v "$bin" >/dev/null && "$bin" --version >/dev/null 2>&1; then
+      log_ok "Binary OK: $bin"
+    else
+      log_error "Binary broken: $bin"
+      failed=1
+    fi
   done
-) &
-sudo_keepalive_pid=$!
 
-scope=()
-[[ -d /run/systemd/system && ! -L /run/systemd/system ]] && scope=(systemd-run --scope --quiet --collect)
+  # 3. Check systemd services
+  if systemctl is-system-running | grep -q "running\|degraded"; then
+    log_ok "Systemd state: $(systemctl is-system-running)"
+  else
+    log_warn "Systemd state: $(systemctl is-system-running)"
+  fi
 
-exec sudo "${scope[@]}" pacman "$@"
+  # 4. Check for .pacnew/.pacsave files
+  mapfile -t PACNEWS < <(find /etc -name "*.pacnew" -o -name "*.pacsave" 2>/dev/null)
+  if [[ ${#PACNEWS[@]} -gt 0 ]]; then
+    log_warn "Config files need merging (${#PACNEWS[@]} files):"
+    for f in "${PACNEWS[@]}"; do
+      echo "  $f"
+    done
+  else
+    log_ok "No .pacnew/.pacsave files"
+  fi
+
+  return $failed
+}
+
+# Main execution
+main() {
+  log_info "=== safe-pacman started: pacman $* ==="
+  log_info "Log file: $LOG_FILE"
+
+  # Require sudo upfront
+  sudo true || { log_error "Sudo authentication failed"; exit 1; }
+
+  # Pre-flight checks (skip for query operations)
+  case "${1:-}" in
+    -Q*|--query*|-T*|--deptest*|-Sp*|--print*)
+      log_info "Query operation detected, skipping pre-flight checks"
+      ;;
+    *)
+      pre_flight_checks || { log_error "Pre-flight checks failed, aborting"; exit 1; }
+      ;;
+  esac
+
+  # Sudo keepalive background process
+  (
+    local ppid=$$
+    while kill -0 "$ppid" 2>/dev/null; do
+      sleep 50
+      sudo -n true 2>/dev/null || exit 0
+    done
+  ) &
+  SUDO_KEEPALIVE_PID=$!
+
+  # systemd-run scope for transaction isolation
+  SCOPE=()
+  [[ -d /run/systemd/system && ! -L /run/systemd/system ]] && SCOPE=(systemd-run --scope --quiet --collect)
+
+  log_info "Executing: pacman $*"
+  if sudo "${SCOPE[@]}" pacman "$@"; then
+    log_ok "pacman exited successfully"
+  else
+    log_error "pacman failed with exit code $?"
+    exit 1
+  fi
+
+  # Post-update verification (only for mutating operations)
+  case "${1:-}" in
+    -S*|-R*|-U*|-F*|--sync*|--remove*|--upgrade*|--files*)
+      post_update_verify || log_warn "Post-update verification found issues"
+      ;;
+  esac
+
+  log_info "=== safe-pacman completed ==="
+}
+
+main "$@"
