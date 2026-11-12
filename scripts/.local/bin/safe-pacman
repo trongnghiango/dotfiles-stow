@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+# Safe pacman wrapper: PID 1 scope + sudo keepalive
+set -euo pipefail
+
+LOG_FILE="${XDG_STATE_HOME:-$HOME/.local/state}/pacman-$(date +%Y%m%d-%H%M%S).log"
+mkdir -p "$(dirname "$LOG_FILE")"
+
+if [[ -z "${SAFE_PACMAN_LOGGED:-}" ]]; then
+  exec env SAFE_PACMAN_LOGGED=1 script -qefc "$(printf '%q ' "$0" "$@")" "$LOG_FILE"
+fi
+
+sudo_keepalive_pid=""
+cleanup() {
+  local ec=$?
+  [[ -n "$sudo_keepalive_pid" ]] && kill "$sudo_keepalive_pid" 2>/dev/null && wait "$sudo_keepalive_pid" 2>/dev/null
+  exit $ec
+}
+trap cleanup EXIT INT TERM
+
+sudo true || exit 1
+
+(
+  local ppid=$$
+  while kill -0 "$ppid" 2>/dev/null; do
+    sleep 50
+    sudo -n true 2>/dev/null || exit 0
+  done
+) &
+sudo_keepalive_pid=$!
+
+scope=()
+[[ -d /run/systemd/system && ! -L /run/systemd/system ]] && scope=(systemd-run --scope --quiet --collect)
+
+exec sudo "${scope[@]}" pacman "$@"

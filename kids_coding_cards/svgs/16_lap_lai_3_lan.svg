@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 350 500" width="350" height="500">
+    <defs>
+        <filter id="shadow" x="-5%" y="-5%" width="110%" height="110%">
+            <feDropShadow dx="0" dy="4" stdDeviation="6" flood-opacity="0.12"/>
+        </filter>
+    </defs>
+    
+    <!-- Outer Card Background with Rounded Corner -->
+    <rect x="15" y="15" width="320" height="470" rx="28" fill="#F4ECF7" stroke="#8E44AD" stroke-width="7" filter="url(#shadow)"/>
+    
+    <!-- Inner dashed border (guide for child / friendly look) -->
+    <rect x="25" y="25" width="300" height="450" rx="20" fill="none" stroke="#8E44AD" stroke-width="2.5" stroke-dasharray="6 6" opacity="0.6"/>
+
+    <!-- Top Category Badge -->
+    <g transform="translate(175, 52)">
+        <rect x="-95" y="-14" width="190" height="28" rx="14" fill="#9B59B6"/>
+        <text x="0" y="5" font-family="'Nunito', 'Segoe UI', Arial, sans-serif" font-size="11.5" font-weight="900" fill="#FFFFFF" text-anchor="middle" letter-spacing="0.5">VÒNG LẶP (LOOP)</text>
+    </g>
+
+    <!-- Main Title -->
+    <text x="175" y="105" font-family="'Nunito', 'Segoe UI', Arial, sans-serif" font-size="20" font-weight="900" fill="#512E5F" text-anchor="middle">LẶP LẠI 3 LẦN</text>
+
+    <!-- Subtitle (Small helper for parents) -->
+    <text x="175" y="128" font-family="'Nunito', 'Segoe UI', Arial, sans-serif" font-size="12.5" font-weight="600" fill="#7F8C8D" text-anchor="middle">Làm lại thẻ trước đó 3 lần</text>
+
+    <!-- Center Illustration Area -->
+    <g id="illustration">
+        
+            <g transform="translate(175, 225)">
+                <!-- Circular Loop Arrow -->
+                <path d="M 0,-65 A 65 65 0 1 1 -50,40" fill="none" stroke="#9B59B6" stroke-width="12" stroke-linecap="round"/>
+                <polygon points="-50,40 -70,25 -40,15" fill="#8E44AD" transform="rotate(-30 -50 40)"/>
+                <!-- Multiplier Center -->
+                <circle cx="0" cy="0" r="38" fill="#E67E22" stroke="#B9770E" stroke-width="5"/>
+                <text x="0" y="14" font-family="'Nunito', 'Segoe UI', Arial, sans-serif" font-size="40" font-weight="900" fill="#FFFFFF" text-anchor="middle">x3</text>
+                <!-- Hint cards below -->
+                <rect x="-55" y="80" width="110" height="26" rx="13" fill="#8E44AD"/>
+                <text x="0" y="98" font-family="'Nunito', 'Segoe UI', Arial, sans-serif" font-size="14" font-weight="900" fill="#FFFFFF" text-anchor="middle">LẶP 3 LẦN</text>
+            </g>
+        
+    </g>
+
+    <!-- Bottom Decorative Floor Tile Grid Hint -->
+    <g transform="translate(175, 435)">
+        <rect x="-50" y="-12" width="100" height="24" rx="12" fill="#FFFFFF" stroke="#8E44AD" stroke-width="2" opacity="0.8"/>
+        <!-- 3 small floor tile squares -->
+        <rect x="-35" y="-7" width="14" height="14" rx="2" fill="#9B59B6" opacity="0.4"/>
+        <rect x="-7" y="-7" width="14" height="14" rx="2" fill="#9B59B6"/>
+        <rect x="21" y="-7" width="14" height="14" rx="2" fill="#9B59B6" opacity="0.4"/>
+    </g>
+    
+    <!-- Little footprint footer -->
+    <text x="175" y="470" font-family="'Nunito', 'Segoe UI', Arial, sans-serif" font-size="11" font-weight="700" fill="#95A5A6" text-anchor="middle" letter-spacing="1">KHU VƯỜN LẬP TRÌNH TÍ HON</text>
+</svg>

@@ -1,0 +1,182 @@
+#!/usr/bin/env bash
+# ==============================================================================
+# server-clean-services — Debian Server Services Optimizer & Cleaner
+# Kiến trúc: Omarchy-X11 Layered Architecture
+# Mô tả: Vô hiệu hóa và mask các service desktop/multimedia không cần thiết
+#        cho server hosting, bảo toàn SSH, Tailscale, Docker và X11 + DWM tối thiểu.
+# ==============================================================================
+
+set -euo pipefail
+
+BOLD="\033[1m"
+GREEN="\033[32m"
+CYAN="\033[36m"
+YELLOW="\033[33m"
+RED="\033[31m"
+DIM="\033[2m"
+RESET="\033[0m"
+
+MODE="check"
+
+for arg in "$@"; do
+  case "$arg" in
+    --apply|-y|apply)
+      MODE="apply"
+      ;;
+    --check|check)
+      MODE="check"
+      ;;
+    -h|--help)
+      echo -e "${BOLD}SỬ DỤNG:${RESET} $0 [--check | --apply]"
+      echo -e "  ${CYAN}--check${RESET}  Kiểm tra trạng thái hiện tại (dry-run, mặc định)"
+      echo -e "  ${GREEN}--apply${RESET}  Thực thi vô hiệu hóa và dọn dẹp các service"
+      exit 0
+      ;;
+  esac
+done
+
+echo -e "${BOLD}${CYAN}=== DEBIAN SERVER SERVICE OPTIMIZER & CLEANER ===${RESET}"
+echo -e "Chế độ: ${BOLD}${MODE}${RESET}"
+echo ""
+
+# 1. Danh sách System Services cần tắt & mask
+SYSTEM_SERVICES=(
+  "bluetooth.service"
+  "bluetooth.target"
+  "cups.service"
+  "cups.socket"
+  "cups.path"
+  "cups-browsed.service"
+  "avahi-daemon.service"
+  "avahi-daemon.socket"
+  "udisks2.service"
+  "upower.service"
+  "ModemManager.service"
+  "mpd.service"
+  "mpd.socket"
+  "apt-daily.timer"
+  "apt-daily-upgrade.timer"
+)
+
+# 2. Danh sách User Services (PipeWire audio stack)
+USER_SERVICES=(
+  "pipewire.service"
+  "pipewire.socket"
+  "pipewire-pulse.service"
+  "pipewire-pulse.socket"
+  "wireplumber.service"
+  "mpd.service"
+  "mpd.socket"
+)
+
+# 3. Danh sách Critical Services BẮT BUỘC BẢO VỆ
+CRITICAL_SERVICES=(
+  "ssh"
+  "tailscaled"
+)
+
+check_service_status() {
+  local s="$1"
+  local scope="${2:-system}"
+  local active="inactive"
+  local unit_state="disabled"
+
+  if [ "$scope" = "user" ]; then
+    active=$(systemctl --user is-active "$s" 2>/dev/null) || active="inactive"
+    unit_state=$(systemctl --user is-enabled "$s" 2>/dev/null) || unit_state="disabled"
+  else
+    active=$(systemctl is-active "$s" 2>/dev/null) || active="inactive"
+    unit_state=$(systemctl is-enabled "$s" 2>/dev/null) || unit_state="disabled"
+  fi
+  active=$(echo "$active" | head -n1 | tr -d '[:space:]')
+  unit_state=$(echo "$unit_state" | head -n1 | tr -d '[:space:]')
+  echo "${active}|${unit_state}"
+}
+
+echo -e "${BOLD}1. Kiểm tra Critical Services (Không bao giờ chạm vào):${RESET}"
+for cs in "${CRITICAL_SERVICES[@]}"; do
+  status=$(check_service_status "$cs" "system")
+  act="${status%|*}"
+  enb="${status#*|}"
+  if [ "$act" = "active" ]; then
+    echo -e "  [KEEP] ${GREEN}$cs${RESET}: ${GREEN}$act${RESET} (${enb})"
+  else
+    echo -e "  [KEEP] ${YELLOW}$cs${RESET}: ${YELLOW}$act${RESET} (${enb})"
+  fi
+done
+echo ""
+
+echo -e "${BOLD}2. Kiểm tra System Services cần tối ưu hóa:${RESET}"
+for s in "${SYSTEM_SERVICES[@]}"; do
+  status=$(check_service_status "$s" "system")
+  act="${status%|*}"
+  enb="${status#*|}"
+  if [ "$act" = "active" ] || [ "$enb" = "enabled" ]; then
+    echo -e "  ${RED}[RUNNING/ENABLED]${RESET} $s -> active: $act, enabled: $enb"
+  else
+    echo -e "  ${DIM}[CLEAN]${RESET} $s -> active: $act, enabled: $enb"
+  fi
+done
+echo ""
+
+echo -e "${BOLD}3. Kiểm tra User Services (PipeWire / Audio Stack):${RESET}"
+for us in "${USER_SERVICES[@]}"; do
+  status=$(check_service_status "$us" "user")
+  act="${status%|*}"
+  enb="${status#*|}"
+  if [ "$act" = "active" ] || [ "$enb" = "enabled" ]; then
+    echo -e "  ${RED}[RUNNING/ENABLED]${RESET} $us -> active: $act, enabled: $enb"
+  else
+    echo -e "  ${DIM}[CLEAN]${RESET} $us -> active: $act, enabled: $enb"
+  fi
+done
+echo ""
+
+if [ "$MODE" = "check" ]; then
+  echo -e "${YELLOW}Đây là chế độ kiểm tra (--check). Chưa có thay đổi nào được thực thi.${RESET}"
+  echo -e "Để áp dụng tối ưu hóa và dọn dẹp thật, chạy: ${BOLD}$0 --apply${RESET}"
+  exit 0
+fi
+
+# ==============================================================================
+# THỰC THI ÁP DỤNG (--apply)
+# ==============================================================================
+echo -e "${BOLD}${GREEN}Bắt đầu áp dụng tối ưu hóa server hosting...${RESET}"
+
+# A. Đặt default target là multi-user.target (bỏ qua Display Manager nặng)
+echo -e "▸ Đặt target hệ thống: ${CYAN}multi-user.target${RESET}..."
+sudo systemctl set-default multi-user.target 2>/dev/null || true
+
+# B. Dừng, vô hiệu hóa và mask các System Services
+echo -e "▸ Vô hiệu hóa và mask các System Services thừa..."
+for s in "${SYSTEM_SERVICES[@]}"; do
+  sudo systemctl stop "$s" 2>/dev/null || true
+  sudo systemctl disable "$s" 2>/dev/null || true
+  sudo systemctl mask "$s" 2>/dev/null || true
+done
+
+# C. Dừng, vô hiệu hóa và mask User Services (PipeWire Stack)
+echo -e "▸ Vô hiệu hóa và mask các User Services (PipeWire / Audio Stack)..."
+for us in "${USER_SERVICES[@]}"; do
+  systemctl --user stop "$us" 2>/dev/null || true
+  systemctl --user disable "$us" 2>/dev/null || true
+  systemctl --user mask "$us" 2>/dev/null || true
+done
+
+# D. Dọn dẹp các tiến trình nền còn sót lại của người dùng
+echo -e "▸ Dọn dẹp tiến trình nền thừa..."
+for proc in pipewire wireplumber pipewire-pulse mpd udiskie; do
+  pkill -u "$USER" -x "$proc" 2>/dev/null || true
+done
+
+# E. Kích hoạt Hardware Profile 'server' nếu ka-profile có sẵn
+if command -v ka-profile >/dev/null 2>&1; then
+  echo -e "▸ Kích hoạt Hardware Profile: ${BOLD}server${RESET}..."
+  ka-profile set server || true
+elif [ -f "$HOME/.dotfiles/scripts/.local/bin/ka-profile" ]; then
+  "$HOME/.dotfiles/scripts/.local/bin/ka-profile" set server || true
+fi
+
+echo ""
+echo -e "${BOLD}${GREEN}✔ Hoàn tất dọn dẹp các service không cần thiết!${RESET}"
+echo -e "X11, DWM tối thiểu, OpenSSH và Tailscale vẫn hoạt động bình thường."

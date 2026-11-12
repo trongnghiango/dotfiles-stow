@@ -3,4 +3,4 @@ require("core.options")
 require("core.keymaps")
 require("core.autocmds")
 require("core.lazy")
-require("core.neovide")
+if vim.g.neovide then require("core.neovide") end

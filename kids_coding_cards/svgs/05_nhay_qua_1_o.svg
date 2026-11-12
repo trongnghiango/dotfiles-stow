@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 350 500" width="350" height="500">
+    <defs>
+        <filter id="shadow" x="-5%" y="-5%" width="110%" height="110%">
+            <feDropShadow dx="0" dy="4" stdDeviation="6" flood-opacity="0.12"/>
+        </filter>
+    </defs>
+    
+    <!-- Outer Card Background with Rounded Corner -->
+    <rect x="15" y="15" width="320" height="470" rx="28" fill="#E8F8F5" stroke="#27AE60" stroke-width="7" filter="url(#shadow)"/>
+    
+    <!-- Inner dashed border (guide for child / friendly look) -->
+    <rect x="25" y="25" width="300" height="450" rx="20" fill="none" stroke="#27AE60" stroke-width="2.5" stroke-dasharray="6 6" opacity="0.6"/>
+
+    <!-- Top Category Badge -->
+    <g transform="translate(175, 52)">
+        <rect x="-95" y="-14" width="190" height="28" rx="14" fill="#1ABC9C"/>
+        <text x="0" y="5" font-family="'Nunito', 'Segoe UI', Arial, sans-serif" font-size="11.5" font-weight="900" fill="#FFFFFF" text-anchor="middle" letter-spacing="0.5">HÀNH ĐỘNG VẬN ĐỘNG</text>
+    </g>
+
+    <!-- Main Title -->
+    <text x="175" y="105" font-family="'Nunito', 'Segoe UI', Arial, sans-serif" font-size="20" font-weight="900" fill="#148F77" text-anchor="middle">NHẢY QUA 1 Ô!</text>
+
+    <!-- Subtitle (Small helper for parents) -->
+    <text x="175" y="128" font-family="'Nunito', 'Segoe UI', Arial, sans-serif" font-size="12.5" font-weight="600" fill="#7F8C8D" text-anchor="middle">Bật nhảy qua chướng ngại vật</text>
+
+    <!-- Center Illustration Area -->
+    <g id="illustration">
+        
+            <g transform="translate(175, 230)">
+                <!-- Arc jump arrow -->
+                <path d="M -75,45 Q 0,-110 75,45" fill="none" stroke="#16A085" stroke-width="8" stroke-dasharray="8 6"/>
+                <polygon points="75,45 85,20 60,30" fill="#16A085"/>
+                <!-- Spring / Kangaroo boots -->
+                <ellipse cx="0" cy="10" rx="30" ry="12" fill="#F39C12"/>
+                <path d="M -20,22 Q 0,35 20,22 Q 0,45 -20,55 Q 0,65 20,75" fill="none" stroke="#E67E22" stroke-width="7" stroke-linecap="round"/>
+                <circle cx="-75" cy="55" r="10" fill="#BDC3C7"/>
+                <circle cx="75" cy="55" r="10" fill="#2ECC71"/>
+            </g>
+        
+    </g>
+
+    <!-- Bottom Decorative Floor Tile Grid Hint -->
+    <g transform="translate(175, 435)">
+        <rect x="-50" y="-12" width="100" height="24" rx="12" fill="#FFFFFF" stroke="#27AE60" stroke-width="2" opacity="0.8"/>
+        <!-- 3 small floor tile squares -->
+        <rect x="-35" y="-7" width="14" height="14" rx="2" fill="#1ABC9C" opacity="0.4"/>
+        <rect x="-7" y="-7" width="14" height="14" rx="2" fill="#1ABC9C"/>
+        <rect x="21" y="-7" width="14" height="14" rx="2" fill="#1ABC9C" opacity="0.4"/>
+    </g>
+    
+    <!-- Little footprint footer -->
+    <text x="175" y="470" font-family="'Nunito', 'Segoe UI', Arial, sans-serif" font-size="11" font-weight="700" fill="#95A5A6" text-anchor="middle" letter-spacing="1">KHU VƯỜN LẬP TRÌNH TÍ HON</text>
+</svg>

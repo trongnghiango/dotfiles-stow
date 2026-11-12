@@ -25,9 +25,6 @@ fi
 # 2. NẠP CẤU HÌNH BIẾN MÔI TRƯỜNG CÁ NHÂN, HARDWARE PROFILE & XRESOURCES
 # ==============================================================================
 # FIX CRIT-06: Tạm thời tắt set -x trước khi nạp profile để ngăn rò rỉ API token ra log
-[ -n "$DEBUG" ] && set +x
-[ -f "$HOME/.config/shell/profile" ] && . "$HOME/.config/shell/profile"
-[ -n "$DEBUG" ] && set -x
 
 # Nạp GTK_THEME theo theme hiện tại để Qt/GTK luôn đồng bộ dark/light
 THEME_CURRENT="${XDG_CONFIG_HOME:-$HOME/.config}/theme/colors/current.conf"
@@ -47,6 +44,9 @@ if [ -f "$HW_CONF" ]; then
   [ -n "$MESA_LOADER_DRIVER_OVERRIDE" ] && export MESA_LOADER_DRIVER_OVERRIDE
   [ -n "$LIBGL_DRI3_ENABLE" ] && export LIBGL_DRI3_ENABLE
   [ -n "$DEFAULT_BROWSER" ] && export BROWSER="$DEFAULT_BROWSER"
+  [ -n "$AUDIO_BACKEND" ] && export AUDIO_BACKEND
+  [ -n "$SERVER_MODE" ] && export SERVER_MODE
+  [ -n "$CHASSIS_TYPE" ] && export CHASSIS_TYPE
 fi
 
 # Cấu hình Touchpad nếu profile là Laptop
@@ -113,7 +113,7 @@ fi
 # ==============================================================================
 # 4. NẠP CẤU HÌNH THEO TỪNG HỆ ĐIỀU HÀNH (ARCH / DEBIAN / VOID)
 # ==============================================================================
-if [ "${AUDIO_BACKEND:-pipewire}" = "pipewire" ] && [ -f /etc/os-release ]; then
+if [ -f /etc/os-release ]; then
   # Trích xuất ID và ID_LIKE hệ điều hành (ví dụ: arch, debian, void)
   OS=$(. /etc/os-release && echo "$ID")
   OS_LIKE=$(. /etc/os-release && echo "$ID_LIKE")
@@ -149,15 +149,28 @@ elif command -v xrandr >/dev/null 2>&1; then
   xrandr --auto
 fi
 
-command -v setbg >/dev/null 2>&1 && setbg "$HOME/Pictures/Wallpapers/" &
+# Hình nền: Dùng ảnh nền cho máy desktop, dùng màu phẳng tối giản cho server
+if [ "${SERVER_MODE:-0}" != "1" ] && [ "${CHASSIS_TYPE:-}" != "server" ] && command -v setbg >/dev/null 2>&1; then
+  setbg "$HOME/Pictures/Wallpapers/" &
+elif command -v xsetroot >/dev/null 2>&1; then
+  xsetroot -solid "#1a1b26" &
+fi
 
 # ==============================================================================
 # 6. KHỞI CHẠY CÁC ỨNG DỤNG NỀN & TRAYER CHUNG
 # ==============================================================================
-autostart="dunst udiskie fcitx5 unclutter"
-# Cấu hình X11 DPMS chuẩn: Standby 10m, Suspend 15m, Off 20m (thay thế xfce4-power-manager)
-xset dpms 600 900 1200 2>/dev/null || true
-[ "${PICOM_BACKEND:-glx}" != "none" ] && autostart="$autostart picom"
+if [ "${SERVER_MODE:-0}" = "1" ] || [ "${CHASSIS_TYPE:-}" = "server" ]; then
+  # Chế độ máy chủ: Chỉ kích hoạt daemon tối thiểu (ẩn chuột), tắt automount và bộ gõ
+  autostart="unclutter"
+  xset -dpms 2>/dev/null || true
+  xset s off 2>/dev/null || true
+else
+  autostart="dunst udiskie fcitx5 unclutter"
+  # Cấu hình X11 DPMS chuẩn: Standby 10m, Suspend 15m, Off 20m (thay thế xfce4-power-manager)
+  xset dpms 600 900 1200 2>/dev/null || true
+  [ "${PICOM_BACKEND:-glx}" != "none" ] && autostart="$autostart picom"
+fi
+
 for program in $autostart; do
   if command -v "$program" >/dev/null 2>&1; then
     pgrep -u "$USER" -x "$program" >/dev/null || "$program" &

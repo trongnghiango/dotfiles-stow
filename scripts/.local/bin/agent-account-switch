@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# Switch AI agent account (Claude/Codex/Grok)
+set -euo pipefail
+
+STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/agent-accounts"
+mkdir -p "$STATE_DIR"
+
+provider="${1:-claude}"
+account="${2:-default}"
+
+case "$provider" in
+  claude) export CLAUDE_CONFIG_DIR="$STATE_DIR/claude/$account" ;;
+  codex)  export CODEX_HOME="$STATE_DIR/codex/$account" ;;
+  grok)   export GROK_HOME="$STATE_DIR/grok/$account" ;;
+  *) echo "Unknown provider: $provider"; exit 1 ;;
+esac
+
+mkdir -p "$STATE_DIR/$provider/$account"
+echo "$account" > "$STATE_DIR/$provider.active"
+
+# Exec the real binary
+exec "$provider" "$@"

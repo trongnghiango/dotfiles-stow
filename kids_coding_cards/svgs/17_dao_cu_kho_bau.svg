@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 350 500" width="350" height="500">
+    <defs>
+        <filter id="shadow" x="-5%" y="-5%" width="110%" height="110%">
+            <feDropShadow dx="0" dy="4" stdDeviation="6" flood-opacity="0.12"/>
+        </filter>
+    </defs>
+    
+    <!-- Outer Card Background with Rounded Corner -->
+    <rect x="15" y="15" width="320" height="470" rx="28" fill="#FEFDE8" stroke="#F39C12" stroke-width="7" filter="url(#shadow)"/>
+    
+    <!-- Inner dashed border (guide for child / friendly look) -->
+    <rect x="25" y="25" width="300" height="450" rx="20" fill="none" stroke="#F39C12" stroke-width="2.5" stroke-dasharray="6 6" opacity="0.6"/>
+
+    <!-- Top Category Badge -->
+    <g transform="translate(175, 52)">
+        <rect x="-85" y="-14" width="170" height="28" rx="14" fill="#F1C40F"/>
+        <text x="0" y="5" font-family="'Nunito', 'Segoe UI', Arial, sans-serif" font-size="12" font-weight="900" fill="#FFFFFF" text-anchor="middle" letter-spacing="0.5">ĐẠO CỤ SÀN GẠCH</text>
+    </g>
+
+    <!-- Main Title -->
+    <text x="175" y="105" font-family="'Nunito', 'Segoe UI', Arial, sans-serif" font-size="21" font-weight="900" fill="#7D6608" text-anchor="middle">KHO BÁU NGÔI SAO</text>
+
+    <!-- Subtitle (Small helper for parents) -->
+    <text x="175" y="128" font-family="'Nunito', 'Segoe UI', Arial, sans-serif" font-size="13" font-weight="600" fill="#7F8C8D" text-anchor="middle">Đặt vào ô đích để bé nhặt</text>
+
+    <!-- Center Illustration Area -->
+    <g id="illustration">
+        
+            <g transform="translate(175, 225)">
+                <!-- Golden Chest -->
+                <rect x="-60" y="-10" width="120" height="80" rx="10" fill="#D35400" stroke="#A04000" stroke-width="5"/>
+                <path d="M -60,-10 Q 0,-50 60,-10 Z" fill="#E67E22" stroke="#A04000" stroke-width="5"/>
+                <rect x="-12" y="-10" width="24" height="30" rx="4" fill="#F1C40F" stroke="#B7950B" stroke-width="3"/>
+                <circle cx="0" cy="0" r="4" fill="#7D6608"/>
+                <!-- Glowing Star flying out -->
+                <polygon points="0,-75 14,-45 46,-45 20,-25 30,5 0,-12 -30,5 -20,-25 -46,-45 -14,-45" fill="#F1C40F" stroke="#D4AC0D" stroke-width="4"/>
+                <circle cx="-50" cy="-60" r="5" fill="#F9E79F"/>
+                <circle cx="50" cy="-60" r="6" fill="#F9E79F"/>
+            </g>
+        
+    </g>
+
+    <!-- Bottom Decorative Floor Tile Grid Hint -->
+    <g transform="translate(175, 435)">
+        <rect x="-50" y="-12" width="100" height="24" rx="12" fill="#FFFFFF" stroke="#F39C12" stroke-width="2" opacity="0.8"/>
+        <!-- 3 small floor tile squares -->
+        <rect x="-35" y="-7" width="14" height="14" rx="2" fill="#F1C40F" opacity="0.4"/>
+        <rect x="-7" y="-7" width="14" height="14" rx="2" fill="#F1C40F"/>
+        <rect x="21" y="-7" width="14" height="14" rx="2" fill="#F1C40F" opacity="0.4"/>
+    </g>
+    
+    <!-- Little footprint footer -->
+    <text x="175" y="470" font-family="'Nunito', 'Segoe UI', Arial, sans-serif" font-size="11" font-weight="700" fill="#95A5A6" text-anchor="middle" letter-spacing="1">KHU VƯỜN LẬP TRÌNH TÍ HON</text>
+</svg>

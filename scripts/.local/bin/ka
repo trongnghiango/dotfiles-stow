@@ -237,8 +237,8 @@ cmd_doctor() {
 
   check_item() {
     local label="$1"
-    local check_cmd="$2"
-    if eval "$check_cmd" >/dev/null 2>&1; then
+    local check_cmd=("${@:2}")
+    if "${check_cmd[@]}" >/dev/null 2>&1; then
       echo -e "  [${GREEN}PASS${RESET}] $label"
     else
       echo -e "  [${RED}FAIL${RESET}] $label"

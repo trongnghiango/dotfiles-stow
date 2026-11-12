@@ -96,6 +96,29 @@ _get_stow_targets() {
   done
 }
 
+_validate_configs() {
+  local package="$1"
+  local pkg_dir="$DOTFILES_DIR/$package"
+
+  # Shell syntax check
+  find "$pkg_dir" -name "*.sh" -o -name "*.bash" -o -name "*.zsh" | while read -r f; do
+    bash -n "$f" 2>/dev/null || { log_error "Syntax error in $f"; return 1; }
+  done
+
+  # Zsh syntax check
+  find "$pkg_dir" -name "*.zsh*" | while read -r f; do
+    zsh -n "$f" 2>/dev/null || { log_error "Zsh syntax error in $f"; return 1; }
+  done
+
+  # Make dry-run for suckless
+  if [ "$package" = "suckless" ]; then
+    (cd "$pkg_dir/.local/src/dwm" && make -n) 2>/dev/null || { log_error "DWM make dry-run failed"; return 1; }
+    (cd "$pkg_dir/.local/src/dwmblocks" && make -n) 2>/dev/null || { log_error "dwmblocks make dry-run failed"; return 1; }
+  fi
+
+  return 0
+}
+
 # ==============================================================================
 # BACKUP
 # ==============================================================================
@@ -210,6 +233,11 @@ cmd_deploy() {
   local package="$1"
   _require_stow
   _require_package "$package"
+
+  # Validate configs before deploying
+  log_info "Validating configs for '$package'..."
+  _validate_configs "$package" || { log_error "Config validation failed for '$package'"; exit 1; }
+  log_ok "Config validation passed."
 
   # Ensure standard base directories exist to prevent GNU Stow directory folding
   mkdir -p "$TARGET_DIR/.config" "$TARGET_DIR/.local/bin" "$TARGET_DIR/.local/share" "$TARGET_DIR/.local/src"

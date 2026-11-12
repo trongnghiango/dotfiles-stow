@@ -27,6 +27,22 @@ if [ "$EUID" -eq 0 ]; then
   exit 1
 fi
 
+# --- System Safety: /etc backup + btrfs snapshot ---
+backup_system_state() {
+  log_step "Tạo bản sao lưu hệ thống..."
+  local ts=$(date +%Y%m%d-%H%M%S)
+
+  # /etc backup via rsync
+  sudo rsync -a /etc/ "/etc.backup-$ts/" 2>/dev/null && log_dim "/etc → /etc.backup-$ts"
+
+  # Btrfs snapshot if root is btrfs
+  if findmnt -n -o FSTYPE / | grep -q btrfs; then
+    sudo btrfs subvolume snapshot / "/snapshots/pre-ka-setup-$ts" 2>/dev/null && log_dim "Btrfs snapshot: /snapshots/pre-ka-setup-$ts"
+  fi
+}
+
+backup_system_state
+
 log_info()    { echo -e "${BLUE}[INFO]${NC}    $1"; }
 log_success() { echo -e "${GREEN}[OK]${NC}      $1"; }
 log_warn()    { echo -e "${YELLOW}[WARN]${NC}    $1"; }
@@ -275,12 +291,19 @@ setup_stow() {
     dunst         # notification daemon
     gtk           # GTK2/3 theme
     fontconfig    # font rendering
+    hardware      # udev rules, hardware profiles
     nsxiv         # image viewer keybinds
     theme         # theme-set: 1 file màu → generate toàn bộ desktop
     desktop       # XDG mimeapps.list, user-dirs, custom .desktop handlers
     suckless      # suckless source code
     scripts       # ~/.local/bin/* — phải CUỐI CÙNG (stow-safe cần có trong PATH)
   )
+
+  # Host-specific overlay (highest priority)
+  local host_dir="$DOTFILES_DIR/hosts/$(hostname)"
+  if [ -d "$host_dir" ]; then
+    packages+=("hosts/$(hostname)")
+  fi
 
   local success=0 failed=0 skipped=0
 
@@ -407,7 +430,7 @@ setup_suckless() {
       log_info "Đang biên dịch và cài đặt $tool..."
       (
         cd "$src_dir/$tool"
-        local make_log="/tmp/make-${tool}.log"
+        local make_log="$(mktemp -p "$XDG_RUNTIME_DIR" make-XXXXXX.log)"
         # Khắc phục quyền sở hữu nếu lần trước từng chạy nhầm bằng sudo make
         if [ ! -w . ] || [ -d build -a ! -w build ]; then
           sudo chown -R "$USER:$USER" . 2>/dev/null || true
@@ -574,7 +597,7 @@ EOF
 setup_battery() {
   log_step "Cấu hình ngưỡng sạc pin & Udev Hardware Rules..."
 
-  local udev_rule="$DOTFILES_DIR/hardware/99-ka-hardware.rules"
+  local udev_rule="$DOTFILES_DIR/hardware/.udev/99-ka-hardware.rules"
   if [ -f "$udev_rule" ]; then
     log_info "Cài đặt udev hardware rules vào /etc/udev/rules.d/..."
     sudo cp -f "$udev_rule" /etc/udev/rules.d/99-ka-hardware.rules

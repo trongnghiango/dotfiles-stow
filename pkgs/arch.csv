@@ -148,3 +148,5 @@ A,opencode-bin,11,dev,Relays code agents via AI gateway.
 A,yay-bin,11,system,AUR package compilation helper.
 ,zip,11,system,Creates ZIP archives.
 ,zsh,11,zsh,Zsh utility.
+,xcape,1,utils,Key remapping utility (Super_L=Escape)
+,neomutt,6,mail,Command-line mail client

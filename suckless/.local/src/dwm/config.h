@@ -402,7 +402,7 @@ static const Key keys[] = {
 	{ 0, XF86XK_AudioMedia,                        spawn,                  {.v = (const char*[]){ "st", "-e", "ncmpcpp", NULL } } },
 	{ 0, XF86XK_AudioMicMute,                      mic_toggle,             {0} },
 	{ 0, XF86XK_Calculator,                        spawn,                  {.v = (const char*[]){ "st", "-e", "bc", "-l", NULL } } },
-	{ 0, XF86XK_Sleep,                             spawn,                  {.v = (const char*[]){ "sudo", "-A", "zzz", NULL } } },
+	{ 0, XF86XK_Sleep,                             spawn,                  {.v = (const char*[]){ "systemctl", "suspend", NULL } } },
 	{ 0, XF86XK_WWW,                               spawn,                  {.v = browsercmd } },
 	{ 0, XF86XK_ScreenSaver,                       spawn,                  SHCMD("slock & xset dpms force off; mpc pause") },
 	{ 0, XF86XK_TaskPane,                          spawn,                  {.v = (const char*[]){ "st", "-e", "htop", NULL } } },

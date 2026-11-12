@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 350 500" width="350" height="500">
+    <defs>
+        <filter id="shadow" x="-5%" y="-5%" width="110%" height="110%">
+            <feDropShadow dx="0" dy="4" stdDeviation="6" flood-opacity="0.12"/>
+        </filter>
+    </defs>
+    
+    <!-- Outer Card Background with Rounded Corner -->
+    <rect x="15" y="15" width="320" height="470" rx="28" fill="#EBEDEF" stroke="#7F8C8D" stroke-width="7" filter="url(#shadow)"/>
+    
+    <!-- Inner dashed border (guide for child / friendly look) -->
+    <rect x="25" y="25" width="300" height="450" rx="20" fill="none" stroke="#7F8C8D" stroke-width="2.5" stroke-dasharray="6 6" opacity="0.6"/>
+
+    <!-- Top Category Badge -->
+    <g transform="translate(175, 52)">
+        <rect x="-85" y="-14" width="170" height="28" rx="14" fill="#95A5A6"/>
+        <text x="0" y="5" font-family="'Nunito', 'Segoe UI', Arial, sans-serif" font-size="12" font-weight="900" fill="#FFFFFF" text-anchor="middle" letter-spacing="0.5">VẬT CẢN (OBSTACLE)</text>
+    </g>
+
+    <!-- Main Title -->
+    <text x="175" y="105" font-family="'Nunito', 'Segoe UI', Arial, sans-serif" font-size="21" font-weight="900" fill="#2C3E50" text-anchor="middle">TẢNG ĐÁ CẢN ĐƯỜNG</text>
+
+    <!-- Subtitle (Small helper for parents) -->
+    <text x="175" y="128" font-family="'Nunito', 'Segoe UI', Arial, sans-serif" font-size="13" font-weight="600" fill="#7F8C8D" text-anchor="middle">Vật cản! Không được bước vào</text>
+
+    <!-- Center Illustration Area -->
+    <g id="illustration">
+        
+            <g transform="translate(175, 225)">
+                <!-- Big Mountain Rock -->
+                <path d="M -70,60 L -50,-20 L -15,-60 L 25,-45 L 65,10 L 70,60 Z" fill="#95A5A6" stroke="#7F8C8D" stroke-width="6" stroke-linejoin="round"/>
+                <!-- Cracks and details -->
+                <path d="M -15,-60 L -5,-10 L -30,30" fill="none" stroke="#5D6D7E" stroke-width="4"/>
+                <path d="M 25,-45 L 20,0 L 45,40" fill="none" stroke="#5D6D7E" stroke-width="4"/>
+                <!-- Red Stop Sign -->
+                <circle cx="0" cy="15" r="28" fill="#E74C3C" stroke="#C0392B" stroke-width="4"/>
+                <rect x="-16" y="11" width="32" height="8" rx="3" fill="#FFFFFF"/>
+            </g>
+        
+    </g>
+
+    <!-- Bottom Decorative Floor Tile Grid Hint -->
+    <g transform="translate(175, 435)">
+        <rect x="-50" y="-12" width="100" height="24" rx="12" fill="#FFFFFF" stroke="#7F8C8D" stroke-width="2" opacity="0.8"/>
+        <!-- 3 small floor tile squares -->
+        <rect x="-35" y="-7" width="14" height="14" rx="2" fill="#95A5A6" opacity="0.4"/>
+        <rect x="-7" y="-7" width="14" height="14" rx="2" fill="#95A5A6"/>
+        <rect x="21" y="-7" width="14" height="14" rx="2" fill="#95A5A6" opacity="0.4"/>
+    </g>
+    
+    <!-- Little footprint footer -->
+    <text x="175" y="470" font-family="'Nunito', 'Segoe UI', Arial, sans-serif" font-size="11" font-weight="700" fill="#95A5A6" text-anchor="middle" letter-spacing="1">KHU VƯỜN LẬP TRÌNH TÍ HON</text>
+</svg>

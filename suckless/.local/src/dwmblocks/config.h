@@ -27,13 +27,13 @@
 #define BLOCKS(X)                     \
     X("", "ka-clock",    60,   1)     \
     X("", "ka-forecast", 1800, 14)    \
-    X("", "sb-record",   0,    9)     \
+    X("", "ka-record",   0,    9)     \
     X("", "ka-volume",   60,   11)    \
     X("", "ka-battery",  60,   30)    \
     X("", "ka-network",  10,   4)     \
     X("", "ka-bluetooth",10,   7)     \
     X("", "ka-cpu",      5,    15)    \
     X("", "ka-memory",   10,   10)    \
-    X("", "sb-notify",   0,    8)
+    X("", "ka-notify",   0,    8)
 
 #endif  // CONFIG_H

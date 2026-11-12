@@ -141,3 +141,5 @@ E,nerd-fonts-symbols,10,dwmblocks,Symbols Nerd Font (Icons & Glyphs) for DWM bar
 ,zsh,11,zsh,Zsh shell.
 
 ,lm-sensors,11,dwmblocks,Hardware monitoring sensors for CPU dropdown.
+,xcape,1,utils,Key remapping utility (Super_L=Escape)
+,neomutt,6,mail,Command-line mail client

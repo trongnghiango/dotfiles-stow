@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 350 500" width="350" height="500">
+    <defs>
+        <filter id="shadow" x="-5%" y="-5%" width="110%" height="110%">
+            <feDropShadow dx="0" dy="4" stdDeviation="6" flood-opacity="0.12"/>
+        </filter>
+    </defs>
+    
+    <!-- Outer Card Background with Rounded Corner -->
+    <rect x="15" y="15" width="320" height="470" rx="28" fill="#E8F8F5" stroke="#27AE60" stroke-width="7" filter="url(#shadow)"/>
+    
+    <!-- Inner dashed border (guide for child / friendly look) -->
+    <rect x="25" y="25" width="300" height="450" rx="20" fill="none" stroke="#27AE60" stroke-width="2.5" stroke-dasharray="6 6" opacity="0.6"/>
+
+    <!-- Top Category Badge -->
+    <g transform="translate(175, 52)">
+        <rect x="-95" y="-14" width="190" height="28" rx="14" fill="#2ECC71"/>
+        <text x="0" y="5" font-family="'Nunito', 'Segoe UI', Arial, sans-serif" font-size="11.5" font-weight="900" fill="#FFFFFF" text-anchor="middle" letter-spacing="0.5">DI CHUYỂN</text>
+    </g>
+
+    <!-- Main Title -->
+    <text x="175" y="105" font-family="'Nunito', 'Segoe UI', Arial, sans-serif" font-size="20" font-weight="900" fill="#196F3D" text-anchor="middle">BƯỚC TỚI 3 BƯỚC</text>
+
+    <!-- Subtitle (Small helper for parents) -->
+    <text x="175" y="128" font-family="'Nunito', 'Segoe UI', Arial, sans-serif" font-size="12.5" font-weight="600" fill="#7F8C8D" text-anchor="middle">Đi thẳng 3 ô gạch thật nhanh</text>
+
+    <!-- Center Illustration Area -->
+    <g id="illustration">
+        
+            <g transform="translate(175, 230)">
+                <path d="M 0,-105 L 50,-40 L 22,-40 L 22,35 L -22,35 L -22,-40 L -50,-40 Z" fill="#2ECC71" stroke="#27AE60" stroke-width="6" stroke-linejoin="round"/>
+                <!-- 3 step marks -->
+                <rect x="-35" y="55" width="20" height="12" rx="6" fill="#27AE60"/>
+                <rect x="-10" y="70" width="20" height="12" rx="6" fill="#27AE60"/>
+                <rect x="15" y="85" width="20" height="12" rx="6" fill="#27AE60"/>
+                <!-- Number Badge -->
+                <circle cx="55" cy="40" r="24" fill="#F1C40F" stroke="#D68910" stroke-width="4"/>
+                <text x="55" y="48" font-family="'Nunito', 'Segoe UI', Arial, sans-serif" font-size="26" font-weight="900" fill="#7D6608" text-anchor="middle">3</text>
+            </g>
+        
+    </g>
+
+    <!-- Bottom Decorative Floor Tile Grid Hint -->
+    <g transform="translate(175, 435)">
+        <rect x="-50" y="-12" width="100" height="24" rx="12" fill="#FFFFFF" stroke="#27AE60" stroke-width="2" opacity="0.8"/>
+        <!-- 3 small floor tile squares -->
+        <rect x="-35" y="-7" width="14" height="14" rx="2" fill="#2ECC71" opacity="0.4"/>
+        <rect x="-7" y="-7" width="14" height="14" rx="2" fill="#2ECC71"/>
+        <rect x="21" y="-7" width="14" height="14" rx="2" fill="#2ECC71" opacity="0.4"/>
+    </g>
+    
+    <!-- Little footprint footer -->
+    <text x="175" y="470" font-family="'Nunito', 'Segoe UI', Arial, sans-serif" font-size="11" font-weight="700" fill="#95A5A6" text-anchor="middle" letter-spacing="1">KHU VƯỜN LẬP TRÌNH TÍ HON</text>
+</svg>

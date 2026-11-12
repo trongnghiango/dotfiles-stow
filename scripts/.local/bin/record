@@ -130,7 +130,7 @@ stop_recording() {
 
     # Tạo thumbnail nhanh & copy đường dẫn vào clipboard
     if [ -f "$filepath" ] && [ -s "$filepath" ]; then
-        local thumb="/tmp/rec_thumb_$$.png"
+        local thumb="$(mktemp -p "$XDG_RUNTIME_DIR/record" rec_thumb_XXXXXX.png)"
         ffmpeg -y -ss 00:00:00.5 -i "$filepath" -vframes 1 -q:v 2 "$thumb" >/dev/null 2>&1 || true
 
         if command -v xclip >/dev/null 2>&1; then

@@ -1,0 +1,3 @@
+# Host-specific overrides for $(hostname)
+export BROWSER="firefox-esr"
+export CPU_GOVERNOR="powersave"

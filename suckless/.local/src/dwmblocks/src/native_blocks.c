@@ -187,7 +187,7 @@ static void native_battery(char *output, size_t max_len, uint8_t button) {
     }
 
     if (!bat_base) {
-        snprintf(output, max_len, "󰁹");
+        output[0] = '\0';
         return;
     }
 
@@ -306,6 +306,13 @@ static void native_network(char *output, size_t max_len, uint8_t button) {
 // 4.5. BLUETOOTH BLOCK (In-Process Native C via Sysfs & Fast D-Bus - Zero Fork)
 // -----------------------------------------------------------------------------
 static void native_bluetooth(char *output, size_t max_len, uint8_t button) {
+    const char *sm = getenv("SERVER_MODE");
+    const char *bt = getenv("BLUETOOTH_ENABLED");
+    if ((sm && strcmp(sm, "1") == 0) || (bt && strcmp(bt, "0") == 0)) {
+        output[0] = '\0';
+        return;
+    }
+
     if (button == 1) {
         spawn_pop("bluetooth");
     } else if (button == 3) {
@@ -372,6 +379,13 @@ static void native_clock(char *output, size_t max_len, uint8_t button) {
 // 6. VOLUME BLOCK (Pure Native C via ALSA API - Zero-Fork, < 0.02ms)
 // -----------------------------------------------------------------------------
 static void native_volume(char *output, size_t max_len, uint8_t button) {
+    const char *backend = getenv("AUDIO_BACKEND");
+    const char *sm = getenv("SERVER_MODE");
+    if ((backend && strcmp(backend, "none") == 0) || (sm && strcmp(sm, "1") == 0)) {
+        output[0] = '\0';
+        return;
+    }
+
     if (button == 1) {
         spawn_pop("volume");
     } else if (button == 2) {
@@ -462,6 +476,12 @@ static void native_volume(char *output, size_t max_len, uint8_t button) {
 // 7. FORECAST BLOCK (In-Process Native C)
 // -----------------------------------------------------------------------------
 static void native_forecast(char *output, size_t max_len, uint8_t button) {
+    const char *sm = getenv("SERVER_MODE");
+    if (sm && strcmp(sm, "1") == 0) {
+        output[0] = '\0';
+        return;
+    }
+
     if (button == 1) {
         spawn_pop("forecast");
     } else if (button == 3) {
@@ -618,10 +638,10 @@ native_block_fn get_native_block_fn(const char *command) {
     if (strcmp(command, "ka-forecast") == 0 || strcmp(command, "native:forecast") == 0) {
         return native_forecast;
     }
-    if (strcmp(command, "sb-notify") == 0 || strcmp(command, "native:notify") == 0) {
+    if (strcmp(command, "ka-notify") == 0 || strcmp(command, "native:notify") == 0) {
         return native_notify;
     }
-    if (strcmp(command, "sb-record") == 0 || strcmp(command, "native:record") == 0) {
+    if (strcmp(command, "ka-record") == 0 || strcmp(command, "native:record") == 0) {
         return native_record;
     }
 

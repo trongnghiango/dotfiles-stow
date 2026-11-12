@@ -9,7 +9,7 @@ CACHE_FILE="${XDG_CACHE_HOME:-$HOME/.cache}/weatherreport"
 LOC_FILE="${XDG_CONFIG_HOME:-$HOME/.config}/weather_location"
 mkdir -p "$(dirname "$CACHE_FILE")" 2>/dev/null || true
 if ! touch "$CACHE_FILE" 2>/dev/null; then
-  CACHE_FILE="/tmp/weatherreport"
+  CACHE_FILE="${XDG_CACHE_HOME:-$HOME/.cache}/weatherreport"
 fi
 
 LAT="10.823"

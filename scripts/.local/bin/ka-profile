@@ -44,6 +44,8 @@ detect_hardware() {
         echo "thinkpad-x230"
     elif echo "$combined" | grep -qi "t480"; then
         echo "thinkpad-t480"
+    elif echo "$combined" | grep -qiE "server|stax|vps|kvm|qemu|vmware" || [[ "$chassis" =~ ^(17|23|28|29)$ ]]; then
+        echo "server"
     elif [[ "$chassis" =~ ^(8|9|10|11|14|30|31|32)$ ]]; then
         echo "generic-laptop"
     elif [ -d "/sys/class/power_supply/BAT0" ] || [ -d "/sys/class/power_supply/BAT1" ]; then
