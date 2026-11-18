@@ -122,6 +122,7 @@ show_help() {
   echo -e "  ${GREEN}battery${NC}        Cấu hình ngưỡng sạc pin ThinkPad (50-60%)"
   echo -e "  ${GREEN}docker${NC}         Cấu hình Docker non-root + socket activation"
   echo -e "  ${GREEN}sys${NC}            Tinh chỉnh Kernel, Sysctl và kích hoạt zRAM cho máy 10-15 năm tuổi"
+  echo -e "  ${GREEN}bulletproof${NC}     Cấu hình Bulletproof Updates (Snapper, GRUB-Btrfs, safe-pacman, ka-update)"
   echo ""
   echo -e "${BOLD}DOTFILES:${NC}  ${DIM}$DOTFILES_DIR${NC}"
   echo -e "${BOLD}PACKAGES:${NC}  ${DIM}$DOTFILES_DIR/pkgs/$current_os.csv${NC}"
@@ -808,6 +809,119 @@ EOF
 }
 
 # ==============================================================================
+# 8. BULLETPROOF UPDATE SYSTEM (Snapper + GRUB-Btrfs + safe-pacman + ka-update)
+# ==============================================================================
+setup_bulletproof_updates() {
+  log_step "Cấu hình Bulletproof Update System (Snapper + GRUB-Btrfs + safe-pacman + ka-update)..."
+
+  local current_os
+  current_os="$(detect_os)"
+
+  if [[ ! "$current_os" =~ ^(arch|artix|endeavouros|manjaro)$ ]]; then
+    log_warn "Bulletproof updates chỉ hỗ trợ Arch-based distros. Bỏ qua."
+    return 0
+  fi
+
+  # 1. Install core packages
+  log_info "Cài đặt gói cốt lõi: snapper, grub-btrfs, snap-pac, reflector, needrestart..."
+  sudo pacman -S --needed --noconfirm snapper grub-btrfs snap-pac reflector needrestart || {
+    log_error "Không thể cài đặt gói bulletproof updates."
+    return 1
+  }
+
+  # 2. Deploy pacman hooks from dotfiles
+  log_info "Triển khai pacman hooks (snapper pre/post, grub-btrfs)..."
+  local hooks_src="$DOTFILES_DIR/system-config/etc/pacman.d/hooks"
+  local hooks_dst="/etc/pacman.d/hooks"
+  if [ -d "$hooks_src" ]; then
+    sudo mkdir -p "$hooks_dst"
+    sudo cp -f "$hooks_src"/*.hook "$hooks_dst/"
+    log_success "Đã copy hooks: $(ls $hooks_src/*.hook | xargs -n1 basename | tr '\n' ' ')"
+  else
+    log_warn "Không tìm thấy hooks tại $hooks_src"
+  fi
+
+  # 3. Configure snapper (root + home if separate subvolume)
+  log_info "Cấu hình Snapper cho root và home..."
+  if command -v snapper-setup &>/dev/null; then
+    sudo snapper-setup
+  else
+    log_warn "snapper-setup không tìm thấy, cấu hình thủ công..."
+    # Root config
+    if [[ ! -f "/etc/snapper/configs/root" ]]; then
+      sudo snapper -c root create-config /
+    fi
+    # Home config (if separate btrfs subvolume)
+    if findmnt -n -o FSTYPE /home | grep -q btrfs; then
+      if [[ ! -f "/etc/snapper/configs/home" ]]; then
+        sudo snapper -c home create-config /home
+      fi
+    fi
+    # Apply cleanup policy
+    for CONFIG in root home; do
+      if [[ -f "/etc/snapper/configs/$CONFIG" ]]; then
+        sudo snapper -c "$CONFIG" set-config \
+          TIMELINE_CREATE="yes" \
+          TIMELINE_LIMIT_HOURLY="10" \
+          TIMELINE_LIMIT_DAILY="10" \
+          TIMELINE_LIMIT_WEEKLY="4" \
+          TIMELINE_LIMIT_MONTHLY="3" \
+          TIMELINE_LIMIT_YEARLY="2" \
+          NUMBER_LIMIT="50" \
+          NUMBER_LIMIT_IMPORTANT="10" \
+          NUMBER_MIN_AGE="1800" \
+          EMPTY_PRE_POST_CLEANUP="yes" \
+          EMPTY_PRE_POST_MIN_AGE="1800"
+      fi
+    done
+  fi
+
+  # 4. Enable timers
+  log_info "Kích hoạt systemd timers..."
+  sudo systemctl enable --now snapper-timeline.timer snapper-cleanup.timer
+  sudo systemctl enable --now grub-btrfsd.path
+  sudo systemctl enable --now reflector.timer
+
+  # 5. Default package holds
+  log_info "Thiết lập package holds mặc định..."
+  if command -v pacman-hold &>/dev/null; then
+    pacman-hold add linux-lts
+    # Detect NVIDIA GPU
+    if lspci | grep -qi nvidia; then
+      log_info "Phát hiện NVIDIA GPU, hold nvidia packages..."
+      pacman-hold add nvidia nvidia-utils nvidia-settings
+    fi
+  else
+    log_warn "pacman-hold không tìm thấy, bỏ qua package holds."
+  fi
+
+  # 6. Create initial snapshots
+  log_info "Tạo snapshot ban đầu (post-install clean state)..."
+  sudo snapper -c root create --type single --description "Post-install clean state" --number-cleanup=number
+  if [[ -f "/etc/snapper/configs/home" ]]; then
+    sudo snapper -c home create --type single --description "Post-install clean state" --number-cleanup=number
+  fi
+
+  # 7. Verify installation
+  log_info "Kiểm tra cài đặt..."
+  if command -v ka-update &>/dev/null; then
+    ka-update status
+  fi
+  if command -v ka-health &>/dev/null; then
+    ka-health --quick
+  fi
+
+  log_success "Bulletproof Update System đã được cấu hình hoàn tất!"
+  log_info "Các lệnh hữu ích:"
+  log_dim "  ka-update check       - Kiểm tra cập nhật"
+  log_dim "  ka-update apply       - Cập nhật toàn hệ thống (có snapshot)"
+  log_dim "  ka-update rollback <n> - Rollback về snapshot #n"
+  log_dim "  ka-health             - Kiểm tra sức khỏe hệ thống"
+  log_dim "  pacman-hold list      - Xem các package đang hold"
+  log_dim "  snapper -c root list  - Xem danh sách snapshot"
+}
+
+# ==============================================================================
 # MAIN
 # ==============================================================================
 if [ $# -eq 0 ]; then
@@ -846,6 +960,9 @@ case "$1" in
   sys|perf)
     setup_sys
     ;;
+  bulletproof|updates)
+    setup_bulletproof_updates
+    ;;
   all)
     _prof="${2:-core}"
     setup_pkgs "$_prof" || log_warn "Một số gói cài đặt gặp lỗi hoặc bị bỏ qua."
@@ -867,6 +984,8 @@ case "$1" in
     setup_docker || true
     echo ""
     setup_sys || true
+    echo ""
+    setup_bulletproof_updates || true
     echo ""
     log_success "=== ka-setup all HOÀN THÀNH (Profile: $_prof) ===="
     log_warn "Nếu đây là lần cài đầu tiên: hãy REBOOT để áp dụng PAM + shell changes."
