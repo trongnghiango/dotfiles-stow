@@ -1,0 +1,58 @@
+# KaOS-CS ThinkPad Hardware Rules
+# Battery charge thresholds, CPU governor, Bluetooth, etc.
+
+# ==============================================================================
+# BATTERY CHARGE THRESHOLDS (ThinkPad X230/T480)
+# ==============================================================================
+# X230: Uses tp_smapi (BAT0) - thresholds 50-60%
+# T480: Uses native charge_control_end_threshold (BAT0/BAT1) - thresholds 75-80%
+# The ka-profile tool applies the correct values based on detected hardware
+
+# tp_smapi module parameters (X230)
+# These are set via modprobe.d/thinkpad.conf and ka-profile
+# SUBSYSTEM=="platform", DRIVER=="thinkpad_acpi", ATTR{charge_control_start_threshold}="50", ATTR{charge_control_end_threshold}="60"
+
+# Native battery threshold (T480 and newer)
+# Applied by ka-profile at runtime
+
+# ==============================================================================
+# CPU GOVERNOR - powersave for battery life on older hardware
+# ==============================================================================
+SUBSYSTEM=="cpu", DEVPATH=="/devices/system/cpu/cpu*/cpufreq/scaling_governor", ATTR{scaling_governor}="powersave"
+
+# ==============================================================================
+# BLUETOOTH - autosuspend for power saving
+# ==============================================================================
+SUBSYSTEM=="usb", ATTR{idVendor}=="8087", ATTR{power/control}="auto"
+SUBSYSTEM=="usb", ATTR{idVendor}=="0a5c", ATTR{power/control}="auto"
+
+# ==============================================================================
+# INTEL HDA AUDIO - power saving
+# ==============================================================================
+SUBSYSTEM=="pci", DRIVER=="snd_hda_intel", ATTR{power/control}="auto"
+
+# ==============================================================================
+# I915 - enable RC6, FBC, semaphores for power saving
+# ==============================================================================
+SUBSYSTEM=="pci", DRIVER=="i915", ATTR{power/control}="auto"
+
+# ==============================================================================
+# NVME - power saving (may impact performance slightly)
+# ==============================================================================
+SUBSYSTEM=="pci", DRIVER=="nvme", ATTR{power/control}="auto"
+
+# ==============================================================================
+# USB AUTOSUSPEND
+# ==============================================================================
+SUBSYSTEM=="usb", TEST=="power/control", ATTR{power/control}="auto"
+SUBSYSTEM=="usb", TEST=="power/autosuspend_delay_ms", ATTR{power/autosuspend_delay_ms}="2000"
+
+# ==============================================================================
+# BACKLIGHT - Intel
+# ==============================================================================
+SUBSYSTEM=="backlight", ACTION=="add", KERNEL=="intel_backlight", MODE="0664", GROUP="video"
+
+# ==============================================================================
+# THINKPAD ACPI - fan control, keyboard backlight
+# ==============================================================================
+SUBSYSTEM=="platform", DRIVER=="thinkpad_acpi", MODE="0664", GROUP="wheel"

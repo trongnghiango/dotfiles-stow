@@ -1,0 +1,6 @@
+# KaOS-CS Sudoers - wheel group has full sudo access
+%wheel ALL=(ALL:ALL) ALL
+
+# Allow passwordless sudo for live user during installation
+# This will be removed by install script after setup
+liveuser ALL=(ALL) NOPASSWD: ALL

@@ -1,0 +1,15 @@
+[Unit]
+Description=KaOS-CS First Boot Setup
+Documentation=https://github.com/trongnghiango/dotfiles-stow
+After=network-online.target graphical.target
+Wants=network-online.target
+ConditionPathExists=!/var/lib/kaos-cs/firstboot-done
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/kaos-cs-firstboot
+RemainAfterExit=yes
+StandardOutput=journal+console
+
+[Install]
+WantedBy=multi-user.target

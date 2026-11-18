@@ -1,0 +1,11 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Install KaOS-CS
+GenericName=OS Installer
+Comment=Install KaOS-CS to disk
+Exec=sudo /root/install.sh
+Icon=drive-harddisk
+Terminal=true
+Categories=System;Settings;
+StartupNotify=false

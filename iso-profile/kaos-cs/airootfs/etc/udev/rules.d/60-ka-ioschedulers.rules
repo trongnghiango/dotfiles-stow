@@ -1,0 +1,22 @@
+# KaOS-CS I/O Scheduler Rules
+# Optimized for different storage types on ThinkPad X230/T480
+
+# NVMe - none (no scheduler needed, direct submission)
+ACTION=="add|change", KERNEL=="nvme[0-9]*", ATTR{queue/scheduler}="none"
+ACTION=="add|change", KERNEL=="nvme[0-9]*", ATTR{queue/read_ahead_kb}="256"
+
+# SATA SSD - mq-deadline for low latency
+ACTION=="add|change", KERNEL=="sd[a-z]*", ATTR{queue/rotational}=="0", ATTR{queue/scheduler}="mq-deadline"
+ACTION=="add|change", KERNEL=="sd[a-z]*", ATTR{queue/rotational}=="0", ATTR{queue/read_ahead_kb}="128"
+
+# HDD (rotational) - bfq for GUI responsiveness
+ACTION=="add|change", KERNEL=="sd[a-z]*", ATTR{queue/rotational}=="1", ATTR{queue/scheduler}="bfq"
+ACTION=="add|change", KERNEL=="sd[a-z]*", ATTR{queue/rotational}=="1", ATTR{queue/read_ahead_kb}="256"
+
+# Virtual block devices (loop, ram, zram) - none
+ACTION=="add|change", KERNEL=="loop*", ATTR{queue/scheduler}="none"
+ACTION=="add|change", KERNEL=="zram*", ATTR{queue/scheduler}="none"
+ACTION=="add|change", KERNEL=="ram*", ATTR{queue/scheduler}="none"
+
+# DM devices (LVM, crypt) - inherit from underlying
+ACTION=="add|change", KERNEL=="dm-*", ATTR{queue/scheduler}="none"

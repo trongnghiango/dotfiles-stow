@@ -1,0 +1,32 @@
+# KaOS-CS GRUB Configuration
+# Optimized for Btrfs + Snapper + grub-btrfs
+
+GRUB_DEFAULT=saved
+GRUB_SAVEDEFAULT=true
+GRUB_TIMEOUT=5
+GRUB_TIMEOUT_STYLE=menu
+GRUB_DISTRIBUTOR="KaOS-CS"
+GRUB_CMDLINE_LINUX_DEFAULT="quiet loglevel=3 rd.udev.log_level=3 nvme.noacpi=1"
+GRUB_CMDLINE_LINUX=""
+
+# Enable Btrfs snapshots in GRUB menu
+GRUB_BTRFS_MENU_ENABLED=true
+GRUB_BTRFS_SNAPSHOT_KERNEL_PARAMETERS="rootflags=subvol=@"
+GRUB_BTRFS_SUBMENUNAME="Snapshots"
+
+# Disable os-prober (we manage entries ourselves)
+GRUB_DISABLE_OS_PROBER=true
+
+# Disable submenu for recovery entries
+GRUB_DISABLE_SUBMENU=y
+
+# Graphics
+GRUB_GFXMODE=auto
+GRUB_GFXPAYLOAD_LINUX=keep
+
+# Disable recovery entries
+GRUB_DISABLE_RECOVERY=true
+
+# Enable serial console (for headless/debug)
+# GRUB_TERMINAL="console serial"
+# GRUB_SERIAL_COMMAND="serial --speed=115200 --unit=0 --word=8 --parity=no --stop=1"

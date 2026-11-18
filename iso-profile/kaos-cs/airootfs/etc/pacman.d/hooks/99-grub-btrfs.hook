@@ -1,0 +1,15 @@
+[Trigger]
+Operation = Install
+Operation = Upgrade
+Type = Package
+Target = grub
+Target = snapper
+Target = linux*
+Target = linux-lts*
+
+[Action]
+Description = Updating GRUB-Btrfs snapshot menu entries...
+When = PostTransaction
+Exec = /usr/bin/grub-btrfsd --syslog --timeshift-auto
+Depends = grub-btrfs
+Depends = snapper

@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+# KaOS-CS First Boot Setup
+# Runs ka-setup all automatically on first boot after installation
+
+set -euo pipefail
+
+LOG_FILE="/var/log/kaos-cs-firstboot.log"
+MARKER_FILE="/var/lib/kaos-cs/firstboot-done"
+
+# Ensure log directory exists
+mkdir -p "$(dirname "$LOG_FILE")"
+mkdir -p "$(dirname "$MARKER_FILE")"
+
+exec > >(tee -a "$LOG_FILE") 2>&1
+
+echo "=== KaOS-CS First Boot Setup Started at $(date) ==="
+
+# Detect the actual user (first non-root user with home dir)
+REAL_USER=$(awk -F: '$3 >= 1000 && $3 < 65534 && $6 ~ /^\/home/ {print $1}' /etc/passwd | head -1)
+
+if [[ -z "$REAL_USER" ]]; then
+    echo "ERROR: Could not detect regular user"
+    exit 1
+fi
+
+USER_HOME="/home/$REAL_USER"
+DOTFILES_DIR="$USER_HOME/.dotfiles"
+
+echo "Detected user: $REAL_USER"
+echo "Home: $USER_HOME"
+echo "Dotfiles: $DOTFILES_DIR"
+
+# Wait for network
+echo "Waiting for network..."
+for i in {1..30}; do
+    if ping -c1 -W1 8.8.8.8 &>/dev/null || ping -c1 -W1 1.1.1.1 &>/dev/null; then
+        echo "Network is up"
+        break
+    fi
+    sleep 1
+done
+
+# Run ka-setup all as the user
+if [[ -f "$DOTFILES_DIR/scripts/.local/bin/ka-setup" ]]; then
+    echo "Running ka-setup all..."
+    sudo -u "$REAL_USER" bash -c "
+        export HOME=$USER_HOME
+        export DOTFILES_DIR=$DOTFILES_DIR
+        cd \$HOME
+        $DOTFILES_DIR/scripts/.local/bin/ka-setup all
+    " || echo "WARNING: ka-setup had some errors, check $LOG_FILE"
+else
+    echo "WARNING: ka-setup not found at $DOTFILES_DIR/scripts/.local/bin/ka-setup"
+    echo "Clone dotfiles manually and run ka-setup all"
+fi
+
+# Create marker file
+touch "$MARKER_FILE"
+echo "=== KaOS-CS First Boot Setup Completed at $(date) ==="

@@ -1,0 +1,2 @@
+# KaOS-CS Live User - passwordless sudo for installation
+liveuser ALL=(ALL) NOPASSWD: ALL
