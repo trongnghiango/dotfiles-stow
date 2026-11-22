@@ -22,13 +22,18 @@ return {
 
         -- gd, gD, gr, gi, gy handled by Snacks picker (snacks.lua)
 
-        -- Diagnostics navigation
-        map("n", "[d", function()
-          vim.diagnostic.jump({ count = -1 })
-        end, "Prev Diagnostic")
-        map("n", "]d", function()
-          vim.diagnostic.jump({ count = 1 })
-        end, "Next Diagnostic")
+        -- Diagnostics navigation (0.11 dùng jump; cũ hơn dùng goto_prev/next)
+        if vim.fn.has("nvim-0.11") == 1 then
+          map("n", "[d", function()
+            vim.diagnostic.jump({ count = -1 })
+          end, "Prev Diagnostic")
+          map("n", "]d", function()
+            vim.diagnostic.jump({ count = 1 })
+          end, "Next Diagnostic")
+        else
+          map("n", "[d", vim.diagnostic.goto_prev, "Prev Diagnostic")
+          map("n", "]d", vim.diagnostic.goto_next, "Next Diagnostic")
+        end
 
         -- <leader>c = Code
         map({ "n", "v" }, "<leader>ca", vim.lsp.buf.code_action, "Code Action")
@@ -247,44 +252,47 @@ return {
     lazy = false,
     dependencies = { "mason-org/mason-lspconfig.nvim" },
     config = function()
-      require("mason-tool-installer").setup({
-        ensure_installed = {
-          -- Language Servers
-          "lua_ls",
-          -- "gopls",
-          "zls",
-          "ts_ls",
-          "rust-analyzer",
-          -- "intelephense",
-          "bashls",
-          "pyright",
-          "cssls",
-          "html",
-          "jsonls",
-          "yamlls",
-          -- Linters
-          "eslint_d",
-          "luacheck",
-          "golangci-lint",
-          "shellcheck",
-          "markdownlint",
-          "yamllint",
-          "jsonlint",
-          "htmlhint",
-          "stylelint",
-          -- "phpstan",
-          "ruff",
-          "mypy",
-          -- Formatters
-          "stylua",
-          -- "goimports",
-          "prettier",
-          "black",
-          "isort",
-          "shfmt",
-          -- "pint",
-        },
-      })
+      -- Server-minimal: chỉ tool cài bằng binary prebuilt (không cần node/npm/pip).
+      -- Đặt KA_NVIM_FULL=1 để cài full stack
+      -- (cần: nodejs, npm, python3-pip, python3-venv).
+      local base_tools = {
+        "lua_ls",     -- prebuilt
+        "shellcheck", -- prebuilt
+        "shfmt",      -- prebuilt
+        "stylua",     -- prebuilt
+      }
+      local full_tools = {
+        -- Language Servers (một số cần node/npm)
+        "bashls",
+        "zls",
+        "ts_ls",
+        "rust-analyzer",
+        "pyright",
+        "cssls",
+        "html",
+        "jsonls",
+        "yamlls",
+        -- Linters
+        "eslint_d",
+        "luacheck",
+        "golangci-lint",
+        "yamllint",
+        "markdownlint",
+        "jsonlint",
+        "htmlhint",
+        "stylelint",
+        "ruff",
+        "mypy",
+        -- Formatters
+        "prettier",
+        "black",
+        "isort",
+      }
+      local tools = base_tools
+      if vim.env.KA_NVIM_FULL == "1" then
+        tools = vim.list_extend(base_tools, full_tools)
+      end
+      require("mason-tool-installer").setup({ ensure_installed = tools })
     end,
   },
 }

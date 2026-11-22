@@ -243,7 +243,11 @@ return {
     {
       "<leader>gg",
       function()
-        Snacks.lazygit()
+        if vim.fn.executable("lazygit") == 1 then
+          Snacks.lazygit()
+        else
+          vim.notify("lazygit chưa cài: sudo apt install lazygit", vim.log.levels.WARN)
+        end
       end,
       desc = "Lazygit",
     },

@@ -43,6 +43,7 @@
 ,jq,5,cli,JSON processor.
 ,neovim,5,cli,Text editor.
 ,ripgrep,5,cli,Recursive grep.
+,tree-sitter-cli,5,cli,Tree-sitter CLI (nvim-treesitter parsers).
 ,rsync,5,cli,File sync.
 ,tmux,5,cli,Terminal multiplexer.
 ,trash-cli,5,cli,Safe delete.

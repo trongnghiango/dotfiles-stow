@@ -23,6 +23,23 @@ vim.g.loaded_ruby_provider = 0
 -- ============================================================================
 vim.o.background = "dark"
 vim.opt.mouse = "a"
+
+-- Clipboard: OSC52 hoạt động qua SSH (không cần xclip/wl-copy).
+-- Neovim >= 0.10 có sẵn vim.ui.clipboard.osc52.
+if vim.fn.has("nvim-0.10") == 1 then
+  local osc52 = require("vim.ui.clipboard.osc52")
+  vim.g.clipboard = {
+    name = "OSC52",
+    copy = {
+      ["+"] = osc52.copy("+"),
+      ["*"] = osc52.copy("*"),
+    },
+    paste = {
+      ["+"] = osc52.paste("+"),
+      ["*"] = osc52.paste("*"),
+    },
+  }
+end
 vim.opt.clipboard = "unnamedplus"
 vim.opt.undofile = true
 vim.opt.undodir = vim.fn.stdpath("data") .. "/undo"
@@ -30,7 +47,9 @@ vim.opt.updatetime = 300
 vim.opt.timeoutlen = 1000
 vim.opt.confirm = true
 vim.opt.autoread = true
-vim.opt.smoothscroll = true -- Cuộn mượt hơn
+if vim.fn.has("nvim-0.10") == 1 then
+  vim.opt.smoothscroll = true -- Cuộn mượt hơn (0.10+)
+end
 
 -- ============================================================================
 -- UI/Display
@@ -50,7 +69,9 @@ vim.opt.showtabline = 0
 vim.opt.cmdheight = 1
 vim.opt.pumheight = 10
 vim.opt.fillchars = { eob = " " }
-vim.o.winborder = "rounded"
+if vim.fn.has("nvim-0.11") == 1 then
+  vim.o.winborder = "rounded"
+end
 
 -- ============================================================================
 -- Search

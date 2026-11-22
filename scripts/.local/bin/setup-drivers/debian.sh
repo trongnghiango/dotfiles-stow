@@ -102,7 +102,7 @@ debian_setup_symlinks() {
 }
 
 # ------------------------------------------------------------------------------
-# 3. NEOVIM >= 0.9 (Debian bookworm chỉ có 0.7.2)
+# 3. NEOVIM >= 0.11 (config dùng winborder / vim.diagnostic.jump)
 # ------------------------------------------------------------------------------
 debian_setup_nvim() {
   command -v nvim &>/dev/null || return 0
@@ -111,11 +111,11 @@ debian_setup_nvim() {
   ver="$(nvim --version 2>/dev/null | head -n1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -n1)"
   major="${ver%%.*}"
   minor="$(printf '%s' "$ver" | cut -d. -f2)"
-  if [ -n "$ver" ] && { [ "${major:-0}" -gt 0 ] || [ "${minor:-0}" -ge 9 ]; }; then
+  if [ -n "$ver" ] && { [ "${major:-0}" -gt 0 ] || [ "${minor:-0}" -ge 11 ]; }; then
     return 0
   fi
 
-  log_info "Neovim ${ver:-unknown} < 0.9 — tải bản mới vào ~/.local..."
+  log_info "Neovim ${ver:-unknown} < 0.11 — tải bản mới vào ~/.local..."
   local tmp
   tmp="$(mktemp -d)"
   if curl -fsSL https://github.com/neovim/neovim/releases/latest/download/nvim-linux-x86_64.tar.gz -o "$tmp/nvim.tar.gz"; then
