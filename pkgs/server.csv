@@ -1,0 +1,70 @@
+#TAG,NAME,TIER,DEPS,PURPOSE
+,build-essential,1,base,Essential compilation tools (gcc, g++, make)
+,direnv,1,base,Environment switcher loaded in env.zsh
+,efibootmgr,1,base,Manipulates EFI Boot Manager variables
+,grub-efi-amd64,1,base,GNU GRUB bootloader for UEFI
+,firmware-linux-free,1,base,Firmware files for Linux kernel
+,lvm2,1,base,Logical Volume Manager tools
+,man-db,1,base,Read man pages of programs
+,network-manager,1,base,Manages network connections (nmcli)
+,stow,1,base,GNU Stow symlink manager to manage dotfiles
+,sudo,1,base,Users to run programs with security privileges
+,systemd-zram-generator,1,base,Manages zram swap devices automatically
+,bat,5,cli,Code highlighter (binary symlinked from batcat)
+,btop,5,cli,Shows system hardware utilization
+,fd-find,5,cli,Fast file finder (binary symlinked from fdfind)
+,fzf,5,cli,Fuzzy finder tool used for quick file location
+,jq,5,cli,Parses JSON data
+,eza,5,cli,Modern Rust-based replacement for ls
+,lf,5,lf,Keyboard-centric terminal file manager
+,rsync,5,cli,Synchronizes files and folders
+,starship,5,zsh,Cross-shell prompt
+,tmux,5,cli,Terminal multiplexer
+,trash-cli,5,cli,Moves files to trash cleanly
+,yt-dlp,5,media,CLI video/audio downloader
+,zoxide,5,zsh,Smarter cd command
+,zsh-autosuggestions,5,zsh,Fish-like fast autosuggestions for zsh
+,zsh-syntax-highlighting,5,zsh,Fish-like command syntax highlighting for zsh
+,docker.io,9,docker,Container application engine
+,docker-compose,9,docker,Orchestrates multi-container apps
+E,lazydocker,9,docker,Manages Docker status via TUI (via binary)
+,fonts-inter,10,fonts,Typeface specially designed for computer screens
+,fonts-noto-core,10,fonts,Expansive font package for general language support
+,fonts-noto-cjk,10,fonts,CJK language glyphs
+,fonts-noto-color-emoji,10,fonts,Color emoji font set
+,papirus-icon-theme,10,fonts,Papirus system icons
+,fonts-jetbrains-mono,10,fonts,JetBrains Mono monospace font
+E,nerd-fonts-symbols,10,dwmblocks,Symbols Nerd Font (Icons & Glyphs) for lf
+,adwaita-icon-theme,10,theme,Official Adwaita base and icon theme for GTK
+,gettext-base,10,theme,Provides envsubst for theme-set template engine
+,7zip,11,system,Compresses files in 7z format
+,alsa-utils,11,system,Alsa utilities
+,atool,11,lf,Manages archives
+,autorandr,11,system,Autorandr utility
+,bc,11,cli,Mathematics language
+,bluez,11,bluetooth,Bluetooth services protocol stack
+,bmon,11,system,Bmon bandwidth monitor
+,brightnessctl,11,dwmblocks,Screen brightness controller
+,dash,11,system,Fast POSIX shell
+,dosfstools,11,system,FAT/DOS filesystem tools
+,git,11,system,Tracks code changes with git
+,gnome-keyring,11,system,System keyring daemon for secrets
+,libpam-gnome-keyring,11,system,PAM module to unlock gnome-keyring automatically
+,gvfs-backends,11,system,GVFS backend for MTP and remote filesystems
+,hugo,11,system,Static site generator
+,intel-media-va-driver,11,intel,Hardware video acceleration for Intel GPUs
+,libnotify-bin,11,x11,Desktop notification delivery tool (notify-send)
+,lxpolkit,11,system,Lightweight Polkit authentication GUI agent
+,nsxiv,11,system,Neo Simple X Image Viewer
+,ntfs-3g,11,system,Accessing NTFS partitions
+,pass,11,otp,Standard UNIX password manager
+,pass-extension-otp,11,otp,GPG-based 2FA one-time password extension for pass
+,smartmontools,11,system,Tests hard drive S.M.A.R.T. health
+,udiskie,11,system,Removable media automounter with tray support
+,unrar-free,11,system,Extracts RAR archives
+,unzip,11,system,Unzips zip archives
+,usbutils,11,system,Queries USB details on CLI (lsusb)
+,xdg-desktop-portal-gtk,11,system,GTK implementation for portals
+,zip,11,system,Creates ZIP archives
+,zsh,11,zsh,Zsh shell
+,xcape,1,utils,Key remapping utility (Super_L=Escape)

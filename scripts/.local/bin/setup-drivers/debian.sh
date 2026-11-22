@@ -27,7 +27,12 @@ is_deb_pkg_installed() {
 debian_setup_pkgs() {
   local target="${1:-}"
   local dotfiles_root="${2:-$DOTFILES_DIR}"
+
+  # Chọn file CSV theo profile: server-minimal dùng pkgs/server.csv (CLI only)
   local csv_file="$dotfiles_root/pkgs/debian.csv"
+  if [ "$target" = "server-minimal" ]; then
+    csv_file="$dotfiles_root/pkgs/server.csv"
+  fi
 
   if [ ! -f "$csv_file" ]; then
     log_error "Không tìm thấy file danh sách gói Debian: $csv_file"
