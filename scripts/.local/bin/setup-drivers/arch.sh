@@ -105,7 +105,8 @@ arch_setup_pkgs() {
       echo -e "  \033[0;32m5) virt\033[0m   Máy ảo & Containers (Docker, QEMU, Libvirt, Lazydocker...)"
       echo -e "  \033[0;32m6) sys\033[0m    Tiện ích hệ thống mở rộng, Bluetooth, Máy in..."
       echo -e "  \033[0;32m7) all\033[0m    Toàn bộ 200+ gói trong progs.csv"
-      printf "\033[1;33mLựa chọn [1-7] (mặc định 1): \033[0m"
+      echo -e "  \033[0;32m8) server-minimal\033[0m Server hosting CHỈ CLI (KHÔNG X11, KHÔNG DWM, KHÔNG DESKTOP)"
+      printf "\033[1;33mLựa chọn [1-8] (mặc định 1): \033[0m"
       read -r choice
       case "$choice" in
         2|dev)   target="dev" ;;
@@ -114,6 +115,7 @@ arch_setup_pkgs() {
         5|virt)  target="virt" ;;
         6|sys)   target="sys" ;;
         7|all)   target="all" ;;
+        8|server-minimal) target="server-minimal" ;;
         *)       target="core" ;;
       esac
     else
@@ -160,6 +162,12 @@ arch_setup_pkgs() {
     elif [ "$target" = "sys" ]; then
       case "$deps" in
         intel|bluetooth|system|theme|base) match=true ;;
+      esac
+    elif [ "$target" = "server-minimal" ]; then
+      case "$deps" in
+        base|cli|docker|system|fonts|zsh|lf)
+          match=true
+          ;;
       esac
     elif [[ "$target" =~ ^[0-9,]+$ ]]; then
       local t_arr=()

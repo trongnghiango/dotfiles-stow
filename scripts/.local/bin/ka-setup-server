@@ -1,0 +1,446 @@
+#!/usr/bin/env bash
+# ==============================================================================
+# KA SERVER SETUP (ka-setup-server)
+# Mô tả: Post-install autoconfig CHỈ CHO SERVER HOSTING (CLI only, no X11/DE)
+# Sử dụng: ka-setup-server
+# Profile packages: base, cli, docker, system, fonts, zsh, lf (KHÔNG X11/DWM)
+# ==============================================================================
+
+set -eEo pipefail
+
+# --- Colors ---
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+BOLD='\033[1m'
+DIM='\033[2m'
+NC='\033[0m'
+
+# --- Root Check ---
+if [ "$EUID" -eq 0 ]; then
+  echo -e "${RED}[ERROR]${NC}   Vui lòng KHÔNG chạy ka-setup-server bằng quyền root/sudo." >&2
+  echo "Chạy bình thường dưới user của bạn: ./scripts/.local/bin/ka-setup-server" >&2
+  echo "Script sẽ tự động yêu cầu sudo khi thực sự cần thiết." >&2
+  exit 1
+fi
+
+log_info()    { echo -e "${BLUE}[INFO]${NC}    $1"; }
+log_success() { echo -e "${GREEN}[OK]${NC}      $1"; }
+log_warn()    { echo -e "${YELLOW}[WARN]${NC}    $1"; }
+log_error()   { echo -e "${RED}[ERROR]${NC}   $1" >&2; }
+log_step()    { echo -e "\n${CYAN}${BOLD}▸ $1${NC}"; }
+log_dim()     { echo -e "${DIM}  $1${NC}"; }
+
+# --- Detect dotfiles root ---
+_SCRIPT_REAL="$(readlink -f "${BASH_SOURCE[0]}")"
+_SCRIPT_DIR="$(cd "$(dirname "$_SCRIPT_REAL")" && pwd)"
+DOTFILES_DIR="$(cd "$_SCRIPT_DIR/../../.." && pwd)"
+
+# Đảm bảo working directory hợp lệ
+cd "$HOME" 2>/dev/null || cd /
+
+# --- Phát hiện hệ điều hành ---
+detect_os() {
+  if [ -f /etc/os-release ]; then
+    (. /etc/os-release && echo "$ID")
+  elif command -v pacman &>/dev/null; then
+    echo "arch"
+  elif command -v apt-get &>/dev/null; then
+    echo "debian"
+  elif command -v xbps-install &>/dev/null; then
+    echo "void"
+  elif command -v dnf &>/dev/null; then
+    echo "fedora"
+  else
+    echo "unknown"
+  fi
+}
+
+CURRENT_OS="$(detect_os)"
+
+# ==============================================================================
+# 0. CÀI ĐẶT GÓI SERVER TỐI GIẢN (Chỉ base, cli, docker, system, fonts, zsh, lf)
+# ==============================================================================
+setup_server_pkgs() {
+  log_step "Cài đặt gói Server Hosting tối giản (Profile: server-minimal)..."
+
+  case "$CURRENT_OS" in
+    debian|ubuntu|pop|linuxmint|kali)
+      if [ -f "$_SCRIPT_DIR/setup-drivers/debian.sh" ]; then
+        . "$_SCRIPT_DIR/setup-drivers/debian.sh"
+        # Gọi hàm nội bộ với custom target "server-minimal"
+        debian_setup_pkgs "server-minimal" "$DOTFILES_DIR"
+      else
+        log_error "Không tìm thấy Debian driver."
+        return 1
+      fi
+      ;;
+    arch|artix|endeavouros|manjaro)
+      if [ -f "$_SCRIPT_DIR/setup-drivers/arch.sh" ]; then
+        . "$_SCRIPT_DIR/setup-drivers/arch.sh"
+        arch_setup_pkgs "server-minimal" "$DOTFILES_DIR"
+      else
+        log_error "Không tìm thấy Arch driver."
+        return 1
+      fi
+      ;;
+    *)
+      log_warn "Hệ điều hành '$CURRENT_OS' chưa có driver server-minimal."
+      log_info "Bạn có thể cài thủ công các gói cơ bản: git, stow, zsh, docker, tmux, lf, nvim, fzf, fd, bat, eza, starship, zoxide, jq, curl, wget, rsync, trash-cli, btop, htop, neofetch, ufw, fail2ban"
+      ;;
+  esac
+}
+
+# ==============================================================================
+# 1. ĐẶT ZSH LÀM LOGIN SHELL
+# ==============================================================================
+setup_shell() {
+  log_step "Cấu hình login shell → Zsh..."
+
+  local zsh_path
+  zsh_path="$(command -v zsh 2>/dev/null || echo "")"
+
+  if [ -z "$zsh_path" ]; then
+    log_warn "Zsh chưa cài. Bỏ qua."
+    return 0
+  fi
+
+  local current_shell
+  current_shell="$(getent passwd "$USER" | cut -d: -f7)"
+
+  if [ "$current_shell" = "$zsh_path" ]; then
+    log_success "Login shell đã là Zsh ($zsh_path)."
+    return 0
+  fi
+
+  if ! grep -qx "$zsh_path" /etc/shells; then
+    log_info "Thêm $zsh_path vào /etc/shells..."
+    echo "$zsh_path" | sudo tee -a /etc/shells >/dev/null
+  fi
+
+  log_info "Chuyển login shell → Zsh ($zsh_path)..."
+  chsh -s "$zsh_path"
+  log_success "Login shell đã đặt thành Zsh. Đăng xuất & đăng nhập lại để áp dụng."
+}
+
+# ==============================================================================
+# 2. DEPLOY DOTFILES QUAN TRỌNG CHO SERVER (CHỈ CLI, KHÔNG X11/DESKTOP)
+# ==============================================================================
+setup_stow_server() {
+  log_step "Deploy dotfiles Server (chỉ CLI packages)..."
+
+  if ! command -v stow &>/dev/null; then
+    log_info "GNU Stow chưa có — đang cài..."
+    if command -v pacman &>/dev/null; then
+      sudo pacman -S --needed --noconfirm stow || { log_error "Không thể cài stow."; return 1; }
+    elif command -v apt-get &>/dev/null; then
+      sudo apt-get update -y && sudo apt-get install -y stow || { log_error "Không thể cài stow."; return 1; }
+    fi
+  fi
+
+  if ! command -v stow-safe &>/dev/null; then
+    local stow_safe_bin="$_SCRIPT_DIR/stow-safe"
+    if [ -f "$stow_safe_bin" ]; then
+      export PATH="$_SCRIPT_DIR:$PATH"
+      log_info "Bootstrap stow-safe từ: $stow_safe_bin"
+    else
+      log_error "Không tìm thấy stow-safe tại $stow_safe_bin"
+      return 1
+    fi
+  fi
+
+  mkdir -p "$HOME/.config" "$HOME/.local/bin" "$HOME/.local/share" "$HOME/.local/src"
+
+  # Chỉ các package CLI/server thiết yếu - KHÔNG X11, KHÔNG DESKTOP
+  local server_packages=(
+    shell         # profile, aliasrc, shortcutrc — PATH, ZDOTDIR
+    zsh           # .zshrc, .zprofile, env.zsh
+    git           # ~/.config/git/config, ignore
+    tmux          # tmux.conf
+    nvim          # init.lua, lua/
+    lf            # lfrc, scope, icons, cleaner
+    scripts       # ~/.local/bin/* — phải CUỐI CÙNG
+  )
+
+  # Host-specific overlay
+  local host_dir="$DOTFILES_DIR/hosts/$(hostname)"
+  if [ -d "$host_dir" ]; then
+    server_packages+=("hosts/$(hostname)")
+  fi
+
+  local success=0 failed=0 skipped=0
+
+  for pkg in "${server_packages[@]}"; do
+    local pkg_dir="$DOTFILES_DIR/$pkg"
+    if [ ! -d "$pkg_dir" ]; then
+      log_dim "Bỏ qua $pkg (không tìm thấy thư mục)"
+      skipped=$((skipped + 1))
+      continue
+    fi
+
+    echo ""
+    log_info "→ stow-safe $pkg"
+    if stow-safe "$pkg" 2>&1; then
+      success=$((success + 1))
+    else
+      log_error "Lỗi khi stow: $pkg"
+      failed=$((failed + 1))
+    fi
+  done
+
+  echo ""
+  log_success "Kết quả stow server: ${success} thành công, ${failed} thất bại, ${skipped} bỏ qua."
+  if (( failed > 0 )); then
+    log_info "Khôi phục: stow-safe --restore <package>"
+  fi
+}
+
+# ==============================================================================
+# 3. DOCKER (non-root + socket activation)
+# ==============================================================================
+setup_docker() {
+  log_step "Cấu hình Docker (non-root + socket activation)..."
+
+  if ! command -v docker &>/dev/null; then
+    log_warn "Docker chưa cài. Bỏ qua."
+    return 0
+  fi
+
+  local REAL_USER="${SUDO_USER:-$USER}"
+  [ "$REAL_USER" = "root" ] && REAL_USER=$(logname 2>/dev/null || echo "ka")
+
+  if ! getent group docker &>/dev/null; then
+    sudo groupadd docker
+    log_success "Đã tạo nhóm 'docker'."
+  fi
+
+  if groups "$REAL_USER" | grep -q '\bdocker\b'; then
+    log_success "User '$REAL_USER' đã trong nhóm docker."
+  else
+    sudo usermod -aG docker "$REAL_USER"
+    log_success "Đã thêm '$REAL_USER' vào nhóm docker."
+  fi
+
+  local svc_enabled socket_enabled socket_active
+  svc_enabled=$(systemctl is-enabled docker.service 2>/dev/null || echo "disabled")
+  socket_enabled=$(systemctl is-enabled docker.socket 2>/dev/null || echo "disabled")
+  socket_active=$(systemctl is-active docker.socket 2>/dev/null || echo "inactive")
+
+  if [ "$svc_enabled" != "enabled" ] && [ "$socket_enabled" = "enabled" ] && [ "$socket_active" = "active" ]; then
+    log_success "Docker socket activation đã được cấu hình."
+  else
+    log_info "Cấu hình socket activation (Docker chỉ khởi động khi cần)..."
+    sudo systemctl disable --now docker.service &>/dev/null || true
+    sudo systemctl enable --now docker.socket
+    systemctl is-active --quiet docker.socket && \
+      log_success "Docker socket đã kích hoạt." || \
+      log_error "Không thể kích hoạt docker.socket."
+  fi
+
+  log_warn "Chạy 'newgrp docker' hoặc đăng nhập lại để dùng docker không cần sudo."
+}
+
+# ==============================================================================
+# 4. KERNEL & zRAM PERFORMANCE TUNING (Cho server hosting)
+# ==============================================================================
+setup_sys() {
+  log_step "Tối ưu hóa Kernel Sysctl & zRAM (Server hosting)..."
+
+  local sysctl_file="/etc/sysctl.d/99-ka-server-performance.conf"
+  log_info "Cấu hình Virtual Memory, Network & I/O vào $sysctl_file..."
+  sudo mkdir -p /etc/sysctl.d
+  sudo tee "$sysctl_file" >/dev/null <<'EOF'
+# ==============================================================================
+# KA SERVER PERFORMANCE TUNING (Server hosting, container workloads)
+# ==============================================================================
+# zRAM swap priority
+vm.page-cluster = 0
+vm.swappiness = 100
+vm.vfs_cache_pressure = 50
+vm.dirty_background_ratio = 5
+vm.dirty_ratio = 10
+
+# Network optimization cho server hosting
+net.ipv4.tcp_fastopen = 3
+net.core.default_qdisc = fq_codel
+net.core.somaxconn = 65535
+net.ipv4.tcp_max_syn_backlog = 65535
+net.core.netdev_max_backlog = 65535
+
+# File descriptors & inotify (cho containers, many files)
+fs.inotify.max_user_watches = 524288
+fs.inotify.max_user_instances = 512
+fs.file-max = 2097152
+EOF
+
+  if command -v sysctl &>/dev/null; then
+    sudo sysctl -p "$sysctl_file" &>/dev/null || sudo sysctl --system &>/dev/null || true
+    log_success "Đã áp dụng sysctl server."
+  fi
+
+  # zRAM Configuration
+  log_info "Kiểm tra và cấu hình zRAM..."
+  if [ -d /run/systemd/system ]; then
+    local zram_conf="/etc/systemd/zram-generator.conf"
+    local cpu_cores=$(nproc 2>/dev/null || echo 2)
+    local zram_algo="zstd"
+    [ "$cpu_cores" -le 2 ] && zram_algo="lz4"
+
+    if [ ! -f "$zram_conf" ]; then
+      sudo tee "$zram_conf" >/dev/null <<EOF
+[zram0]
+zram-size = ram
+compression-algorithm = $zram_algo
+swap-priority = 100
+fs-type = swap
+EOF
+      log_success "Đã tạo zram-generator config (thuật toán: $zram_algo)."
+    fi
+    if systemctl list-unit-files | grep -q "systemd-zram-setup@"; then
+      sudo systemctl daemon-reload
+      sudo systemctl restart "systemd-zram-setup@zram0.service" &>/dev/null || true
+      log_success "Đã kích hoạt zRAM."
+    fi
+  fi
+
+  # THP Tuning
+  log_info "Cấu hình Transparent Huge Pages (madvise/defer)..."
+  if [ -d /run/systemd/system ]; then
+    sudo mkdir -p /etc/tmpfiles.d
+    sudo tee /etc/tmpfiles.d/99-ka-thp.conf >/dev/null <<'EOF'
+w /sys/kernel/mm/transparent_hugepage/enabled - - - - madvise
+w /sys/kernel/mm/transparent_hugepage/defrag - - - - defer
+EOF
+    log_success "Đã tạo THP config."
+  fi
+  if [ -w /sys/kernel/mm/transparent_hugepage/enabled ]; then
+    echo madvise | sudo tee /sys/kernel/mm/transparent_hugepage/enabled >/dev/null || true
+    echo defer | sudo tee /sys/kernel/mm/transparent_hugepage/defrag >/dev/null || true
+    log_success "Đã áp dụng THP madvise vào kernel."
+  fi
+
+  # I/O Scheduler
+  log_info "Cấu hình I/O Scheduler udev rules..."
+  sudo mkdir -p /etc/udev/rules.d
+  sudo tee /etc/udev/rules.d/60-ka-ioschedulers.rules >/dev/null <<'EOF'
+ACTION=="add|change", KERNEL=="sd[a-z]*", ATTR{queue/rotational}=="1", ATTR{queue/scheduler}="bfq"
+ACTION=="add|change", KERNEL=="sd[a-z]*", ATTR{queue/rotational}=="0", ATTR{queue/scheduler}="mq-deadline"
+ACTION=="add|change", KERNEL=="nvme[0-9]*", ATTR{queue/scheduler}="none"
+EOF
+  if command -v udevadm &>/dev/null; then
+    sudo udevadm control --reload 2>/dev/null || true
+    sudo udevadm trigger --subsystem-match=block 2>/dev/null || true
+    log_success "Đã kích hoạt I/O Scheduler rules."
+  fi
+
+  log_success "Hoàn tất tinh chỉnh Kernel, zRAM, THP & I/O Scheduler cho Server!"
+}
+
+# ==============================================================================
+# 5. FIREWALL & SECURITY BASICS (UFW + Fail2ban)
+# ==============================================================================
+setup_security() {
+  log_step "Cấu hình Firewall (UFW) & Fail2ban cơ bản..."
+
+  # UFW
+  if command -v ufw &>/dev/null; then
+    log_info "Cấu hình UFW (mặc định deny incoming, allow outgoing)..."
+    sudo ufw --force reset >/dev/null 2>&1 || true
+    sudo ufw default deny incoming
+    sudo ufw default allow outgoing
+    sudo ufw allow ssh
+    sudo ufw allow 80/tcp    # HTTP
+    sudo ufw allow 443/tcp   # HTTPS
+    # Thêm port custom nếu cần: sudo ufw allow 8080/tcp
+    sudo ufw --force enable
+    log_success "UFW đã kích hoạt (SSH, HTTP, HTTPS)."
+  else
+    log_warn "UFW chưa cài. Bỏ qua firewall."
+  fi
+
+  # Fail2ban
+  if command -v fail2ban-server &>/dev/null; then
+    log_info "Cấu hình Fail2ban (SSH protection)..."
+    sudo mkdir -p /etc/fail2ban/jail.d
+    sudo tee /etc/fail2ban/jail.d/sshd.local >/dev/null <<'EOF'
+[sshd]
+enabled = true
+port = ssh
+filter = sshd
+logpath = /var/log/auth.log
+maxretry = 3
+bantime = 1h
+findtime = 10m
+backend = systemd
+EOF
+    sudo systemctl enable --now fail2ban
+    log_success "Fail2ban đã kích hoạt cho SSH."
+  else
+    log_warn "Fail2ban chưa cài. Bỏ qua."
+  fi
+}
+
+# ==============================================================================
+# 6. TIMEZONE & LOCALE (Server standard)
+# ==============================================================================
+setup_locale_timezone() {
+  log_step "Cấu hình Timezone & Locale (Server)..."
+
+  # Timezone
+  if [ -f /usr/share/zoneinfo/Asia/Ho_Chi_Minh ]; then
+    log_info "Đặt timezone Asia/Ho_Chi_Minh..."
+    sudo timedatectl set-timezone Asia/Ho_Chi_Minh
+    log_success "Timezone: $(timedatectl show --property=Timezone --value)"
+  fi
+
+  # Locale
+  log_info "Đảm bảo en_US.UTF-8..."
+  sudo locale-gen en_US.UTF-8 2>/dev/null || true
+  sudo update-locale LANG=en_US.UTF-8 2>/dev/null || true
+  log_success "Locale: $(locale | grep LANG=)"
+}
+
+# ==============================================================================
+# MAIN
+# ==============================================================================
+main() {
+  echo -e "${BOLD}KA SERVER SETUP — Server Hosting Only (No X11/Desktop)${NC}"
+  echo "================================================================="
+  echo -e "${BOLD}OS:${NC} ${CYAN}$CURRENT_OS${NC}"
+  echo -e "${BOLD}Dotfiles:${NC} ${DIM}$DOTFILES_DIR${NC}"
+  echo ""
+
+  setup_server_pkgs       || log_warn "Một số gói cài đặt gặp lỗi."
+  echo ""
+  setup_shell             || log_warn "Bỏ qua shell (chạy lại: ka-setup shell)."
+  echo ""
+  setup_stow_server       || log_warn "Một số stow gặp lỗi (chạy lại: stow-safe shell zsh git tmux nvim lf scripts)."
+  echo ""
+  setup_docker            || true
+  echo ""
+  setup_sys               || true
+  echo ""
+  setup_security          || true
+  echo ""
+  setup_locale_timezone   || true
+  echo ""
+
+  log_success "=== ka-setup-server HOÀN THÀNH ==="
+  log_warn "QUAN TRỌNG: Hãy REBOOT hoặc đăng xuất/đăng nhập lại để áp dụng:"
+  log_dim "  - Zsh login shell"
+  log_dim "  - Docker group membership"
+  log_dim "  - Kernel sysctl/zRAM/THP/I/O scheduler"
+  log_dim "  - UFW/Fail2ban rules"
+  echo ""
+  log_info "Sau reboot, kiểm tra:"
+  log_dim "  docker run --rm hello-world"
+  log_dim "  zsh --version"
+  log_dim "  systemctl status docker.socket"
+  log_dim "  ufw status verbose"
+  log_dim "  fail2ban-client status sshd"
+}
+
+# Chạy main
+main "$@"
