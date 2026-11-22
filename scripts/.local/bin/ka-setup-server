@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # ==============================================================================
 # KA SERVER SETUP (ka-setup-server)
-# Mô tả: Post-install autoconfig CHỈ CHO SERVER HOSTING (CLI only, no X11/DE)
+# Mô tả: Post-install autoconfig CHỈ CHO SERVER HOSTING tối giản (Debian/Ubuntu).
 # Sử dụng: ka-setup-server
-# Profile packages: base, cli, docker, system, fonts, zsh, lf (KHÔNG X11/DWM)
+# Packages: pkgs/server.csv (base, server, cli, docker, system, zsh, lf)
+# KHÔNG cài X11/DWM/audio/bluetooth/font GUI.
 # ==============================================================================
 
 set -eEo pipefail
@@ -61,34 +62,24 @@ detect_os() {
 CURRENT_OS="$(detect_os)"
 
 # ==============================================================================
-# 0. CÀI ĐẶT GÓI SERVER TỐI GIẢN (Chỉ base, cli, docker, system, fonts, zsh, lf)
+# 0. CÀI ĐẶT GÓI SERVER TỐI GIẢN TỪ pkgs/server.csv
 # ==============================================================================
 setup_server_pkgs() {
-  log_step "Cài đặt gói Server Hosting tối giản (Profile: server-minimal)..."
+  log_step "Cài đặt gói Server Hosting tối giản (pkgs/server.csv)..."
 
   case "$CURRENT_OS" in
     debian|ubuntu|pop|linuxmint|kali)
       if [ -f "$_SCRIPT_DIR/setup-drivers/debian.sh" ]; then
         . "$_SCRIPT_DIR/setup-drivers/debian.sh"
-        # Gọi hàm nội bộ với custom target "server-minimal"
         debian_setup_pkgs "server-minimal" "$DOTFILES_DIR"
       else
         log_error "Không tìm thấy Debian driver."
         return 1
       fi
       ;;
-    arch|artix|endeavouros|manjaro)
-      if [ -f "$_SCRIPT_DIR/setup-drivers/arch.sh" ]; then
-        . "$_SCRIPT_DIR/setup-drivers/arch.sh"
-        arch_setup_pkgs "server-minimal" "$DOTFILES_DIR"
-      else
-        log_error "Không tìm thấy Arch driver."
-        return 1
-      fi
-      ;;
     *)
-      log_warn "Hệ điều hành '$CURRENT_OS' chưa có driver server-minimal."
-      log_info "Bạn có thể cài thủ công các gói cơ bản: git, stow, zsh, docker, tmux, lf, nvim, fzf, fd, bat, eza, starship, zoxide, jq, curl, wget, rsync, trash-cli, btop, htop, neofetch, ufw, fail2ban"
+      log_error "Branch server-minimal chỉ hỗ trợ Debian/Ubuntu (phát hiện: $CURRENT_OS)."
+      return 1
       ;;
   esac
 }
@@ -133,11 +124,7 @@ setup_stow_server() {
 
   if ! command -v stow &>/dev/null; then
     log_info "GNU Stow chưa có — đang cài..."
-    if command -v pacman &>/dev/null; then
-      sudo pacman -S --needed --noconfirm stow || { log_error "Không thể cài stow."; return 1; }
-    elif command -v apt-get &>/dev/null; then
-      sudo apt-get update -y && sudo apt-get install -y stow || { log_error "Không thể cài stow."; return 1; }
-    fi
+    sudo apt-get update -y && sudo apt-get install -y stow || { log_error "Không thể cài stow."; return 1; }
   fi
 
   if ! command -v stow-safe &>/dev/null; then
@@ -155,7 +142,7 @@ setup_stow_server() {
 
   # Chỉ các package CLI/server thiết yếu - KHÔNG X11, KHÔNG DESKTOP
   local server_packages=(
-    shell         # profile, aliasrc, shortcutrc — PATH, ZDOTDIR
+    shell         # profile, aliasrc — PATH, EDITOR, ZDOTDIR
     zsh           # .zshrc, .zprofile, env.zsh
     git           # ~/.config/git/config, ignore
     tmux          # tmux.conf
@@ -163,12 +150,6 @@ setup_stow_server() {
     lf            # lfrc, scope, icons, cleaner
     scripts       # ~/.local/bin/* — phải CUỐI CÙNG
   )
-
-  # Host-specific overlay
-  local host_dir="$DOTFILES_DIR/hosts/$(hostname)"
-  if [ -d "$host_dir" ]; then
-    server_packages+=("hosts/$(hostname)")
-  fi
 
   local success=0 failed=0 skipped=0
 
@@ -264,16 +245,25 @@ vm.dirty_ratio = 10
 
 # Network optimization cho server hosting
 net.ipv4.tcp_fastopen = 3
-net.core.default_qdisc = fq_codel
 net.core.somaxconn = 65535
 net.ipv4.tcp_max_syn_backlog = 65535
 net.core.netdev_max_backlog = 65535
+net.ipv4.tcp_slow_start_after_idle = 0
 
 # File descriptors & inotify (cho containers, many files)
 fs.inotify.max_user_watches = 524288
 fs.inotify.max_user_instances = 512
 fs.file-max = 2097152
 EOF
+
+  # BBR congestion control (nếu kernel hỗ trợ)
+  if sudo modprobe tcp_bbr 2>/dev/null; then
+    printf 'net.core.default_qdisc = fq\nnet.ipv4.tcp_congestion_control = bbr\n' | sudo tee -a "$sysctl_file" >/dev/null
+    log_dim "BBR congestion control: bật"
+  else
+    printf 'net.core.default_qdisc = fq_codel\n' | sudo tee -a "$sysctl_file" >/dev/null
+    log_dim "BBR không khả dụng — dùng fq_codel"
+  fi
 
   if command -v sysctl &>/dev/null; then
     sudo sysctl -p "$sysctl_file" &>/dev/null || sudo sysctl --system &>/dev/null || true
@@ -346,16 +336,19 @@ setup_security() {
 
   # UFW
   if command -v ufw &>/dev/null; then
-    log_info "Cấu hình UFW (mặc định deny incoming, allow outgoing)..."
-    sudo ufw --force reset >/dev/null 2>&1 || true
-    sudo ufw default deny incoming
-    sudo ufw default allow outgoing
-    sudo ufw allow ssh
-    sudo ufw allow 80/tcp    # HTTP
-    sudo ufw allow 443/tcp   # HTTPS
-    # Thêm port custom nếu cần: sudo ufw allow 8080/tcp
-    sudo ufw --force enable
-    log_success "UFW đã kích hoạt (SSH, HTTP, HTTPS)."
+    if sudo ufw status 2>/dev/null | grep -qi "Status: active"; then
+      log_info "UFW đang active — chỉ bổ sung rule, không reset."
+    else
+      log_info "Cấu hình UFW lần đầu (deny incoming, allow outgoing)..."
+      sudo ufw default deny incoming
+      sudo ufw default allow outgoing
+    fi
+    sudo ufw allow ssh      >/dev/null 2>&1 || true
+    sudo ufw allow 80/tcp   >/dev/null 2>&1 || true
+    sudo ufw allow 443/tcp  >/dev/null 2>&1 || true
+    sudo ufw --force enable >/dev/null 2>&1 || true
+    log_success "UFW: SSH, HTTP, HTTPS được phép."
+    log_warn "Nếu SSH dùng port khác 22: 'sudo ufw allow <port>/tcp' TRƯỚC khi đóng phiên."
   else
     log_warn "UFW chưa cài. Bỏ qua firewall."
   fi
@@ -369,7 +362,6 @@ setup_security() {
 enabled = true
 port = ssh
 filter = sshd
-logpath = /var/log/auth.log
 maxretry = 3
 bantime = 1h
 findtime = 10m
@@ -379,6 +371,39 @@ EOF
     log_success "Fail2ban đã kích hoạt cho SSH."
   else
     log_warn "Fail2ban chưa cài. Bỏ qua."
+  fi
+}
+
+# ==============================================================================
+# 5.5. TẮT DỊCH VỤ KHÔNG CẦN THIẾT (tối đa hiệu năng)
+# ==============================================================================
+setup_prune_services() {
+  log_step "Tắt các dịch vụ desktop/không cần thiết (nếu có)..."
+
+  local svc disabled=0
+  for svc in bluetooth.service cups.service cups-browsed.service avahi-daemon.service ModemManager.service snapd.service snapd.socket; do
+    if systemctl list-unit-files "$svc" &>/dev/null && systemctl is-enabled "$svc" &>/dev/null; then
+      sudo systemctl disable --now "$svc" &>/dev/null && {
+        log_dim "disabled: $svc"
+        disabled=$((disabled + 1))
+      }
+    fi
+  done
+
+  # Tắt dịch vụ GUI/getty thừa (chỉ giữ tty1)
+  for svc in getty@tty2.service getty@tty3.service getty@tty4.service getty@tty5.service getty@tty6.service; do
+    if systemctl list-unit-files "$svc" &>/dev/null && systemctl is-enabled "$svc" &>/dev/null; then
+      sudo systemctl disable --now "$svc" &>/dev/null && {
+        log_dim "disabled: $svc"
+        disabled=$((disabled + 1))
+      }
+    fi
+  done
+
+  if [ "$disabled" -eq 0 ]; then
+    log_success "Không có dịch vụ thừa nào đang bật."
+  else
+    log_success "Đã tắt $disabled dịch vụ thừa."
   fi
 }
 
@@ -423,6 +448,8 @@ main() {
   setup_sys               || true
   echo ""
   setup_security          || true
+  echo ""
+  setup_prune_services    || true
   echo ""
   setup_locale_timezone   || true
   echo ""

@@ -1,6 +1,0 @@
-#!/bin/sh
-
-# Arch Linux-specific aliases
-
-alias p="pacman"
-alias pacman="sudo pacman"

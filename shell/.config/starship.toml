@@ -1,5 +1,5 @@
 # ==============================================================================
-# Starship Prompt Config — DWM/X11 (ThinkPad X230)
+# Starship Prompt Config — Server-minimal
 # ==============================================================================
 # Tối ưu cho repo lớn có node_modules: tăng scan_timeout để tránh WARN spam.
 # Mặc định 30ms quá thấp cho git_status (~69ms) và nodejs scan (~16ms).

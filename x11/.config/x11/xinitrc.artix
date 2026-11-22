@@ -1,7 +1,0 @@
-#!/usr/bin/env sh
-# ==============================================================================
-# xinitrc.artix — Engine Adapter cho Artix Linux (Runit / OpenRC / s6 / dinit)
-# ==============================================================================
-
-# Môi trường ảo (VM) / Artix tối giản — bỏ qua an toàn mà không làm gián đoạn X session
-:

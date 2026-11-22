@@ -1,5 +1,5 @@
 # ==============================================================================
-# ~/.config/zsh/.zshrc — Interactive Zsh config (X11/DWM custom stack)
+# ~/.config/zsh/.zshrc — Interactive Zsh config (Server-minimal)
 # ==============================================================================
 # Load order (Zsh startup):
 #   ~/.zshenv            → ZDOTDIR (every instance)
@@ -107,9 +107,6 @@ bindkey '^r' history-incremental-search-backward
 
 # Load vi cursor shape + lfcd
 [ -f "$ZDOTDIR/functions.zsh" ] && source "$ZDOTDIR/functions.zsh"
-
-# Beam cursor on startup
-echo -ne '\e[5 q'
 
 # Ctrl+O → open lf file manager (cd to selected dir on exit)
 bindkey -s '^o' '^ulfcd\n'

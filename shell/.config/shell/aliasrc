@@ -1,68 +1,51 @@
 #!/bin/sh
+# ==============================================================================
+# ALIASRC — Server-minimal
+# ==============================================================================
 
-# Use neovim for vim if present.
+# Neovim cho vim
 [ -x "$(command -v nvim)" ] && alias vim="nvim" vimdiff="nvim -d"
 
-# Use $XINITRC variable if file exists.
-[ -f "$XINITRC" ] && alias startx='startx $XINITRC'
-
-[ -f "$MBSYNCRC" ] && alias mbsync='mbsync -c $MBSYNCRC'
-
-# sudo not required for some system commands
+# sudo cho lệnh hệ thống
 for command in mount umount updatedb su shutdown poweroff reboot; do
-  alias $command="sudo $command"
+  alias "$command"="sudo $command"
 done
 unset command
 
+# Mở script trong ~/.local/bin bằng editor + fzf
 se() {
   choice="$(find "$HOME/.local/bin" -mindepth 1 -printf '%P\n' | fzf)"
-  [ -f "$HOME/.local/bin/$choice" ] && $EDITOR "$HOME/.local/bin/$choice"
+  [ -f "$HOME/.local/bin/$choice" ] && "$EDITOR" "$HOME/.local/bin/$choice"
 }
 
-# Verbosity and settings that you pretty much just always are going to want.
+# An toàn khi thao tác file
 alias \
   cp="cp -iv" \
   mv="mv -iv" \
   rm="rm -vI" \
   bc="bc -ql" \
   rsync="rsync -vrPlu" \
-  mkd="mkdir -pv" \
-  yt="yt-dlp --embed-metadata -i" \
-  yta="yt -x -f bestaudio/best" \
-  ytt="yt --skip-download --write-thumbnail" \
-  ffmpeg="ffmpeg -hide_banner"
+  mkd="mkdir -pv"
 
-# Colorize commands when possible.
-# Kiểm tra xem eza có được cài chưa
+# Màu
 if command -v eza >/dev/null; then
-  # Nếu có eza, dùng eza
   alias ls="eza --icons --group-directories-first"
   alias ll="eza -al --icons --group-directories-first"
   alias la="eza -a --icons --group-directories-first"
   alias lt="eza -aT --icons --group-directories-first"
 else
-  # Nếu không, fallback về ls truyền thống
   alias ls="ls -hN --color=auto --group-directories-first"
 fi
 
-#
 alias \
   grep="grep --color=auto" \
   diff="diff --color=auto" \
   ccat="bat --style=plain --color=always" \
   ip="ip -color=auto"
 
-# These common commands are just too long! Abbreviate them.
+# Viết tắt
 alias \
   g="git" \
-  trem="transmission-remote" \
-  YT="youtube-viewer" \
   sdn="shutdown -h now" \
   e='$EDITOR' \
-  v='$EDITOR' \
-  z="zathura"
-
-alias \
-  lf="lfub" \
-  magit="nvim -c MagitOnly" \
-  ref='shortcuts >/dev/null; source ${XDG_CONFIG_HOME:-$HOME/.config}/shell/shortcutrc ; source ${XDG_CONFIG_HOME:-$HOME/.config}/shell/shortcutenvrc ; source ${XDG_CONFIG_HOME:-$HOME/.config}/shell/zshnameddirrc'
+  v='$EDITOR'
