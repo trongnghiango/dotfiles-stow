@@ -78,7 +78,16 @@ cmd extract ${{
             *.tar) tar xf "$target" ;;
             *.tar.gz|*.tgz) tar xzf "$target" ;;
             *.tar.xz) tar xJf "$target" ;;
-            *.rar) unrar x "$target" "$out/" ;;
+            *.rar)
+                if command -v unrar >/dev/null 2>&1; then
+                    unrar x "$target" "$out/"
+                elif command -v unrar-free >/dev/null 2>&1; then
+                    abs="$(readlink -f "$target")"
+                    mkdir -p "$out" && (cd "$out" && unrar-free -x "$abs")
+                else
+                    echo "No RAR extractor (install unrar or unrar-free)"
+                fi
+                ;;
             *) echo "Unsupported: $target" ;;
         esac
     done

@@ -76,5 +76,6 @@
 ,usbutils,6,system,lsusb.
 
 # --- Docker ---
-,docker.io,9,docker,Container engine.
-,docker-compose,9,docker,Container orchestration.
+,docker.io,9,docker,Container engine (daemon).
+,docker-cli,9,docker,Docker CLI client (tách riêng từ Debian 13).
+,docker-compose,9,docker,Container orchestration (Compose v2).

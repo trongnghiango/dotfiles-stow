@@ -43,7 +43,7 @@ reboot → đăng nhập user
 git clone -b server-minimal <repo> ~/dotfiles-stow
 cd ~/dotfiles-stow && ./scripts/.local/bin/ks
         │
-        ├─ debian_setup_pkgs   → apt install từ pkgs/server.csv (55 gói CLI)
+        ├─ debian_setup_pkgs   → apt install từ pkgs/server.csv (56 gói CLI)
         ├─ setup_shell         → đảm bảo login shell là Bash
         ├─ setup_stow_server   → stow-safe shell git tmux nvim lf scripts
         ├─ setup_docker        → non-root + docker.socket activation
@@ -97,7 +97,11 @@ cd ~/dotfiles-stow && ./scripts/.local/bin/ks
   vào `~/.local` khi phiên bản APT < 0.11. Mặc định chỉ cài tool Mason không
   cần node/pip; đặt `KA_NVIM_FULL=1` để cài full stack (cần `nodejs`, `npm`,
   `python3-pip`, `python3-venv`).
-- **Docker compose**: dùng gói `docker-compose` của Debian; nếu bản distro
-  không còn gói này, script sẽ cảnh báo và bỏ qua từng gói.
+- **Docker (Debian 13)**: `docker.io` chỉ là daemon; `docker-cli` được cài
+  riêng trong `server.csv` vì trixie đã tách gói. `docker-compose` là Compose v2.
+- **Debian 13 (trixie)**: đã đối chiếu — neovim 0.10.4 (bootstrap 0.11+),
+  docker.io 26.1 + docker-cli, docker-compose 2.26, tree-sitter-cli 0.22.6,
+  starship 1.22, eza 0.21, systemd-zram-generator 1.2, firmware-linux-free.
+  `unrar-free` chỉ có lệnh `unrar-free` (lfrc đã fallback).
 - **Firewall**: UFW mở SSH/80/443. Cần thêm port khác thì `sudo ufw allow <port>`.
 - **Reboot** sau khi chạy `ks` để áp dụng shell, group docker và sysctl.

@@ -21,7 +21,7 @@ cd ~/dotfiles-stow
 ./scripts/.local/bin/ks          # = ka-setup-server
 ```
 
-`ks` sẽ cài `pkgs/server.csv` (55 gói CLI), stow các package CLI, cấu hình
+`ks` sẽ cài `pkgs/server.csv` (56 gói CLI), stow các package CLI, cấu hình
 Docker socket activation, sysctl/zRAM/THP/I-O scheduler, UFW + Fail2ban,
 tắt dịch vụ thừa, và đặt timezone/locale. Login shell mặc định là **Bash**.
 
