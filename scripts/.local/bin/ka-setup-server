@@ -85,35 +85,36 @@ setup_server_pkgs() {
 }
 
 # ==============================================================================
-# 1. ĐẶT ZSH LÀM LOGIN SHELL
+# 1. ĐẢM BẢO LOGIN SHELL LÀ BASH (mặc định server)
 # ==============================================================================
 setup_shell() {
-  log_step "Cấu hình login shell → Zsh..."
+  log_step "Đảm bảo login shell là Bash..."
 
-  local zsh_path
-  zsh_path="$(command -v zsh 2>/dev/null || echo "")"
-
-  if [ -z "$zsh_path" ]; then
-    log_warn "Zsh chưa cài. Bỏ qua."
+  local bash_path
+  bash_path="$(command -v bash 2>/dev/null || true)"
+  if [ -z "$bash_path" ]; then
+    log_warn "Không tìm thấy bash. Bỏ qua."
     return 0
   fi
 
   local current_shell
   current_shell="$(getent passwd "$USER" | cut -d: -f7)"
 
-  if [ "$current_shell" = "$zsh_path" ]; then
-    log_success "Login shell đã là Zsh ($zsh_path)."
-    return 0
+  case "$current_shell" in
+    */bash|bash)
+      log_success "Login shell đã là Bash ($current_shell)."
+      return 0
+      ;;
+  esac
+
+  if ! grep -qx "$bash_path" /etc/shells 2>/dev/null; then
+    log_info "Thêm $bash_path vào /etc/shells..."
+    echo "$bash_path" | sudo tee -a /etc/shells >/dev/null
   fi
 
-  if ! grep -qx "$zsh_path" /etc/shells; then
-    log_info "Thêm $zsh_path vào /etc/shells..."
-    echo "$zsh_path" | sudo tee -a /etc/shells >/dev/null
-  fi
-
-  log_info "Chuyển login shell → Zsh ($zsh_path)..."
-  chsh -s "$zsh_path"
-  log_success "Login shell đã đặt thành Zsh. Đăng xuất & đăng nhập lại để áp dụng."
+  log_info "Chuyển login shell → Bash ($bash_path)..."
+  chsh -s "$bash_path"
+  log_success "Login shell đã đặt thành Bash. Đăng xuất & đăng nhập lại để áp dụng."
 }
 
 # ==============================================================================
@@ -141,9 +142,9 @@ setup_stow_server() {
   mkdir -p "$HOME/.config" "$HOME/.local/bin" "$HOME/.local/share" "$HOME/.local/src"
 
   # Chỉ các package CLI/server thiết yếu - KHÔNG X11, KHÔNG DESKTOP
+  # (zsh/ là package tuỳ chọn, không stow mặc định)
   local server_packages=(
-    shell         # profile, aliasrc — PATH, EDITOR, ZDOTDIR
-    zsh           # .zshrc, .zprofile, env.zsh
+    shell         # .bashrc, .bash_profile, profile, aliasrc — PATH, EDITOR
     git           # ~/.config/git/config, ignore
     tmux          # tmux.conf
     nvim          # init.lua, lua/
@@ -439,9 +440,9 @@ main() {
 
   setup_server_pkgs       || log_warn "Một số gói cài đặt gặp lỗi."
   echo ""
-  setup_shell             || log_warn "Bỏ qua shell (chạy lại: ka-setup shell)."
+  setup_shell             || log_warn "Bỏ qua kiểm tra shell (login shell nên là Bash)."
   echo ""
-  setup_stow_server       || log_warn "Một số stow gặp lỗi (chạy lại: stow-safe shell zsh git tmux nvim lf scripts)."
+  setup_stow_server       || log_warn "Một số stow gặp lỗi (chạy lại: stow-safe shell git tmux nvim lf scripts)."
   echo ""
   setup_docker            || true
   echo ""
@@ -456,14 +457,14 @@ main() {
 
   log_success "=== ka-setup-server HOÀN THÀNH ==="
   log_warn "QUAN TRỌNG: Hãy REBOOT hoặc đăng xuất/đăng nhập lại để áp dụng:"
-  log_dim "  - Zsh login shell"
+  log_dim "  - Bash login shell (hoặc giữ nguyên nếu đã là bash)"
   log_dim "  - Docker group membership"
   log_dim "  - Kernel sysctl/zRAM/THP/I/O scheduler"
   log_dim "  - UFW/Fail2ban rules"
   echo ""
   log_info "Sau reboot, kiểm tra:"
   log_dim "  docker run --rm hello-world"
-  log_dim "  zsh --version"
+  log_dim "  bash --version"
   log_dim "  systemctl status docker.socket"
   log_dim "  ufw status verbose"
   log_dim "  fail2ban-client status sshd"

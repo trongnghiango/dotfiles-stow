@@ -21,9 +21,9 @@ cd ~/dotfiles-stow
 ./scripts/.local/bin/ks          # = ka-setup-server
 ```
 
-`ks` sẽ cài `pkgs/server.csv` (56 gói CLI), stow các package CLI, cấu hình
+`ks` sẽ cài `pkgs/server.csv` (54 gói CLI), stow các package CLI, cấu hình
 Docker socket activation, sysctl/zRAM/THP/I-O scheduler, UFW + Fail2ban,
-tắt dịch vụ thừa, và đặt timezone/locale.
+tắt dịch vụ thừa, và đặt timezone/locale. Login shell mặc định là **Bash**.
 
 ## Thành phần
 
@@ -31,7 +31,8 @@ tắt dịch vụ thừa, và đặt timezone/locale.
 - `pkgs/server.csv` — danh sách gói Debian tối giản.
 - `scripts/.local/bin/ka-setup-server` (alias `ks`) — thiết lập post-install.
 - `scripts/.local/bin/setup-drivers/debian.sh` — driver APT server-minimal.
-- Stow packages: `shell`, `zsh`, `git`, `tmux`, `nvim`, `lf`, `scripts`.
+- Stow packages: `shell`, `git`, `tmux`, `nvim`, `lf`, `scripts`.
+- `zsh/` — tuỳ chọn, **không stow mặc định**.
 
 ## Kiểm tra sau cài
 

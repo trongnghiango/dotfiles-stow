@@ -15,9 +15,9 @@ git/       ~/.config/git/{config,ignore}
 lf/        ~/.config/lf/{lfrc,scope,cleaner,icons,shortcutrc}
 nvim/      ~/.config/nvim/
 scripts/   ~/.local/bin/{stow-safe,agent-guard,ka-setup-server,ks,setup-drivers/debian.sh}
-shell/     ~/.config/shell/{profile,aliasrc,inputrc,bm-dirs,bm-files}, direnv, starship.toml
+shell/     ~/.bashrc, ~/.bash_profile, ~/.config/shell/{profile,aliasrc,inputrc,bm-dirs,bm-files}, direnv, starship.toml
 tmux/      ~/.config/tmux/tmux.conf
-zsh/       ~/.config/zsh/{.zshrc,.zprofile,env.zsh,functions.zsh}, ~/.zshenv
+zsh/       ~/.config/zsh/* (TUỲ CHỌN — không stow mặc định)
 pkgs/      server.csv (Debian CLI packages)
 ```
 
@@ -43,9 +43,9 @@ reboot → đăng nhập user
 git clone -b server-minimal <repo> ~/dotfiles-stow
 cd ~/dotfiles-stow && ./scripts/.local/bin/ks
         │
-        ├─ debian_setup_pkgs   → apt install từ pkgs/server.csv (56 gói CLI)
-        ├─ setup_shell         → chsh sang Zsh (nếu có zsh)
-        ├─ setup_stow_server   → stow-safe shell zsh git tmux nvim lf scripts
+        ├─ debian_setup_pkgs   → apt install từ pkgs/server.csv (54 gói CLI)
+        ├─ setup_shell         → đảm bảo login shell là Bash
+        ├─ setup_stow_server   → stow-safe shell git tmux nvim lf scripts
         ├─ setup_docker        → non-root + docker.socket activation
         ├─ setup_sys           → sysctl, zRAM, THP madvise, I/O scheduler udev
         ├─ setup_security      → UFW (SSH/80/443) + Fail2ban sshd
@@ -83,15 +83,15 @@ cd ~/dotfiles-stow && ./scripts/.local/bin/ks
 | THP | `madvise` + `defer` (chống micro-stutter) | `setup_sys` |
 | I/O scheduler | HDD `bfq`, SATA SSD `mq-deadline`, NVMe `none` | `setup_sys` |
 | Docker | `docker.socket` activation (không giữ daemon thường trực) | `setup_docker` |
-| Shell | Zsh completion/starship/zoxide có cache tĩnh 24h | `zsh/.zshrc` |
+| Shell | Bash history 50k, starship/zoxide/direnv cache tĩnh | `shell/.bashrc` |
 | Services | Tắt bluetooth, cups, avahi, ModemManager, snapd, getty tty2-6 | `setup_prune_services` |
 
 ---
 
 ## 5. GHI CHÚ VẬN HÀNH
 
-- **Shell**: mặc định chuyển sang Zsh. Nếu muốn giữ Bash, bỏ qua bước
-  `setup_shell` (hoặc sửa hàm này trả về 0) — branch không cung cấp `.bashrc`.
+- **Shell**: mặc định **Bash** (login shell). `zsh/` là tuỳ chọn: cài `zsh` +
+  `stow-safe zsh` + `chsh -s "$(command -v zsh)"` nếu muốn dùng.
 - **Neovim**: Debian bookworm có 0.7.2; `debian_setup_nvim` tự tải bản mới
   (≥0.9) vào `~/.local` nếu phiên bản APT quá cũ.
 - **Docker compose**: dùng gói `docker-compose` của Debian; nếu bản distro

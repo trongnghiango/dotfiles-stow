@@ -51,11 +51,14 @@
 ,lf,5,lf,Terminal file manager.
 ,atool,5,lf,Archive preview helper.
 
-# --- Zsh ---
-,zsh,5,zsh,Zsh shell.
-,zsh-autosuggestions,5,zsh,History autosuggestions.
-,zsh-syntax-highlighting,5,zsh,Syntax highlighting.
-,starship,5,zsh,Cross-shell prompt.
+# --- Shell / CLI ---
+,bash-completion,5,cli,Bash programmable completion.
+,starship,5,cli,Cross-shell prompt.
+
+# --- Zsh (tuỳ chọn, KHÔNG cài mặc định) ---
+# ,zsh,5,zsh,Zsh shell.
+# ,zsh-autosuggestions,5,zsh,History autosuggestions.
+# ,zsh-syntax-highlighting,5,zsh,Syntax highlighting.
 
 # --- Archives ---
 ,7zip,6,system,7z archives.
