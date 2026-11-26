@@ -61,6 +61,44 @@ detect_os() {
 
 CURRENT_OS="$(detect_os)"
 
+# --- Profile vận hành do installer ghi (/etc/default/ka-server) ---
+# KEY=VALUE, đọc bằng allowlist, không thực thi chuỗi từ file.
+KA_PROFILE="server"
+KA_SWAP="zram"
+
+_trim_sp() {
+  local s="$1"
+  while [ "${s# }" != "$s" ]; do s="${s# }"; done
+  while [ "${s% }" != "$s" ]; do s="${s% }"; done
+  printf '%s' "$s"
+}
+
+read_ka_profile() {
+  local file="/etc/default/ka-server" line key val
+  [ -r "$file" ] || return 0
+  while IFS= read -r line || [ -n "$line" ]; do
+    line="${line%$'\r'}"
+    case "$line" in ''|'#'*) continue ;; esac
+    case "$line" in *=*) ;; *) continue ;; esac
+    key="$(_trim_sp "${line%%=*}")"
+    val="$(_trim_sp "${line#*=}")"
+    case "$key" in
+      KA_PROFILE) KA_PROFILE="$val" ;;
+      KA_SWAP)    KA_SWAP="$val" ;;
+    esac
+  done < "$file"
+}
+
+read_ka_profile
+
+swap_desc() {
+  if [ "$KA_SWAP" = "off" ]; then
+    printf 'TẮT (không zRAM, không phân vùng swap)'
+  else
+    printf 'zRAM (swap nén trong RAM)'
+  fi
+}
+
 # ==============================================================================
 # 0. CÀI ĐẶT GÓI SERVER TỐI GIẢN TỪ pkgs/server.csv
 # ==============================================================================
@@ -233,13 +271,17 @@ setup_sys() {
   local sysctl_file="/etc/sysctl.d/99-ka-server-performance.conf"
   log_info "Cấu hình Virtual Memory, Network & I/O vào $sysctl_file..."
   sudo mkdir -p /etc/sysctl.d
-  sudo tee "$sysctl_file" >/dev/null <<'EOF'
+  local swappiness="100"
+  if [ "$KA_SWAP" = "off" ]; then
+    swappiness="0"
+  fi
+  sudo tee "$sysctl_file" >/dev/null <<EOF
 # ==============================================================================
 # KA SERVER PERFORMANCE TUNING (Server hosting, container workloads)
 # ==============================================================================
-# zRAM swap priority
+# Swap mode: ${KA_SWAP}
 vm.page-cluster = 0
-vm.swappiness = 100
+vm.swappiness = ${swappiness}
 vm.vfs_cache_pressure = 50
 vm.dirty_background_ratio = 5
 vm.dirty_ratio = 10
@@ -266,11 +308,30 @@ EOF
     log_dim "BBR không khả dụng — dùng fq_codel"
   fi
 
-  if command -v sysctl &>/dev/null; then
-    sudo sysctl -p "$sysctl_file" &>/dev/null || sudo sysctl --system &>/dev/null || true
+  if [ -x /usr/sbin/sysctl ] || command -v sysctl &>/dev/null; then
+    sudo /usr/sbin/sysctl -p "$sysctl_file" &>/dev/null || sudo /usr/sbin/sysctl --system &>/dev/null || true
     log_success "Đã áp dụng sysctl server."
   fi
 
+  # Swap/zRAM: profile k8s (KA_SWAP=off) BẮT BUỘC không swap — kubelet từ chối swap
+  if [ "$KA_SWAP" = "off" ]; then
+    log_info "KA_SWAP=off → tắt swap và bỏ zRAM (yêu cầu của Kubernetes)..."
+    sudo swapoff -a 2>/dev/null || true
+    if [ -f /etc/systemd/zram-generator.conf ]; then
+      sudo rm -f /etc/systemd/zram-generator.conf
+      log_dim "đã xoá /etc/systemd/zram-generator.conf (cấu hình zRAM cũ)"
+    fi
+    if systemctl list-unit-files 2>/dev/null | grep -q "systemd-zram-setup@"; then
+      sudo systemctl disable --now "systemd-zram-setup@zram0.service" &>/dev/null || true
+    fi
+    if [ -n "$(swapon --show --noheadings 2>/dev/null)" ]; then
+      log_warn "Vẫn còn swap đang bật (kubelet sẽ từ chối chạy):"
+      log_dim "  $(swapon --show --noheadings | tr '\n' ' ')"
+      log_dim "  Kiểm tra /usr/lib/systemd/zram-generator.conf (default của gói) và tắt trước khi kubeadm init."
+    else
+      log_success "Swap đã tắt hoàn toàn."
+    fi
+  else
   # zRAM Configuration
   log_info "Kiểm tra và cấu hình zRAM..."
   if [ -d /run/systemd/system ]; then
@@ -294,6 +355,26 @@ EOF
       sudo systemctl restart "systemd-zram-setup@zram0.service" &>/dev/null || true
       log_success "Đã kích hoạt zRAM."
     fi
+  fi
+  fi
+
+  # Kubernetes prerequisites (chỉ profile k8s)
+  if [ "$KA_PROFILE" = "k8s" ]; then
+    log_info "Profile k8s → nạp module và sysctl cho kubeadm/CNI..."
+    sudo tee /etc/modules-load.d/ka-k8s.conf >/dev/null <<'EOF'
+overlay
+br_netfilter
+EOF
+    sudo tee /etc/sysctl.d/99-ka-k8s.conf >/dev/null <<'EOF'
+# Bắt buộc cho kubeadm + CNI (Calico/Flannel)
+net.ipv4.ip_forward = 1
+net.bridge.bridge-nf-call-iptables = 1
+net.bridge.bridge-nf-call-ip6tables = 1
+EOF
+    sudo modprobe overlay 2>/dev/null || true
+    sudo modprobe br_netfilter 2>/dev/null || true
+    sudo sysctl -p /etc/sysctl.d/99-ka-k8s.conf &>/dev/null || true
+    log_success "Kubernetes prerequisites đã bật (overlay, br_netfilter, ip_forward)."
   fi
 
   # THP Tuning
@@ -336,7 +417,7 @@ setup_security() {
   log_step "Cấu hình Firewall (UFW) & Fail2ban cơ bản..."
 
   # UFW
-  if command -v ufw &>/dev/null; then
+  if [ -x /usr/sbin/ufw ] || command -v ufw &>/dev/null; then
     if sudo ufw status 2>/dev/null | grep -qi "Status: active"; then
       log_info "UFW đang active — chỉ bổ sung rule, không reset."
     else
@@ -355,7 +436,7 @@ setup_security() {
   fi
 
   # Fail2ban
-  if command -v fail2ban-server &>/dev/null; then
+  if [ -x /usr/sbin/fail2ban-server ] || command -v fail2ban-server &>/dev/null; then
     log_info "Cấu hình Fail2ban (SSH protection)..."
     sudo mkdir -p /etc/fail2ban/jail.d
     sudo tee /etc/fail2ban/jail.d/sshd.local >/dev/null <<'EOF'
@@ -435,6 +516,7 @@ main() {
   echo -e "${BOLD}KA SERVER SETUP — Server Hosting Only (No X11/Desktop)${NC}"
   echo "================================================================="
   echo -e "${BOLD}OS:${NC} ${CYAN}$CURRENT_OS${NC}"
+  echo -e "${BOLD}Profile:${NC} ${CYAN}${KA_PROFILE}${NC} ${DIM}(swap: $(swap_desc))${NC}"
   echo -e "${BOLD}Dotfiles:${NC} ${DIM}$DOTFILES_DIR${NC}"
   echo ""
 
@@ -459,7 +541,7 @@ main() {
   log_warn "QUAN TRỌNG: Hãy REBOOT hoặc đăng xuất/đăng nhập lại để áp dụng:"
   log_dim "  - Bash login shell (hoặc giữ nguyên nếu đã là bash)"
   log_dim "  - Docker group membership"
-  log_dim "  - Kernel sysctl/zRAM/THP/I/O scheduler"
+  log_dim "  - Kernel sysctl/swap/THP/I/O scheduler"
   log_dim "  - UFW/Fail2ban rules"
   echo ""
   log_info "Sau reboot, kiểm tra:"
@@ -469,6 +551,46 @@ main() {
   log_dim "  ufw status verbose"
   log_dim "  fail2ban-client status sshd"
 }
+
+# ==============================================================================
+# THAM SỐ DÒNG LỆNH
+# ==============================================================================
+usage() {
+  cat <<EOF
+Cách dùng: $(basename "$0") [--check]
+
+  --check     In profile/swap sẽ áp dụng rồi thoát (không thay đổi hệ thống)
+  -h, --help  Hiển thị trợ giúp này
+
+Profile được đọc từ /etc/default/ka-server (do install_debian.sh ghi):
+  KA_PROFILE=server|k8s   k8s: bật overlay + br_netfilter + ip_forward
+  KA_SWAP=zram|off        off: không swap, không zRAM (kubelet bắt buộc)
+EOF
+}
+
+print_plan() {
+  local swap_action="tạo zRAM (systemd-zram-generator)"
+  [ "$KA_SWAP" = "off" ] && swap_action="swapoff -a + xoá zram-generator.conf"
+  echo "Profile          : $KA_PROFILE"
+  echo "Swap             : $(swap_desc)"
+  echo "Hành động swap   : $swap_action"
+  echo "vm.swappiness    : $([ "$KA_SWAP" = off ] && echo 0 || echo 100)"
+  if [ "$KA_PROFILE" = "k8s" ]; then
+    echo "Kubernetes       : overlay + br_netfilter + ip_forward + bridge-nf-call-*"
+  else
+    echo "Kubernetes       : không bật (profile server)"
+  fi
+  echo "Nguồn profile    : /etc/default/ka-server $([ -r /etc/default/ka-server ] && echo '(có)' || echo '(không có — dùng mặc định)')"
+}
+
+for _arg in "$@"; do
+  case "$_arg" in
+    --check)   print_plan; exit 0 ;;
+    -h|--help) usage; exit 0 ;;
+    *)         : ;;
+  esac
+done
+unset _arg
 
 # Chạy main
 main "$@"

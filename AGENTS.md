@@ -35,7 +35,10 @@ Live ISO UEFI (Debian/Ubuntu)
         │
         ▼
 sudo ./install_debian.sh --disk /dev/nvme0n1 --yes
-        │  debootstrap base OS, GRUB, user, NetworkManager, locale/timezone
+   (hoặc: sudo ./install_debian.sh --config install.conf --yes
+          sudo ./install_debian.sh --disk /dev/sda --profile k8s --yes)
+        │  debootstrap base OS, GRUB, EFI NVRAM entry, /etc/default/ka-server
+        │  profile k8s → KHÔNG phân vùng swap + modules/sysctl Kubernetes
         ▼
 reboot → đăng nhập user
         │
@@ -47,13 +50,20 @@ cd ~/dotfiles-stow && ./scripts/.local/bin/ks
         ├─ setup_shell         → đảm bảo login shell là Bash
         ├─ setup_stow_server   → stow-safe shell git tmux nvim lf scripts
         ├─ setup_docker        → non-root + docker.socket activation
-        ├─ setup_sys           → sysctl, zRAM, THP madvise, I/O scheduler udev
+        ├─ setup_sys           → sysctl, swap/zRAM theo profile, THP madvise, I/O scheduler udev
         ├─ setup_security      → UFW (SSH/80/443) + Fail2ban sshd
         ├─ setup_prune_services→ tắt bluetooth/cups/avahi/snapd/getty tty2-6
         └─ setup_locale_timezone → Asia/Ho_Chi_Minh + en_US.UTF-8
 ```
 
 `ks` là symlink tương đối trỏ tới `ka-setup-server` (cùng thư mục).
+
+**Profile vận hành** (`/etc/default/ka-server` — installer ghi, `ks` đọc):
+
+| Khóa | Giá trị | Tác dụng |
+|---|---|---|
+| `KA_PROFILE` | `server` \| `k8s` | `k8s` → `overlay`/`br_netfilter` + `ip_forward` + `bridge-nf-call-*` |
+| `KA_SWAP` | `zram` \| `off` | `off` → `swapoff -a`, xoá zram-generator config, `vm.swappiness=0` |
 
 ---
 
@@ -76,8 +86,9 @@ cd ~/dotfiles-stow && ./scripts/.local/bin/ks
 
 | Hạng mục | Giá trị | Nguồn |
 |-----------|---------|--------|
-| zRAM | `zram-size=ram`, `zstd` (≤2 core dùng `lz4`), swap-priority 100 | `setup_sys` |
-| sysctl VM | `page-cluster=0`, `swappiness=100`, `vfs_cache_pressure=50` | `setup_sys` |
+| zRAM | chỉ khi `KA_SWAP=zram`: `zram-size=ram`, `zstd` (≤2 core dùng `lz4`), swap-priority 100 | `setup_sys` |
+| sysctl VM | `page-cluster=0`, `swappiness=100` (hoặc `0` khi `KA_SWAP=off`), `vfs_cache_pressure=50` | `setup_sys` |
+| K8s | `overlay` + `br_netfilter`, `ip_forward=1`, `bridge-nf-call-iptables/ip6tables=1` (chỉ profile `k8s`) | `setup_sys` |
 | sysctl net | `somaxconn=65535`, `tcp_max_syn_backlog=65535`, `tcp_fastopen=3`, BBR + `fq` (fallback `fq_codel`) | `setup_sys` |
 | fd/inotify | `fs.file-max=2097152`, `max_user_watches=524288` | `setup_sys` |
 | THP | `madvise` + `defer` (chống micro-stutter) | `setup_sys` |
@@ -92,6 +103,10 @@ cd ~/dotfiles-stow && ./scripts/.local/bin/ks
 
 - **Shell**: mặc định **Bash** (login shell). `zsh/` là tuỳ chọn: cài `zsh` +
   `stow-safe zsh` + `chsh -s "$(command -v zsh)"` nếu muốn dùng.
+- **Swap / Kubernetes**: `--profile k8s` (hoặc `SWAP_SIZE=0` trong `install.conf`) →
+  installer **không tạo phân vùng swap**, ghi `KA_SWAP=off`; `ks` bỏ zRAM và chạy
+  `swapoff -a` vì kubelet mặc định `failSwapOn=true`. `--print-config` xem trước,
+  `ks --check` xem profile sẽ áp dụng.
 - **Neovim**: config cần **≥ 0.11** (`winborder`, `vim.diagnostic.jump`).
   Debian 13 có 0.10.4, Debian 12 có 0.7.2 → `debian_setup_nvim` tự tải bản mới
   vào `~/.local` khi phiên bản APT < 0.11. Mặc định chỉ cài tool Mason không

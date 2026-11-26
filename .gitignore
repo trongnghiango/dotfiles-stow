@@ -12,3 +12,6 @@ extracted_dsh_session/
 *.pyc
 *.log
 **/node_modules/
+
+# Cấu hình cài đặt theo từng máy (có thể chứa mật khẩu) — chỉ commit install.conf.example
+install.conf

@@ -1,0 +1,52 @@
+# ==============================================================================
+# install_debian.sh — file cấu hình (KEY=VALUE)
+#
+# Dùng:
+#   cp install.conf.example install.conf
+#   vi install.conf
+#   sudo ./install_debian.sh --config install.conf --yes
+#   # hoặc đặt install.conf cạnh script: sudo ./install_debian.sh --yes
+#
+# Kiểm tra trước khi ghi đĩa (không cần root):
+#   ./install_debian.sh --print-config
+#
+# Tham số dòng lệnh LUÔN thắng file này.
+# ==============================================================================
+
+# --- Ổ đĩa đích (BẮT BUỘC) ---
+DISK=/dev/sda
+
+# --- Profile vận hành: server | k8s ---
+#   server : mặc định, có phân vùng swap
+#   k8s    : KHÔNG swap + bật sẵn overlay/br_netfilter/ip_forward cho kubeadm
+PROFILE=k8s
+
+# --- Swap ---
+#   0        : KHÔNG tạo phân vùng swap (bắt buộc cho Kubernetes: kubelet failSwapOn=true)
+#   4G/2048M : tạo phân vùng swap tương ứng
+# Bỏ dòng này để dùng mặc định theo PROFILE (k8s → 0, server → 4G).
+SWAP_SIZE=0
+
+# --- Tài khoản / máy ---
+USER_NAME=ka
+USER_PASS=1
+HOSTNAME=k8s-node1
+TIMEZONE=Asia/Ho_Chi_Minh
+
+# --- Debian ---
+SUITE=trixie
+MIRROR=http://deb.debian.org/debian
+
+# --- Dotfiles ---
+DOTFILES_REPO=https://github.com/trongnghiango/dotfiles-stow.git
+DOTFILES_BRANCH=main
+
+# --- Truy cập sau reboot (tuỳ chọn, bỏ dấu # để dùng) ---
+# WIFI_SSID=Akapro-5G
+# WIFI_PSK_FILE=/run/wifi.psk
+# SSH_KEY_FILE=/home/ka/.ssh/id_ed25519.pub
+SSH_PASSWORD_AUTH=true
+
+# --- An toàn ---
+# ALLOW_OFFLINE=false
+AUTO_CONFIRM=true
