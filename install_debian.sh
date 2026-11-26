@@ -31,6 +31,7 @@ WIFI_PSK_FILE=""                          # --wifi-psk-file: file chứa mật k
 SSH_KEY_FILE=""                           # --ssh-key: file public key để đăng nhập không mật khẩu
 SSH_PASSWORD_AUTH=true                    # --no-password-auth: tắt đăng nhập bằng mật khẩu
 ALLOW_OFFLINE=false                       # --allow-offline: chấp nhận cài dù hiện không có đường mạng
+FIX_CLOCK=true                            # --no-fix-clock: không tự đặt giờ từ HTTP Date khi lệch
 HAS_WIFI=false                            # tự phát hiện card Wi-Fi trên máy đích
 HAS_ETH_LINK=false                        # có interface Ethernet vật lý đang có link (carrier=1)
 SB_ENABLED=false                          # Secure Boot đang bật → phải dùng shim + GRUB đã ký
@@ -102,6 +103,8 @@ Danh sách tham số:
       --no-password-auth    Tắt SSH đăng nhập bằng mật khẩu (chỉ dùng key/Tailscale)
       --allow-offline       Cho phép cài khi máy không có Wi-Fi VÀ không có link Ethernet
                             (chỉ dùng khi bạn có KVM/màn hình tại máy để cứu hộ)
+      --no-fix-clock        Không tự đặt giờ hệ thống khi phát hiện lệch > 5 phút
+                            (mặc định tự đặt theo HTTP Date để APT không từ chối chữ ký)
   -y, --yes                 Tự động xác nhận xóa ổ đĩa không cần hỏi lại
   -c, --check               Chạy giả lập (Dry-run) kiểm tra điều kiện an toàn, không ghi đĩa
   -h, --help                Hiển thị hướng dẫn này
@@ -129,6 +132,7 @@ cfg_apply() {
         SSH_KEY_FILE)       SSH_KEY_FILE="$val" ;;
         SSH_PASSWORD_AUTH)  SSH_PASSWORD_AUTH="$val" ;;
         ALLOW_OFFLINE)      ALLOW_OFFLINE="$val" ;;
+        FIX_CLOCK)          FIX_CLOCK="$val" ;;
         AUTO_CONFIRM)       AUTO_CONFIRM="$val" ;;
         *) log_error "Khóa không hợp lệ trong file cấu hình: $key" ;;
     esac
@@ -281,6 +285,10 @@ while [ $# -gt 0 ]; do
             SSH_PASSWORD_AUTH=false; shift ;;
         --allow-offline)
             ALLOW_OFFLINE=true; shift ;;
+        --no-fix-clock)
+            FIX_CLOCK=false; shift ;;
+        --fix-clock)
+            FIX_CLOCK=true; shift ;;
         -y|--yes)
             AUTO_CONFIRM=true; shift ;;
         -c|--check)
@@ -313,6 +321,7 @@ Wi-Fi SSID    : ${WIFI_SSID:-<không>}
 SSH key       : ${SSH_KEY_FILE:-<không>}
 SSH password  : $SSH_PASSWORD_AUTH
 Auto confirm  : $AUTO_CONFIRM
+Tự sửa giờ    : $FIX_CLOCK (lệch > 5 phút so với HTTP Date)
 EOF
     exit 0
 fi
@@ -405,6 +414,56 @@ if [ ${#MISSING_TOOLS[@]} -gt 0 ]; then
     else
         log_error "Vui lòng cài đặt các công cụ thiếu (${MISSING_TOOLS[*]}) trước khi chạy script."
     fi
+fi
+
+# ------------------- ĐỒNG HỒ & MIRROR (CHẶN TRƯỚC KHI GHI ĐĨA) ---------------
+# RTC sai (pin CMOS yếu) làm APT từ chối chữ ký: "Not live until <future>".
+# Nếu không kiểm tra trước khi wipe, dữ liệu mất rồi mới chết giữa debootstrap.
+if command -v curl &>/dev/null; then
+    HTTP_DATE=$(curl -sI --max-time 8 https://deb.debian.org 2>/dev/null | \
+        awk -F': ' 'tolower($1)=="date"{print $2; exit}' | tr -d '\r')
+else
+    HTTP_DATE=""
+    log_warn "Không có curl — bỏ qua kiểm tra đồng hồ (APT có thể từ chối chữ ký nếu giờ sai)."
+fi
+
+if [ -n "$HTTP_DATE" ]; then
+    REMOTE_EPOCH=$(date -u -d "$HTTP_DATE" +%s 2>/dev/null || echo 0)
+    LOCAL_EPOCH=$(date -u +%s)
+    SKEW=$(( REMOTE_EPOCH - LOCAL_EPOCH ))
+    [ "$SKEW" -lt 0 ] && SKEW=$(( -SKEW ))
+    if [ "$REMOTE_EPOCH" -gt 0 ] && [ "$SKEW" -gt 300 ]; then
+        log_warn "Đồng hồ lệch ${SKEW}s so với Internet (RTC/pin CMOS yếu?)."
+        if [ "$FIX_CLOCK" = true ]; then
+            if date -s "$HTTP_DATE" >/dev/null 2>&1; then
+                log_info "Đã đặt lại giờ theo HTTP Date: $(date -u '+%Y-%m-%d %H:%M UTC')"
+            else
+                log_error "Không đặt lại được giờ hệ thống — APT sẽ từ chối chữ ký. Sửa giờ rồi chạy lại."
+            fi
+        else
+            log_warn "FIX_CLOCK=false — giữ nguyên giờ lệch; APT có thể fail."
+        fi
+    else
+        log_info "Đồng hồ hệ thống ổn (lệch < 5 phút)."
+    fi
+fi
+
+MIRROR_PROBE="${MIRROR%/}/dists/${SUITE}/Release"
+MIRROR_OK=false
+if command -v curl &>/dev/null; then
+    curl -sSfI --max-time 10 "$MIRROR_PROBE" >/dev/null 2>&1 && MIRROR_OK=true
+fi
+if [ "$MIRROR_OK" = false ] && command -v wget &>/dev/null; then
+    wget -q --spider --timeout=10 "$MIRROR_PROBE" >/dev/null 2>&1 && MIRROR_OK=true
+fi
+if [ "$MIRROR_OK" = true ]; then
+    log_info "Mirror truy cập được: $MIRROR_PROBE"
+elif [ "$ALLOW_OFFLINE" = true ]; then
+    log_warn "Không truy cập được mirror ($MIRROR_PROBE) — tiếp tục theo --allow-offline."
+else
+    log_error "Không truy cập được mirror: $MIRROR_PROBE
+  → Kiểm tra mạng/DNS TRƯỚC khi ghi đĩa (tránh wipe xong mới fail).
+  → Nếu chủ ý cài offline: thêm --allow-offline."
 fi
 
 # ------------------- KIỂM TRA KHẢ NĂNG TRUY CẬP SAU REBOOT --------------------
@@ -1012,6 +1071,19 @@ fi
 if [ ! -f /boot/efi/EFI/debian/grubx64.efi ]; then
     echo "  [FAIL] thiếu GRUB EFI"; FAIL=1
 fi
+# GRUB chỉ boot được khi kernel + initrd + grub.cfg đều có thật
+if ! ls /boot/vmlinuz-* >/dev/null 2>&1; then
+    echo "  [FAIL] thiếu kernel trong /boot"; FAIL=1
+fi
+if ! ls /boot/initrd.img-* >/dev/null 2>&1; then
+    echo "  [FAIL] thiếu initrd trong /boot"; FAIL=1
+fi
+if [ ! -s /boot/grub/grub.cfg ]; then
+    echo "  [FAIL] thiếu /boot/grub/grub.cfg"; FAIL=1
+fi
+if [ ! -f /boot/efi/EFI/BOOT/BOOTX64.EFI ]; then
+    echo "  [FAIL] thiếu EFI fallback /EFI/BOOT/BOOTX64.EFI"; FAIL=1
+fi
 if [ "$TARGET_SECURE_BOOT" = "yes" ] && [ ! -f /boot/efi/EFI/debian/shimx64.efi ]; then
     echo "  [FAIL] Secure Boot bật nhưng thiếu shimx64.efi đã ký"; FAIL=1
 fi
@@ -1049,6 +1121,11 @@ if [ -n "${TARGET_DOTFILES}" ]; then
         echo "  ! Không clone được dotfiles — chạy thủ công sau khi đăng nhập."
     fi
 fi
+
+echo ">>> [Chroot] 10. Dọn cache APT (đĩa nhỏ vẫn đủ chỗ)..."
+apt-get clean
+rm -rf /var/cache/apt/archives/*.deb /var/cache/apt/archives/partial/* 2>/dev/null || true
+echo "  ✓ Đã dọn /var/cache/apt/archives"
 
 CHROOT_SCRIPT
 

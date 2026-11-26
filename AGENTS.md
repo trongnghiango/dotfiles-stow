@@ -97,6 +97,13 @@ cd ~/dotfiles-stow && ./scripts/.local/bin/ks
 - **Swap**: mặc định có phân vùng swap 4G. `SWAP_SIZE=0` (trong `install.conf`) hoặc
   `--swap 0` → **không tạo phân vùng swap**, `fstab` không có dòng swap; có verify
   fail-fast nếu vẫn thấy swap. `--print-config` xem trước cấu hình, `--check` dry-run.
+- **Preflight trước khi wipe**: mirror `${MIRROR}/dists/${SUITE}/Release` phải truy cập
+  được; đồng hồ lệch > 5 phút so với HTTP Date thì tự đặt lại (trừ `--no-fix-clock` /
+  `FIX_CLOCK=false`) vì APT từ chối chữ ký khi giờ sai. Đĩa quá nhỏ (root < 8GiB) →
+  tự bỏ swap rồi vẫn thiếu thì dừng.
+- **Chroot**: bind mount `--rbind` + `--make-rslave` cho `/dev /proc /sys /run` để
+  efivarfs vào được trong chroot (grub-install cần), `cleanup_on_exit` gỡ mount khi
+  lỗi. Không dùng `mount -t devpts`/`mount -t efivarfs` lồng thêm.
 - **Neovim**: config cần **≥ 0.11** (`winborder`, `vim.diagnostic.jump`).
   Debian 13 có 0.10.4, Debian 12 có 0.7.2 → `debian_setup_nvim` tự tải bản mới
   vào `~/.local` khi phiên bản APT < 0.11. Mặc định chỉ cài tool Mason không

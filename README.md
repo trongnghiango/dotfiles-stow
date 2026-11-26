@@ -67,7 +67,10 @@ Installer chịu trách nhiệm **mọi thứ cần để còn truy cập đư�
 - `systemd-timesyncd`, EFI fallback `\EFI\BOOT\BOOTX64.EFI` **kèm `grubx64.efi`/`mmx64.efi`**
   (thiếu `grubx64.efi` là shim không nạp được GRUB → máy không boot)
 - EFI NVRAM entry `debian` được tạo/đưa lên đầu `BootOrder` nếu firmware chưa có
-- bước verify fail-fast: thiếu gói/sshd/GRUB/fstab/profile → dừng, **không reboot**
+- preflight **trước khi ghi đĩa**: mirror phải truy cập được, đồng hồ lệch >5 phút thì
+  tự đặt lại theo HTTP Date (APT từ chối chữ ký `Not live until ...` khi giờ sai)
+- firmware theo phần cứng: card LAN Realtek/Broadcom lẫn Wi-Fi (kể cả USB) đều được cài
+- bước verify fail-fast: thiếu gói/sshd/GRUB/kernel/initrd/grub.cfg/fstab/profile → dừng, **không reboot**
 
 Máy **không có card Wi-Fi**: installer bỏ qua toàn bộ phần Wi-Fi (không firmware, không
 profile NetworkManager) và dùng Ethernet DHCP. Vì không còn đường dự phòng, installer

@@ -44,4 +44,7 @@ SSH_PASSWORD_AUTH=true
 
 # --- An toàn ---
 # ALLOW_OFFLINE=false
+# Tự đặt lại giờ hệ thống khi lệch > 5 phút so với Internet (APT cần giờ đúng
+# để verify chữ ký; pin CMOS yếu thường làm RTC chậm nhiều giờ).
+FIX_CLOCK=true
 AUTO_CONFIRM=true
