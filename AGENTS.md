@@ -42,7 +42,7 @@ sudo ./install_debian.sh --disk /dev/nvme0n1 --yes
 reboot → đăng nhập user
         │
         ▼
-git clone -b server-minimal <repo> ~/dotfiles-stow
+git clone -b server-minimal <repo> ~/dotfiles-stow   # installer clone sẵn vào ~/.dotfiles
 cd ~/dotfiles-stow && ./scripts/.local/bin/ks
         │
         ├─ debian_setup_pkgs   → apt install từ pkgs/server.csv (56 gói CLI)

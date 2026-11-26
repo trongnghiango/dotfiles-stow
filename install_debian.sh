@@ -361,6 +361,25 @@ done
 # Chuẩn hóa dung lượng swap (4G / 2048M / 0) và chế độ swap của hệ đích
 SWAP_MIB=$(swap_size_to_mib "$SWAP_SIZE") || \
     log_error "Định dạng swap không hợp lệ: '$SWAP_SIZE'. Ví dụ hợp lệ: 4G, 2048M, 0"
+
+# Kích thước đĩa: ESP 1GiB cố định + swap + root. Root < 8GiB là không đủ cho
+# debootstrap + kernel + headers (dễ "No space left on device" giữa chừng).
+DISK_BYTES=$(blockdev --getsize64 "$DISK" 2>/dev/null || echo 0)
+if [ "$DISK_BYTES" -gt 0 ]; then
+    DISK_GIB=$(( DISK_BYTES / 1024 / 1024 / 1024 ))
+    ROOT_GIB=$(( DISK_GIB - 1 - (SWAP_MIB / 1024) ))
+    if [ "$ROOT_GIB" -lt 8 ] && [ "$SWAP_MIB" -gt 0 ]; then
+        log_warn "Đĩa ${DISK_GIB}GiB quá nhỏ cho swap ${SWAP_MIB}MiB — tự động bỏ swap."
+        SWAP_MIB=0
+        SWAP_SIZE="0"
+        ROOT_GIB=$(( DISK_GIB - 1 ))
+    fi
+    if [ "$ROOT_GIB" -lt 8 ]; then
+        log_error "Đĩa ${DISK_GIB}GiB → phân vùng root chỉ còn ${ROOT_GIB}GiB, không đủ (cần ≥ 8GiB)."
+    fi
+    log_info "Đĩa ${DISK_GIB}GiB — phân vùng root sẽ có ~${ROOT_GIB}GiB."
+fi
+
 if [ "$SWAP_MIB" -gt 0 ]; then
     SWAP_MODE="zram"
 else
@@ -403,30 +422,58 @@ if [ -n "$SSH_KEY_FILE" ]; then
         || log_error "$SSH_KEY_FILE không phải public key OpenSSH hợp lệ."
 fi
 
-# Phát hiện card Wi-Fi của máy đích (live ISO đã nạp driver nên thấy được)
+# Phát hiện card mạng của máy đích (live ISO đã nạp driver nên thấy được)
+NET_IDS=""
+if command -v lspci &>/dev/null; then
+    NET_IDS=$(lspci -nn 2>/dev/null | grep -iE 'network controller|ethernet controller' || true)
+fi
+
+WIFI_VIA_USB=false
 if ls /sys/class/net 2>/dev/null | grep -q '^wl'; then
     HAS_WIFI=true
-elif command -v lspci &>/dev/null && lspci -nn 2>/dev/null | grep -qiE 'network controller.*(wireless|wi-fi)'; then
+elif echo "$NET_IDS" | grep -qiE 'network controller.*(wireless|wi-fi)'; then
     HAS_WIFI=true
+elif command -v lsusb &>/dev/null && lsusb 2>/dev/null | grep -qiE 'wireless|wlan|802\.11|wi-fi'; then
+    HAS_WIFI=true
+    WIFI_VIA_USB=true
+    log_info "Phát hiện Wi-Fi qua USB (lsusb) — driver chưa nạp trên Live."
+fi
+
+# Firmware: phải quét CẢ Ethernet, không chỉ Wi-Fi. Card LAN Realtek/Broadcom trên
+# desktop không có Wi-Fi vẫn cần firmware nhị phân, thiếu là mất mạng sau reboot.
+add_fw() {
+    local pkg="$1" _e
+    for _e in "${FIRMWARE_PKGS[@]:-}"; do
+        [ "$_e" = "$pkg" ] && return 0
+    done
+    FIRMWARE_PKGS+=("$pkg")
+}
+
+if echo "$NET_IDS" | grep -qi 'realtek'; then
+    add_fw firmware-realtek
+fi
+if echo "$NET_IDS" | grep -qi 'intel' && echo "$NET_IDS" | grep -qiE 'wireless|wi-fi'; then
+    add_fw firmware-iwlwifi
+fi
+if echo "$NET_IDS" | grep -qiE 'atheros|qualcomm'; then
+    add_fw firmware-atheros
+fi
+if echo "$NET_IDS" | grep -qi 'broadcom'; then
+    if echo "$NET_IDS" | grep -qiE 'wireless|wi-fi'; then
+        add_fw firmware-brcm80211
+    else
+        add_fw firmware-bnx2
+    fi
+fi
+if [ "$WIFI_VIA_USB" = true ]; then
+    add_fw firmware-misc-nonfree
+fi
+if [ "$HAS_WIFI" = true ] && [ "${#FIRMWARE_PKGS[@]}" -eq 0 ]; then
+    add_fw firmware-iwlwifi
+    add_fw firmware-realtek
 fi
 
 if [ "$HAS_WIFI" = true ]; then
-    WIFI_IDS=""
-    if command -v lspci &>/dev/null; then
-        WIFI_IDS=$(lspci -nn 2>/dev/null | grep -iE 'network controller' || true)
-    fi
-    if echo "$WIFI_IDS" | grep -qi 'intel'; then
-        FIRMWARE_PKGS+=(firmware-iwlwifi)
-    elif echo "$WIFI_IDS" | grep -qi 'realtek'; then
-        FIRMWARE_PKGS+=(firmware-realtek)
-    elif echo "$WIFI_IDS" | grep -qiE 'atheros|qualcomm'; then
-        FIRMWARE_PKGS+=(firmware-atheros)
-    elif echo "$WIFI_IDS" | grep -qi 'broadcom'; then
-        FIRMWARE_PKGS+=(firmware-brcm80211)
-    else
-        FIRMWARE_PKGS+=(firmware-iwlwifi firmware-realtek)
-    fi
-
     if [ -z "$WIFI_SSID" ]; then
         log_warn "Máy có Wi-Fi nhưng chưa truyền --wifi-ssid/--wifi-psk-file."
         log_warn "Sau reboot máy sẽ KHÔNG tự lên mạng — chỉ vào được nếu cắm dây LAN."
@@ -437,6 +484,10 @@ else
         log_warn "Bạn đã truyền --wifi-ssid nhưng KHÔNG thấy card Wi-Fi — profile sẽ không được tạo."
         log_warn "Nếu máy thật sự có card (driver chưa nạp), hãy kiểm tra 'lspci | grep -i network'."
     fi
+fi
+
+if [ "${#FIRMWARE_PKGS[@]}" -gt 0 ]; then
+    log_info "Firmware mạng sẽ cài: ${FIRMWARE_PKGS[*]}"
 fi
 
 # Không có Wi-Fi ⇒ đường vào duy nhất là Ethernet, nên phải kiểm tra link NGAY.
@@ -484,7 +535,7 @@ REQUIRED_TARGET_PKGS=(
     openssh-server wpasupplicant wireless-regdb iw
     network-manager systemd-timesyncd grub-efi-amd64 efibootmgr
 )
-if [ "$HAS_WIFI" = true ]; then
+if [ "${#FIRMWARE_PKGS[@]}" -gt 0 ]; then
     REQUIRED_TARGET_PKGS+=("${FIRMWARE_PKGS[@]}")
 fi
 if [ "$SB_ENABLED" = true ]; then
@@ -704,7 +755,21 @@ printf '%s\n' "${REQUIRED_TARGET_PKGS[@]}" > /mnt/root/.ks-required-pkgs
 chmod 600 /mnt/root/.ks-*
 
 # Dù thành công hay thất bại giữa chừng, không để secrets nằm lại trên đĩa đích
-trap 'rm -f /mnt/root/.ks-wifi-ssid /mnt/root/.ks-wifi-psk /mnt/root/.ks-authorized-key /mnt/root/.ks-fw-pkgs /mnt/root/.ks-required-pkgs 2>/dev/null || true' EXIT
+# Dọn dẹp khi thoát (thành công hay thất bại):
+#  1. không để secret tạm nằm lại trên đĩa đích
+#  2. gỡ bind mount của chroot — nếu chroot chết giữa chừng mà không gỡ, lần chạy
+#     sau sẽ gặp "device is busy" khi wipefs/parted
+cleanup_on_exit() {
+    rm -f /mnt/root/.ks-wifi-ssid /mnt/root/.ks-wifi-psk /mnt/root/.ks-authorized-key \
+          /mnt/root/.ks-fw-pkgs /mnt/root/.ks-required-pkgs 2>/dev/null || true
+    local mp
+    for mp in /mnt/sys/firmware/efi/efivars /mnt/sys /mnt/proc /mnt/dev/pts /mnt/dev /mnt/run; do
+        if mountpoint -q "$mp" 2>/dev/null; then
+            umount -R "$mp" 2>/dev/null || umount -l "$mp" 2>/dev/null || true
+        fi
+    done
+}
+trap cleanup_on_exit EXIT INT TERM
 
 # --------------------------- BƯỚC 3: CẤU HÌNH TRONG CHROOT --------------------
 step "6. Thiết lập môi trường và cấu hình hệ thống trong Chroot..."
@@ -1010,12 +1075,22 @@ if command -v arch-chroot &>/dev/null; then
         "$SB_FLAG" \
         "$SWAP_MODE"
 else
-    log_info "Thực thi chroot bằng bind-mounts tiêu chuẩn..."
-    mount --bind /dev /mnt/dev
-    mount --bind /dev/pts /mnt/dev/pts
-    mount --bind /proc /mnt/proc
-    mount --bind /sys /mnt/sys
-    mount --bind /run /mnt/run
+    log_info "Thực thi chroot bằng bind-mounts (recursive)..."
+    # --rbind bắt buộc: các filesystem con (efivarfs tại /sys/firmware/efi/efivars,
+    # devpts, cgroup) phải đi vào chroot. Bind thường làm efivars rỗng →
+    # grub-install báo "EFI variables are not supported" và không tạo được entry.
+    mount --rbind /dev /mnt/dev   && mount --make-rslave /mnt/dev
+    mount --rbind /proc /mnt/proc && mount --make-rslave /mnt/proc
+    mount --rbind /sys /mnt/sys   && mount --make-rslave /mnt/sys
+    mount --rbind /run /mnt/run   && mount --make-rslave /mnt/run
+
+    # Fallback: nếu vì lý do nào đó efivarfs không vào theo --rbind, bind riêng.
+    if [ -d /sys/firmware/efi/efivars ] && \
+       [ -z "$(ls -A /mnt/sys/firmware/efi/efivars 2>/dev/null)" ]; then
+        mkdir -p /mnt/sys/firmware/efi/efivars
+        mount --bind /sys/firmware/efi/efivars /mnt/sys/firmware/efi/efivars 2>/dev/null || \
+            log_warn "Không bind được efivarfs — GRUB có thể không tạo được EFI entry (script sẽ tạo ở bước sau)."
+    fi
 
     chroot /mnt /setup_system.sh \
         "$TIMEZONE" \
@@ -1029,7 +1104,11 @@ else
         "$SB_FLAG" \
         "$SWAP_MODE"
 
-    umount /mnt/run /mnt/sys /mnt/proc /mnt/dev/pts /mnt/dev 2>/dev/null || true
+    for _mp in /mnt/sys/firmware/efi/efivars /mnt/run /mnt/sys /mnt/proc /mnt/dev/pts /mnt/dev; do
+        if mountpoint -q "$_mp" 2>/dev/null; then
+            umount -R "$_mp" 2>/dev/null || umount -l "$_mp" 2>/dev/null || true
+        fi
+    done
 fi
 
 rm -f /mnt/setup_system.sh
