@@ -16,21 +16,16 @@
 # --- Ổ đĩa đích (BẮT BUỘC) ---
 DISK=/dev/sda
 
-# --- Profile vận hành: server | k8s ---
-#   server : mặc định, có phân vùng swap
-#   k8s    : KHÔNG swap + bật sẵn overlay/br_netfilter/ip_forward cho kubeadm
-PROFILE=k8s
-
 # --- Swap ---
-#   0        : KHÔNG tạo phân vùng swap (bắt buộc cho Kubernetes: kubelet failSwapOn=true)
+#   0        : KHÔNG tạo phân vùng swap (layout chỉ còn ESP + root ext4)
 #   4G/2048M : tạo phân vùng swap tương ứng
-# Bỏ dòng này để dùng mặc định theo PROFILE (k8s → 0, server → 4G).
+# Mặc định của script là 4G.
 SWAP_SIZE=0
 
 # --- Tài khoản / máy ---
 USER_NAME=ka
 USER_PASS=1
-HOSTNAME=k8s-node1
+HOSTNAME=debian
 TIMEZONE=Asia/Ho_Chi_Minh
 
 # --- Debian ---

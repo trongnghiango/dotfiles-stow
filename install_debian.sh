@@ -10,12 +10,10 @@ IFS=$'\n\t'
 
 # --------------------------- GIÁ TRỊ MẶC ĐỊNH --------------------------------
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROFILE="server"                          # server | k8s (k8s = không swap + kernel sẵn sàng Kubernetes)
 CONFIG_FILE=""                            # --config: file KEY=VALUE (tự dùng ./install.conf nếu có)
 PRINT_CONFIG=false                        # --print-config: in cấu hình đã phân giải rồi thoát
 DISK=""
 SWAP_SIZE="4G"
-SWAP_EXPLICIT=false                       # true khi SWAP_SIZE được đặt từ file cấu hình hoặc CLI
 USER_NAME="ka"
 USER_PASS="1"
 HOSTNAME="debian"
@@ -76,8 +74,8 @@ Ví dụ máy KHÔNG có console, chỉ vào được qua Wi-Fi + SSH:
     --ssh-key ~/.ssh/id_ed25519.pub \\
     --yes
 
-Ví dụ cài kiểu KUBERNETES (KHÔNG có phân vùng swap, kernel sẵn sàng cho K8s/kubelet):
-  sudo $0 --disk /dev/nvme0n1 --profile k8s --yes
+Ví dụ cài KHÔNG phân vùng swap (SWAP_SIZE=0):
+  sudo $0 --disk /dev/nvme0n1 --swap 0 --yes
 
 Ví dụ cấu hình bằng file (không phải nhớ tham số dài):
   cp install.conf.example install.conf
@@ -91,8 +89,6 @@ Danh sách tham số:
   -p, --password <pass>     Mật khẩu chung cho User và Root (mặc định: 1)
   -n, --hostname <host>     Tên máy / Hostname (mặc định: debian)
   -s, --swap <size>         Dung lượng phân vùng Swap (mặc định: 4G, đặt 0 để tắt swap; nhận dạng: 4G, 2048M)
-                            Với --profile k8s mặc định là 0 (không swap)
-      --profile <name>      server | k8s (k8s: không swap + bật sẵn module/sysctl Kubernetes)
   -C, --config <file>       Nạp cấu hình từ file KEY=VALUE (tự nạp ./install.conf nếu có)
       --print-config        In cấu hình đã phân giải rồi thoát (dry-run, không ghi đĩa)
       --suite <release>     Phiên bản Debian (trixie | bookworm | sid, mặc định: trixie)
@@ -119,8 +115,7 @@ cfg_apply() {
     local key="$1" val="$2"
     case "$key" in
         DISK)               DISK="$val" ;;
-        SWAP_SIZE)          SWAP_SIZE="$val"; SWAP_EXPLICIT=true ;;
-        PROFILE)            PROFILE="$val" ;;
+        SWAP_SIZE)          SWAP_SIZE="$val" ;;
         USER_NAME)          USER_NAME="$val" ;;
         USER_PASS)          USER_PASS="$val" ;;
         HOSTNAME)           HOSTNAME="$val" ;;
@@ -232,14 +227,9 @@ while [ $# -gt 0 ]; do
             HOSTNAME="${1#*=}"; shift ;;
         -s|--swap)
             [ $# -ge 2 ] || log_error "Thiếu giá trị cho tham số $1"
-            SWAP_SIZE="$2"; SWAP_EXPLICIT=true; shift 2 ;;
+            SWAP_SIZE="$2"; shift 2 ;;
         --swap=*)
-            SWAP_SIZE="${1#*=}"; SWAP_EXPLICIT=true; shift ;;
-        --profile)
-            [ $# -ge 2 ] || log_error "Thiếu giá trị cho tham số $1"
-            PROFILE="$2"; shift 2 ;;
-        --profile=*)
-            PROFILE="${1#*=}"; shift ;;
+            SWAP_SIZE="${1#*=}"; shift ;;
         -C|--config)
             [ $# -ge 2 ] || log_error "Thiếu giá trị cho tham số $1"
             CONFIG_FILE="$2"; shift 2 ;;
@@ -306,24 +296,13 @@ while [ $# -gt 0 ]; do
     esac
 done
 
-# --------------------------- CHUẨN HÓA PROFILE --------------------------------
-case "$PROFILE" in
-    server|k8s) ;;
-    *) log_error "PROFILE không hợp lệ: '$PROFILE' (chỉ nhận: server | k8s)" ;;
-esac
-
-# Kubernetes/kubelet mặc định từ chối swap → profile k8s không tạo phân vùng swap
-if [ "$PROFILE" = "k8s" ] && [ "$SWAP_EXPLICIT" = false ]; then
-    SWAP_SIZE="0"
-fi
-
+# --------------------------- CHUẨN HÓA CẤU HÌNH (DRY-RUN) --------------------
 if [ "$PRINT_CONFIG" = true ]; then
     _pc_mib="$(swap_size_to_mib "$SWAP_SIZE" || echo ERR)"
     [ "$_pc_mib" = "ERR" ] && log_error "Định dạng swap không hợp lệ: '$SWAP_SIZE'. Ví dụ: 4G, 2048M, 0"
     cat <<EOF
 --- CẤU HÌNH ĐÃ PHÂN GIẢI (dry-run, không ghi đĩa) ---
 File cấu hình : ${CONFIG_FILE:-<không có>}
-Profile       : $PROFILE
 Disk          : ${DISK:-<chưa đặt>}
 Swap          : $SWAP_SIZE  → phân vùng swap: $([ "$_pc_mib" -gt 0 ] && echo "CÓ (${_pc_mib}MiB)" || echo KHÔNG)
 User / Host   : ${USER_NAME}@${HOSTNAME}
@@ -534,7 +513,6 @@ THÔNG TIN CẤU HÌNH CÀI ĐẶT DEBIAN:
 ------------------------------------------------------------------------------
   Ổ đĩa đích      : $DISK
   Phân vùng       : ESP (1GB FAT32) + $([ "$SWAP_MIB" -gt 0 ] && echo "Swap (${SWAP_MIB}MiB) + " || echo "")Root (ext4)
-  Profile         : $PROFILE ($([ "$SWAP_MIB" -gt 0 ] && echo "có swap" || echo "KHÔNG swap — k8s-ready"))
   Phiên bản Debian: $SUITE (Mirror: $MIRROR)
   Tài khoản       : $USER_NAME
   Hostname        : $HOSTNAME
@@ -763,9 +741,7 @@ TARGET_BRANCH="$6"
 TARGET_HAS_WIFI="${7:-no}"
 TARGET_SSH_PASSWORD="${8:-yes}"
 TARGET_SECURE_BOOT="${9:-no}"
-TARGET_PROFILE="${10:-server}"
-TARGET_SWAP_MODE="${11:-zram}"
-TARGET_DISK="${12:-}"
+TARGET_SWAP_MODE="${10:-zram}"
 
 export DEBIAN_FRONTEND=noninteractive
 
@@ -981,12 +957,9 @@ fi
 if [ -f /boot/efi/EFI/debian/shimx64.efi ] && [ ! -f /boot/efi/EFI/BOOT/grubx64.efi ]; then
     echo "  [FAIL] EFI/BOOT thiếu grubx64.efi — shim không nạp được GRUB"; FAIL=1
 fi
-# Profile không swap (k8s): fstab tuyệt đối không được còn dòng swap
+# Yêu cầu KHÔNG swap: fstab tuyệt đối không được còn dòng swap
 if [ "$TARGET_SWAP_MODE" = "off" ] && grep -qE '[[:space:]]swap[[:space:]]' /etc/fstab; then
     echo "  [FAIL] yêu cầu KHÔNG swap nhưng /etc/fstab vẫn còn dòng swap"; FAIL=1
-fi
-if [ ! -f /etc/default/ka-server ]; then
-    echo "  [FAIL] thiếu /etc/default/ka-server (profile vận hành)"; FAIL=1
 fi
 if [ "${TARGET_HAS_WIFI}" = "yes" ] && [ -s /root/.ks-wifi-psk ]; then
     if [ ! -f "$CONN_FILE" ]; then
@@ -1001,32 +974,7 @@ if [ "$FAIL" -ne 0 ]; then
 fi
 echo "  ✓ Tất cả kiểm tra hậu cài đặt đều đạt"
 
-echo ">>> [Chroot] 9. Ghi profile vận hành (swap/Kubernetes) cho ka-setup-server..."
-install -d -m 0755 /etc/default
-{
-    echo "# Sinh tự động bởi install_debian.sh — ka-setup-server đọc file này (KEY=VALUE)."
-    echo "KA_PROFILE=${TARGET_PROFILE}"
-    echo "KA_SWAP=${TARGET_SWAP_MODE}"
-} > /etc/default/ka-server
-chmod 0644 /etc/default/ka-server
-echo "  ✓ KA_PROFILE=${TARGET_PROFILE} KA_SWAP=${TARGET_SWAP_MODE}"
-
-if [ "$TARGET_PROFILE" = "k8s" ]; then
-    echo "  → Chuẩn bị kernel cho Kubernetes (modules-load + sysctl)..."
-    cat > /etc/modules-load.d/ka-k8s.conf <<'EOF_K8S_MOD'
-overlay
-br_netfilter
-EOF_K8S_MOD
-    cat > /etc/sysctl.d/99-ka-k8s.conf <<'EOF_K8S_SYSCTL'
-# Bắt buộc cho kubeadm + CNI (Calico/Flannel)
-net.ipv4.ip_forward = 1
-net.bridge.bridge-nf-call-iptables = 1
-net.bridge.bridge-nf-call-ip6tables = 1
-EOF_K8S_SYSCTL
-    chmod 0644 /etc/modules-load.d/ka-k8s.conf /etc/sysctl.d/99-ka-k8s.conf
-fi
-
-echo ">>> [Chroot] 10. Tải Dotfiles Stow về ${USER_HOME}/.dotfiles..."
+echo ">>> [Chroot] 9. Tải Dotfiles Stow về ${USER_HOME}/.dotfiles..."
 if [ -n "${TARGET_DOTFILES}" ]; then
     echo "Đang clone dotfiles (${TARGET_BRANCH}) vào ${USER_HOME}/.dotfiles..."
     if sudo -u "${TARGET_USER}" git clone --depth=1 -b "${TARGET_BRANCH}" "${TARGET_DOTFILES}" "${USER_HOME}/.dotfiles"; then
@@ -1060,9 +1008,7 @@ if command -v arch-chroot &>/dev/null; then
         "$HAS_WIFI_FLAG" \
         "$SSH_PASS_FLAG" \
         "$SB_FLAG" \
-        "$PROFILE" \
-        "$SWAP_MODE" \
-        "$DISK"
+        "$SWAP_MODE"
 else
     log_info "Thực thi chroot bằng bind-mounts tiêu chuẩn..."
     mount --bind /dev /mnt/dev
@@ -1081,9 +1027,7 @@ else
         "$HAS_WIFI_FLAG" \
         "$SSH_PASS_FLAG" \
         "$SB_FLAG" \
-        "$PROFILE" \
-        "$SWAP_MODE" \
-        "$DISK"
+        "$SWAP_MODE"
 
     umount /mnt/run /mnt/sys /mnt/proc /mnt/dev/pts /mnt/dev 2>/dev/null || true
 fi
@@ -1124,9 +1068,9 @@ echo -e "\e[1;32m   CÀI ĐẶT BASE DEBIAN HOÀN TẤT THÀNH CÔNG!           
 echo -e "\e[1;32m===============================================================\e[0m"
 log_info "Hệ thống Base Debian ($SUITE) với GRUB EFI & Dotfiles đã sẵn sàng."
 if [ "$SWAP_MIB" -gt 0 ]; then
-    log_info "Profile: ${PROFILE} — phân vùng swap: ${SWAP_MIB}MiB"
+    log_info "Phân vùng swap: ${SWAP_MIB}MiB"
 else
-    log_info "Profile: ${PROFILE} — KHÔNG có phân vùng swap (ka-setup-server sẽ không tạo zRAM)"
+    log_info "KHÔNG có phân vùng swap (theo yêu cầu SWAP_SIZE=0)."
 fi
 log_info "SSH đã bật và sẽ tự khởi động lại; host key đã sinh sẵn."
 if [ "$HAS_WIFI_FLAG" = "yes" ] && [ -n "$WIFI_SSID" ]; then

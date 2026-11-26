@@ -25,26 +25,26 @@ sudo ./install_debian.sh --config install.conf --yes
 ```
 
 File cấu hình là `KEY=VALUE`, tham số dòng lệnh **luôn thắng** file.
-Các khóa hợp lệ: `DISK`, `PROFILE`, `SWAP_SIZE`, `USER_NAME`, `USER_PASS`,
+Các khóa hợp lệ: `DISK`, `SWAP_SIZE`, `USER_NAME`, `USER_PASS`,
 `HOSTNAME`, `TIMEZONE`, `SUITE`, `MIRROR`, `DOTFILES_REPO`, `DOTFILES_BRANCH`,
 `WIFI_SSID`, `WIFI_PSK_FILE`, `SSH_KEY_FILE`, `SSH_PASSWORD_AUTH`,
 `ALLOW_OFFLINE`, `AUTO_CONFIRM`.
 
-### 1b. Không swap / chuẩn bị cho Kubernetes
+### 1b. Không phân vùng swap
 
-Kubelet mặc định từ chối swap (`failSwapOn=true`), nên profile `k8s` **không tạo
-phân vùng swap** và bật sẵn những thứ kubeadm cần:
+Mặc định có swap 4G. Muốn bỏ hẳn phân vùng swap thì đặt `SWAP_SIZE=0`
+(trong `install.conf`) hoặc `--swap 0` trên dòng lệnh:
 
 ```bash
-sudo ./install_debian.sh --disk /dev/sda --profile k8s --yes
+sudo ./install_debian.sh --disk /dev/sda --swap 0 --yes
 ```
 
-- `SWAP_SIZE` mặc định thành `0` (vẫn có thể ép `--swap 4G`, CLI thắng).
-- Ghi `/etc/default/ka-server` với `KA_PROFILE=k8s`, `KA_SWAP=off` để `ks` không tạo zRAM.
-- Tạo `/etc/modules-load.d/ka-k8s.conf` (`overlay`, `br_netfilter`) và
-  `/etc/sysctl.d/99-ka-k8s.conf` (`ip_forward`, `bridge-nf-call-iptables/ip6tables`).
+Khi đó layout chỉ còn **ESP 1GB + root ext4**, `fstab` không có dòng swap, và
+có bước verify dừng lại nếu vẫn thấy swap trong `fstab`.
 
-Muốn giữ swap cổ điển thì dùng `--profile server` (mặc định) hoặc `--swap 4G`.
+Lưu ý: `ks` vẫn cấu hình zRAM như cũ (zRAM là swap nén trong RAM, không phải
+phân vùng). Nếu chạy Kubernetes sau này và kubelet từ chối swap, tắt zRAM bằng
+`sudo swapoff -a` + xoá `/etc/systemd/zram-generator.conf`.
 
 Máy **không có console** (chỉ vào được qua mạng) phải truyền thêm Wi-Fi và SSH key,
 nếu không sau reboot sẽ mất máy:
@@ -88,19 +88,10 @@ cd ~/.dotfiles
 stow, Docker socket activation, sysctl/zRAM/THP/I-O scheduler, UFW + Fail2ban,
 tắt dịch vụ thừa, timezone/locale. Login shell mặc định là **Bash**.
 
-`ks` đọc profile do installer ghi ở `/etc/default/ka-server`:
-
-| Khóa | Giá trị | Tác dụng |
-|---|---|---|
-| `KA_PROFILE` | `server` \| `k8s` | `k8s` → bật overlay/br_netfilter/ip_forward + bridge-nf |
-| `KA_SWAP` | `zram` \| `off` | `off` → `swapoff -a`, xoá zram-generator, `vm.swappiness=0` |
-
-Kiểm tra profile trước khi chạy: `./scripts/.local/bin/ks --check`.
-
 ## Thành phần
 
 - `install_debian.sh` — debootstrap base OS + GRUB UEFI + user/locale.
-- `install.conf.example` — mẫu file cấu hình cho installer (kể cả chế độ không swap).
+- `install.conf.example` — mẫu file cấu hình cho installer (`SWAP_SIZE=0` để bỏ swap).
 - `pkgs/server.csv` — danh sách gói Debian tối giản.
 - `scripts/.local/bin/ka-setup-server` (alias `ks`) — thiết lập post-install.
 - `scripts/.local/bin/setup-drivers/debian.sh` — driver APT server-minimal.
