@@ -943,6 +943,17 @@ HOSTS
 
 systemctl enable NetworkManager
 
+# efivarfs: systemd của Debian KHÔNG automount efivarfs (khác Arch). Thiếu nó thì
+# efibootmgr/grub-install không ghi được NVRAM ("EFI variables are not supported").
+if [ ! -d /sys/firmware/efi ] ; then
+    echo "  ! Không có /sys/firmware/efi trong chroot — bỏ qua efivarfs"
+elif grep -q 'efivars' /etc/fstab; then
+    echo "  ✓ /etc/fstab đã có efivarfs"
+else
+    printf 'efivarfs\t/sys/firmware/efi/efivars\tefivarfs\tdefaults,nofail,nosuid,nodev,noexec\t0\t0\n' >> /etc/fstab
+    echo "  ✓ Đã thêm efivarfs vào /etc/fstab"
+fi
+
 echo ">>> [Chroot] 4. Cài đặt GRUB EFI Bootloader..."
 GRUB_EXTRA=()
 if [ "$TARGET_SECURE_BOOT" = "yes" ]; then
@@ -1083,6 +1094,9 @@ if [ ! -s /boot/grub/grub.cfg ]; then
 fi
 if [ ! -f /boot/efi/EFI/BOOT/BOOTX64.EFI ]; then
     echo "  [FAIL] thiếu EFI fallback /EFI/BOOT/BOOTX64.EFI"; FAIL=1
+fi
+if [ -d /sys/firmware/efi ] && ! grep -q 'efivars' /etc/fstab; then
+    echo "  [FAIL] fstab thiếu efivarfs — efibootmgr/grub-install sẽ không ghi được NVRAM"; FAIL=1
 fi
 if [ "$TARGET_SECURE_BOOT" = "yes" ] && [ ! -f /boot/efi/EFI/debian/shimx64.efi ]; then
     echo "  [FAIL] Secure Boot bật nhưng thiếu shimx64.efi đã ký"; FAIL=1
