@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# ==============================================================================
+# nvim-sync-check — cảnh báo khi nvim/ trôi giữa main và server-minimal
+# Dùng: nvim-sync-check [branch-chuẩn] [--strict]
+#   branch-chuẩn mặc định: main
+#   --strict: trả exit 1 khi có trôi (dùng cho pre-commit/CI)
+# ==============================================================================
+set -uo pipefail
+
+BASE="main"
+STRICT=0
+for arg in "$@"; do
+  case "$arg" in
+    --strict) STRICT=1 ;;
+    -*) echo "Tham số không hợp lệ: $arg" >&2; exit 2 ;;
+    *) BASE="$arg" ;;
+  esac
+done
+
+git rev-parse --git-dir >/dev/null 2>&1 || { echo "Không phải git repo." >&2; exit 2; }
+CUR="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo '?')"
+
+if [ "$CUR" = "$BASE" ]; then
+  echo "OK: đang ở $BASE — không có gì để so."
+  exit 0
+fi
+
+if ! git rev-parse --verify -q "$BASE" >/dev/null; then
+  echo "SKIP: không có branch '$BASE' ở local (fetch trước rồi chạy lại)." >&2
+  exit 0
+fi
+
+if git diff --quiet "$BASE" -- nvim/; then
+  echo "OK: nvim/ giống $BASE — không trôi."
+  exit 0
+fi
+
+echo "WARN: nvim/ khác $BASE:" >&2
+git --no-pager diff --stat "$BASE" -- nvim/ >&2
+cat >&2 <<EOF
+
+Đồng bộ một chiều (chọn 1):
+  git switch $BASE && git checkout $CUR -- nvim/   # kéo bản của $CUR sang $BASE
+  git switch $CUR && git checkout $BASE -- nvim/   # kéo bản của $BASE về $CUR
+
+Nguyên tắc: khác biệt desktop/server chỉ nằm trong lua/core/env.lua.
+EOF
+
+[ "$STRICT" = "1" ] && exit 1
+exit 0

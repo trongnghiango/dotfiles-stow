@@ -14,7 +14,7 @@ Branch này là bản rút gọn của `main`, chỉ giữ các stow package CLI
 git/       ~/.config/git/{config,ignore}
 lf/        ~/.config/lf/{lfrc,scope,cleaner,icons,shortcutrc}
 nvim/      ~/.config/nvim/
-scripts/   ~/.local/bin/{stow-safe,agent-guard,ka-setup-server,ks,setup-drivers/debian.sh}
+scripts/   ~/.local/bin/{stow-safe,agent-guard,nvim-sync-check,ka-setup-server,ks,setup-drivers/debian.sh}
 shell/     ~/.bashrc, ~/.bash_profile, ~/.config/shell/{profile,aliasrc,inputrc,bm-dirs,bm-files}, direnv, starship.toml
 tmux/      ~/.config/tmux/tmux.conf
 pkgs/      server.csv (Debian CLI packages)
@@ -70,6 +70,10 @@ cd ~/dotfiles-stow && ./scripts/.local/bin/ks
 6. **Một công cụ duy nhất cho mỗi chức năng**: không giữ bản sao Bash/Python song song.
 7. **Không thêm lại thành phần desktop** (X11, WM, audio, bluetooth, font GUI) vào branch này.
 8. **Không `dlopen` / nạp native ngoài vào tiến trình lõi**.
+9. **`nvim/` chỉ có một bản**: desktop (`main`) và server (`server-minimal`) dùng chung
+   đúng các file giống nhau. Khác biệt môi trường phải biểu diễn bằng runtime gate trong
+   `nvim/.config/nvim/lua/core/env.lua` (`remote`, `full`, `use_osc52`), **không** tách
+   file cấu hình riêng cho từng branch. Kiểm tra: `scripts/.local/bin/nvim-sync-check`.
 
 ---
 
@@ -103,11 +107,12 @@ cd ~/dotfiles-stow && ./scripts/.local/bin/ks
 - **Chroot**: bind mount `--rbind` + `--make-rslave` cho `/dev /proc /sys /run` để
   efivarfs vào được trong chroot (grub-install cần), `cleanup_on_exit` gỡ mount khi
   lỗi. Không dùng `mount -t devpts`/`mount -t efivarfs` lồng thêm.
-- **Neovim**: config cần **≥ 0.11** (`winborder`, `vim.diagnostic.jump`).
-  Debian 13 có 0.10.4, Debian 12 có 0.7.2 → `debian_setup_nvim` tự tải bản mới
-  vào `~/.local` khi phiên bản APT < 0.11. Mặc định chỉ cài tool Mason không
-  cần node/pip; đặt `KA_NVIM_FULL=1` để cài full stack (cần `nodejs`, `npm`,
-  `python3-pip`, `python3-venv`).
+- **Neovim**: một bản config dùng chung cho desktop và server; `lua/core/env.lua` tự phát
+  hiện `remote` (SSH/headless) → server chạy minimal, desktop chạy full. Override:
+  `KA_NVIM_FULL=1` (ép full) / `KA_NVIM_FULL=0` (ép minimal). Config cần **≥ 0.11**
+  (`winborder`, `vim.diagnostic.jump`); Debian 13 có 0.10.4, Debian 12 có 0.7.2 →
+  `debian_setup_nvim` tự tải bản mới vào `~/.local` khi phiên bản APT < 0.11.
+  Full stack cần `nodejs`, `npm`, `python3-pip`, `python3-venv`.
 - **Docker (Debian 13)**: `docker.io` chỉ là daemon; `docker-cli` được cài
   riêng trong `server.csv` vì trixie đã tách gói. `docker-compose` là Compose v2.
 - **Debian 13 (trixie)**: đã đối chiếu — neovim 0.10.4 (bootstrap 0.11+),
