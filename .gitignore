@@ -15,3 +15,6 @@ extracted_dsh_session/
 
 # Cấu hình cài đặt theo từng máy (có thể chứa mật khẩu) — chỉ commit install.conf.example
 install.conf
+
+# Scratch của session agent (askpass helper, known_hosts probe, file tạm khi chia commit)
+.tmp/
