@@ -26,7 +26,9 @@ vim.opt.mouse = "a"
 
 -- Clipboard: OSC52 hoạt động qua SSH (không cần xclip/wl-copy).
 -- Neovim >= 0.10 có sẵn vim.ui.clipboard.osc52.
-if vim.fn.has("nvim-0.10") == 1 then
+-- Desktop có provider native (wl-copy/xclip) thì dùng native cho đúng.
+local env = require("core.env")
+if env.has("nvim-0.10") and env.use_osc52 then
   local osc52 = require("vim.ui.clipboard.osc52")
   vim.g.clipboard = {
     name = "OSC52",

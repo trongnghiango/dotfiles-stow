@@ -33,8 +33,8 @@ require("lazy").setup({ import = "plugins" }, {
     -- colorscheme = { "habamax" }
   },
   checker = {
-    -- Server-minimal: tắt kiểm tra update ngầm; bật khi KA_NVIM_FULL=1
-    enabled = vim.env.KA_NVIM_FULL == "1",
+    -- Desktop: bật; server (SSH/headless): tắt để không gọi mạng ngầm.
+    enabled = require("core.env").full,
     frequency = 3600,
     notify = false,
   },

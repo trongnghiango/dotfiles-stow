@@ -121,9 +121,8 @@ return {
           "yaml",
           "zig",
         },
-        -- Server-minimal: không tự tải parser khi mở file.
-        -- Bật auto-install khi KA_NVIM_FULL=1 (cần tree-sitter-cli).
-        auto_install = vim.env.KA_NVIM_FULL == "1",
+        -- Desktop: tự tải parser khi mở file. Server: tắt (cần tree-sitter-cli + mạng).
+        auto_install = require("core.env").full,
       })
       -- Enable treesitter-based highlighting and indentation
       vim.api.nvim_create_autocmd("FileType", {

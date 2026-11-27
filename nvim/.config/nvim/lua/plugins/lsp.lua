@@ -253,8 +253,8 @@ return {
     dependencies = { "mason-org/mason-lspconfig.nvim" },
     config = function()
       -- Server-minimal: chỉ tool cài bằng binary prebuilt (không cần node/npm/pip).
-      -- Đặt KA_NVIM_FULL=1 để cài full stack
-      -- (cần: nodejs, npm, python3-pip, python3-venv).
+      -- Desktop cài full stack; server chỉ tool prebuilt.
+      -- (full stack cần: nodejs, npm, python3-pip, python3-venv).
       local base_tools = {
         "lua_ls",     -- prebuilt
         "shellcheck", -- prebuilt
@@ -289,7 +289,7 @@ return {
         "isort",
       }
       local tools = base_tools
-      if vim.env.KA_NVIM_FULL == "1" then
+      if require("core.env").full then
         tools = vim.list_extend(base_tools, full_tools)
       end
       require("mason-tool-installer").setup({ ensure_installed = tools })
