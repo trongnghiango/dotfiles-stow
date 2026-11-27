@@ -297,10 +297,21 @@ fs-type = swap
 EOF
       log_success "Đã tạo zram-generator config (thuật toán: $zram_algo)."
     fi
-    if systemctl list-unit-files | grep -q "systemd-zram-setup@"; then
-      sudo systemctl daemon-reload
-      sudo systemctl restart "systemd-zram-setup@zram0.service" &>/dev/null || true
-      log_success "Đã kích hoạt zRAM."
+    # daemon-reload trước khi dò unit: gói vừa cài trong cùng lượt ks nên
+    # list-unit-files có thể chưa thấy systemd-zram-setup@
+    sudo systemctl daemon-reload
+    if systemctl list-unit-files --no-pager 2>/dev/null | grep -q "systemd-zram-setup@"; then
+      if /sbin/swapon --show=NAME --noheadings 2>/dev/null | grep -q "zram0"; then
+        log_success "zRAM đang hoạt động — bỏ qua restart (tránh start-limit-hit)."
+      else
+        sudo systemctl start "systemd-zram-setup@zram0.service" &>/dev/null || true
+        sudo systemctl start dev-zram0.swap &>/dev/null || true
+        if /sbin/swapon --show=NAME --noheadings 2>/dev/null | grep -q "zram0"; then
+          log_success "Đã kích hoạt zRAM."
+        else
+          log_warn "zRAM chưa kích hoạt — chạy: sudo systemctl reset-failed dev-zram0.swap && sudo systemctl start dev-zram0.swap"
+        fi
+      fi
     fi
   fi
 
