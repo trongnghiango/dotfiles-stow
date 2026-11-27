@@ -34,6 +34,14 @@ log_error()   { echo -e "${RED}[ERROR]${NC}   $1" >&2; }
 log_step()    { echo -e "\n${CYAN}${BOLD}▸ $1${NC}"; }
 log_dim()     { echo -e "${DIM}  $1${NC}"; }
 
+# Kiểm tra công cụ có tồn tại, kể cả khi nằm ở /usr/sbin hoặc /sbin
+# (PATH của user thường trên Debian không có sbin → 'command -v ufw' trả false
+# dù gói đã cài, khiến phần firewall/sysctl bị bỏ qua âm thầm).
+has_cmd() {
+  command -v "$1" &>/dev/null && return 0
+  [ -x "/usr/sbin/$1" ] || [ -x "/sbin/$1" ]
+}
+
 # --- Detect dotfiles root ---
 _SCRIPT_REAL="$(readlink -f "${BASH_SOURCE[0]}")"
 _SCRIPT_DIR="$(cd "$(dirname "$_SCRIPT_REAL")" && pwd)"
@@ -266,7 +274,7 @@ EOF
     log_dim "BBR không khả dụng — dùng fq_codel"
   fi
 
-  if command -v sysctl &>/dev/null; then
+  if has_cmd sysctl; then
     sudo sysctl -p "$sysctl_file" &>/dev/null || sudo sysctl --system &>/dev/null || true
     log_success "Đã áp dụng sysctl server."
   fi
@@ -320,7 +328,7 @@ ACTION=="add|change", KERNEL=="sd[a-z]*", ATTR{queue/rotational}=="1", ATTR{queu
 ACTION=="add|change", KERNEL=="sd[a-z]*", ATTR{queue/rotational}=="0", ATTR{queue/scheduler}="mq-deadline"
 ACTION=="add|change", KERNEL=="nvme[0-9]*", ATTR{queue/scheduler}="none"
 EOF
-  if command -v udevadm &>/dev/null; then
+  if has_cmd udevadm; then
     sudo udevadm control --reload 2>/dev/null || true
     sudo udevadm trigger --subsystem-match=block 2>/dev/null || true
     log_success "Đã kích hoạt I/O Scheduler rules."
@@ -336,7 +344,7 @@ setup_security() {
   log_step "Cấu hình Firewall (UFW) & Fail2ban cơ bản..."
 
   # UFW
-  if command -v ufw &>/dev/null; then
+  if has_cmd ufw; then
     if sudo ufw status 2>/dev/null | grep -qi "Status: active"; then
       log_info "UFW đang active — chỉ bổ sung rule, không reset."
     else
@@ -355,7 +363,7 @@ setup_security() {
   fi
 
   # Fail2ban
-  if command -v fail2ban-server &>/dev/null; then
+  if has_cmd fail2ban-server; then
     log_info "Cấu hình Fail2ban (SSH protection)..."
     sudo mkdir -p /etc/fail2ban/jail.d
     sudo tee /etc/fail2ban/jail.d/sshd.local >/dev/null <<'EOF'
