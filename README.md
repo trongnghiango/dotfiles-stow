@@ -99,7 +99,6 @@ tắt dịch vụ thừa, timezone/locale. Login shell mặc định là **Bash*
 - `scripts/.local/bin/ka-setup-server` (alias `ks`) — thiết lập post-install.
 - `scripts/.local/bin/setup-drivers/debian.sh` — driver APT server-minimal.
 - Stow packages: `shell`, `git`, `tmux`, `nvim`, `lf`, `scripts`.
-- `zsh/` — tuỳ chọn, **không stow mặc định**.
 
 ## Kiểm tra sau cài
 

@@ -17,7 +17,6 @@ nvim/      ~/.config/nvim/
 scripts/   ~/.local/bin/{stow-safe,agent-guard,ka-setup-server,ks,setup-drivers/debian.sh}
 shell/     ~/.bashrc, ~/.bash_profile, ~/.config/shell/{profile,aliasrc,inputrc,bm-dirs,bm-files}, direnv, starship.toml
 tmux/      ~/.config/tmux/tmux.conf
-zsh/       ~/.config/zsh/* (TUỲ CHỌN — không stow mặc định)
 pkgs/      server.csv (Debian CLI packages)
 ```
 
@@ -92,8 +91,8 @@ cd ~/dotfiles-stow && ./scripts/.local/bin/ks
 
 ## 5. GHI CHÚ VẬN HÀNH
 
-- **Shell**: mặc định **Bash** (login shell). `zsh/` là tuỳ chọn: cài `zsh` +
-  `stow-safe zsh` + `chsh -s "$(command -v zsh)"` nếu muốn dùng.
+- **Shell**: duy nhất **Bash** (login shell). Không còn package `zsh/` trong branch này;
+  muốn dùng zsh thì cài tay và tự quản lý config, không stow từ repo.
 - **Swap**: mặc định có phân vùng swap 4G. `SWAP_SIZE=0` (trong `install.conf`) hoặc
   `--swap 0` → **không tạo phân vùng swap**, `fstab` không có dòng swap; có verify
   fail-fast nếu vẫn thấy swap. `--print-config` xem trước cấu hình, `--check` dry-run.

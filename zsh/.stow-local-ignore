@@ -1,5 +1,0 @@
-# SAI: .zcompdump*|*.zwc|*.zwc.old
-# ĐÚNG:
-^\.zcompdump.*$
-^.*\.zwc$
-^.*\.zwc\.old$
